@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Genre Classifier</title>
+
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+
+<style>
+
+body {
+    font-family: Arial;
+    background:#0b0f14;
+    color:#e5e7eb;
+    padding:40px;
+}
+
+.container {
+    max-width:700px;
+    margin:auto;
+}
+
+h1 {
+    margin-bottom:12px;
+}
+
+.subtitle {
+    color:#9ca3af;
+    margin-bottom:24px;
+    line-height:1.5;
+}
+
+.card {
+    padding:20px;
+    border-radius:12px;
+    background:#111827;
+    border:1px solid #1f2937;
+}
+
+button {
+    padding:10px 16px;
+    border-radius:8px;
+    border:none;
+    background:#2563eb;
+    color:white;
+    cursor:pointer;
+}
+
+.result-block {
+    margin-top:25px;
+}
+
+.genre-item {
+    display:flex;
+    justify-content:space-between;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid #2b3440;
+    background:#0f141d;
+    margin-top:8px;
+}
+
+.pretty {
+    margin-bottom:12px;
+    padding:12px;
+    border-radius:10px;
+    border:1px solid #2b3440;
+    background:#0f141d;
+    line-height:1.6;
+}
+
+.error-box {
+    margin-top:20px;
+    padding:12px;
+    border-radius:10px;
+    border:1px solid rgba(255, 107, 107, 0.4);
+    background:#1a1315;
+    color:#ffc4c4;
+    white-space:pre-wrap;
+    word-break:break-word;
+}
+
+.note {
+    color:#9ca3af;
+    font-size:14px;
+    margin-top:12px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Audio Genre Classifier</h1>
+<div class="subtitle">
+  Загрузи аудиофайл до 20 МБ. Сервис нормализует его через ffmpeg, прогонит через модель и вернёт сырые и нормализованные жанры.
+</div>
+
+<div class="card">
+
+<form action="/classify-form" method="post" enctype="multipart/form-data">
+
+<input type="file" name="file" accept=".mp3,.wav,.m4a,.flac,.ogg" required>
+<br><br>
+
+<button type="submit">Анализировать</button>
+
+</form>
+
+{% if error %}
+<div class="error-box">
+Ошибка: {{ error }}
+</div>
+{% endif %}
+
+{% if result %}
+
+<div class="result-block">
+
+<div class="pretty">
+<strong>Нормализованные жанры:</strong><br>
+{{ result.genres_pretty | join(", ") }}
+</div>
+
+<strong>Сырые жанры модели:</strong>
+
+{% for genre in result.genres %}
+<div class="genre-item">
+<span>{{ genre.tag }}</span>
+<span>{{ genre.prob }}</span>
+</div>
+{% endfor %}
+
+<div class="note">
+Показаны верхние теги модели. Нормализованный список специально оставлен мягче, чтобы tidal-parser мог сделать финальную склейку сам.
+</div>
+
+</div>
+
+{% endif %}
+
+</div>
+
+</div>
+
+</body>
+</html>

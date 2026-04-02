@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TIDAL Parser</title>
+  <meta name="theme-color" content="#111318" />
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+  <link rel="alternate icon" href="/static/favicon.svg" />
+  <link rel="apple-touch-icon" href="/static/favicon.svg" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+  <div class="container">
+    <h1>TIDAL Parser</h1>
+    <p class="subtitle">Вставь ссылку TIDAL и, при желании, загрузи mp3-фрагмент для анализа по аудио.</p>
+
+    <form method="post" class="card form-card" enctype="multipart/form-data">
+      <input type="url" name="url" placeholder="https://tidal.com/track/498894205/u" required />
+      <input type="file" name="audio" accept=".mp3,.wav,.m4a,.flac,.ogg" />
+      <input type="hidden" name="force_refresh" value="0" />
+      <button type="submit">Разобрать</button>
+    </form>
+
+    {% if error %}
+    <div class="card error">
+      <strong>Ошибка:</strong>
+      <div>{{ error }}</div>
+    </div>
+    {% endif %}
+
+    {% if result %}
+    <div class="card result">
+      <div class="result-header">
+        <h2>Результат</h2>
+      </div>
+
+      <div class="result-toolbar">
+        {% if result.from_cache %}
+        <div class="badge">Ответ из кэша</div>
+        {% endif %}
+
+        <form method="post" class="inline-form" enctype="multipart/form-data">
+          <input type="hidden" name="url" value="{{ result.source_url }}" />
+          <input type="hidden" name="force_refresh" value="1" />
+          <button type="submit" class="secondary-btn">Обновить без кэша</button>
+        </form>
+
+        <form method="post" action="/clear-cache" class="inline-form">
+          <input type="hidden" name="url" value="{{ result.source_url }}" />
+          <button type="submit" class="secondary-btn danger-btn">Сбросить кэш</button>
+        </form>
+      </div>
+
+      <div class="row">
+        <span class="label">Исполнитель:</span>
+        <span>{{ result.artist or "—" }}</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Название:</span>
+        <span>{{ result.title or "—" }}</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Тип ссылки:</span>
+        <span>{{ result.entity_type or "—" }}</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Тип релиза:</span>
+        <span>{{ result.release_kind or "—" }}</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Год:</span>
+        <span>{{ result.release_year or "—" }}</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Страна:</span>
+        <span>{{ result.artist_country_tag or "—" }}</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Жанры релиза:</span>
+        <span>
+          {% if result.genres and result.genres|length > 0 %}
+          {{ result.genres | join(", ") }}
+          {% else %}
+          —
+          {% endif %}
+        </span>
+      </div>
+
+      <div class="row">
+        <span class="label">TIDAL ID:</span>
+        <span>{{ result.tidal_id }}</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Источник:</span>
+        <span>{{ result.source_name or "—" }}</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Ссылка:</span>
+        <span>
+          {% if result.meta_source_url %}
+          <a href="{{ result.meta_source_url }}" target="_blank" rel="noopener noreferrer">Открыть ссылку</a>
+          {% else %}
+          —
+          {% endif %}
+        </span>
+      </div>
+
+      {% if result.audio_genres_pretty and result.audio_genres_pretty|length > 0 %}
+      <div class="audio-block">
+        <div class="audio-title">Audio genres</div>
+        <div class="pretty-box">{{ result.audio_genres_pretty | join(", ") }}</div>
+      </div>
+      {% endif %}
+
+      {% if result.audio_genres_raw and result.audio_genres_raw|length > 0 %}
+      <div class="audio-block">
+        <div class="audio-title">Сырые жанры модели</div>
+        <div class="genre-list">
+          {% for genre in result.audio_genres_raw %}
+          <div class="genre-item">
+            <span class="genre-tag">{{ genre.tag }}</span>
+            <span class="genre-prob">{{ genre.prob }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if result.final_genres and result.final_genres|length > 0 %}
+      <div class="audio-block">
+        <div class="audio-title">Итоговые жанры</div>
+        <div class="pretty-box">{{ result.final_genres | join(", ") }}</div>
+      </div>
+      {% endif %}
+
+      {% if result.blog_output %}
+      <div class="audio-block">
+        <div class="audio-title">Вывод для блога</div>
+        <div class="blog-output">
+          <div class="blog-line">{{ result.blog_output.line1 }}</div>
+          <div class="blog-line blog-tags">{{ result.blog_output.line2 }}</div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if result.audio_note %}
+      <div class="note">{{ result.audio_note }}</div>
+      {% endif %}
+
+      {% if result.note %}
+      <div class="note">{{ result.note }}</div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</body>
+
+</html>

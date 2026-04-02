@@ -1,0 +1,19 @@
+services:
+  genre-classifier:
+    build: .
+    container_name: genre-classifier
+    restart: unless-stopped
+    ports:
+      - "8021:8021"
+    volumes:
+      - ./app/models:/app/app/models
+      - ./app/tmp:/app/app/tmp
+      - ./app/templates:/app/app/templates
+      - ./app/static:/app/app/static
+      - ./app/main.py:/app/app/main.py
+    networks:
+      - musicnet
+
+networks:
+  musicnet:
+    external: true

@@ -1,0 +1,19 @@
+services:
+  tidal-parser:
+    build: .
+    container_name: tidal-parser
+    restart: unless-stopped
+    ports:
+      - "8011:8000"
+    volumes:
+      - ./app:/app/app
+      - ./data:/app/data
+      - ./requirements.txt:/app/requirements.txt:ro
+    env_file:
+      - .env
+    networks:
+      - musicnet
+
+networks:
+  musicnet:
+    external: true
