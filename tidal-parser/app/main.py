@@ -20,6 +20,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
+from app.pipeline_logging import logger, run_timed_stage, run_timed_stage_sync
 from app.services.discogs import search_discogs_release_metadata
 from app.services.musicbrainz import search_artist_country_tag, search_musicbrainz_release_info
 
@@ -494,58 +495,67 @@ def build_blog_output(result):
 
 
 def classify_audio_file(file_bytes, filename):
-    suffix = Path(filename or "audio.mp3").suffix.lower() or ".bin"
+    def _do():
+        suffix = Path(filename or "audio.mp3").suffix.lower() or ".bin"
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp.write(file_bytes)
-        temp_path = tmp.name
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(file_bytes)
+            temp_path = tmp.name
 
-    try:
-        with open(temp_path, "rb") as f:
-            response = requests.post(
-                AUDIO_CLASSIFIER_URL,
-                files={"file": (filename or "audio{}".format(suffix), f)},
-                timeout=120,
-            )
-        response.raise_for_status()
-        data = response.json()
-
-        raw = data.get("genres", [])
-        pretty = data.get("genres_pretty", [])
-        pretty = pretty or normalize_audio_genres(raw)
-
-        return {"raw": raw, "pretty": pretty}
-    finally:
         try:
-            os.unlink(temp_path)
-        except Exception:
-            pass
+            with open(temp_path, "rb") as f:
+                response = requests.post(
+                    AUDIO_CLASSIFIER_URL,
+                    files={"file": (filename or "audio{}".format(suffix), f)},
+                    timeout=120,
+                )
+            response.raise_for_status()
+            data = response.json()
+
+            raw = data.get("genres", [])
+            pretty = data.get("genres_pretty", [])
+            pretty = pretty or normalize_audio_genres(raw)
+
+            return {"raw": raw, "pretty": pretty}
+        finally:
+            try:
+                os.unlink(temp_path)
+            except Exception:
+                pass
+
+    return run_timed_stage_sync("audio_classifier", _do)
 
 
 async def compute_result(url):
     info = extract_tidal_id(url)
-    tidal_data = await parse_tidal(url)
+    tidal_data = await run_timed_stage("parse_tidal", parse_tidal(url))
 
     release_title = tidal_data.get("title") if info["type"] == "album" else (
         tidal_data.get("album") or tidal_data.get("title")
     )
 
-    discogs_data = await search_discogs_release_metadata(
-        tidal_data.get("artist"),
-        release_title,
+    discogs_data = await run_timed_stage(
+        "discogs",
+        search_discogs_release_metadata(
+            tidal_data.get("artist"),
+            release_title,
+        ),
     )
 
-    mb_data = await search_musicbrainz_release_info(
-        tidal_data.get("artist"),
-        tidal_data.get("title"),
-        tidal_data.get("album"),
-        tidal_data.get("entity_type"),
-    )
+    async def _musicbrainz():
+        mb_data = await search_musicbrainz_release_info(
+            tidal_data.get("artist"),
+            tidal_data.get("title"),
+            tidal_data.get("album"),
+            tidal_data.get("entity_type"),
+        )
+        artist_country_tag = await search_artist_country_tag(
+            tidal_data.get("artist"),
+            mb_data.get("artist_id"),
+        )
+        return mb_data, artist_country_tag
 
-    artist_country_tag = await search_artist_country_tag(
-        tidal_data.get("artist"),
-        mb_data.get("artist_id"),
-    )
+    mb_data, artist_country_tag = await run_timed_stage("musicbrainz", _musicbrainz())
 
     release_year = discogs_data.get("release_year")
     if not release_year and mb_data.get("release_year") and mb_data.get("confidence", 0) >= 0.65:
@@ -587,7 +597,17 @@ async def build_result(url, force_refresh=False, baseline=None):
     cached = get_cached_result(cache_key)
 
     if not force_refresh and cached:
+        logger.info(
+            "event=cache_lookup outcome=hit cache_key=%s",
+            cache_key,
+        )
         return cached
+
+    logger.info(
+        "event=cache_lookup outcome=miss cache_key=%s force_refresh=%s",
+        cache_key,
+        force_refresh,
+    )
 
     previous = baseline or cached
     result = await compute_result(url)

@@ -1,13 +1,15 @@
 import html
+import logging
 import os
 import re
-import unicodedata
 
 import httpx
 
 
 DISCOGS_TOKEN = os.getenv("DISCOGS_TOKEN", "").strip()
 USER_AGENT = "TIDALParser/1.0 (+local app)"
+
+logger = logging.getLogger("tidal_parser")
 
 
 def clean_text(value):
@@ -121,6 +123,7 @@ async def search_discogs_release_metadata(artist, release_title):
             headers=headers,
         )
     except Exception as e:
+        logger.exception("event=discogs_api_error")
         return {
             "genres": [],
             "meta_source_url": None,

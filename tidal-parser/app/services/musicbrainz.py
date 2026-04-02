@@ -1,10 +1,13 @@
 import html
+import logging
 import re
 
 import httpx
 
 
 MUSICBRAINZ_USER_AGENT = "tidal-parser/1.0 (local-app@example.com)"
+
+logger = logging.getLogger("tidal_parser")
 
 COUNTRY_TAG_MAP = {
     "US": "american",
@@ -173,6 +176,7 @@ async def get_artist_country_by_mbid(artist_id):
             {"fmt": "json"},
         )
     except Exception:
+        logger.exception("event=musicbrainz_api_error context=get_artist_country_by_mbid")
         return None
 
     candidates = []
@@ -359,6 +363,7 @@ async def search_musicbrainz_release_info(artist, title, album, entity_type):
         }
 
     except Exception:
+        logger.exception("event=musicbrainz_api_error context=search_musicbrainz_release_info")
         return {
             "release_year": None,
             "release_date": None,
@@ -387,6 +392,7 @@ async def search_artist_country_tag(artist, artist_id=None):
             },
         )
     except Exception:
+        logger.exception("event=musicbrainz_api_error context=search_artist_country_tag")
         return None
 
     artists = data.get("artists", [])
