@@ -180,6 +180,30 @@ def cleanup_file(path):
         pass
 
 
+def process_uploaded_audio(file_bytes: bytes, filename: str):
+    validate_upload(file_bytes, filename)
+    suffix = Path(filename or "").suffix.lower() or ".bin"
+
+    upload_path = None
+    wav_path = None
+
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=str(TMP_DIR)) as tmp_upload:
+            tmp_upload.write(file_bytes)
+            upload_path = Path(tmp_upload.name)
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav", dir=str(TMP_DIR)) as tmp_wav:
+            wav_path = Path(tmp_wav.name)
+
+        normalize_audio_file(upload_path, wav_path)
+        genres = run_genre_classification(wav_path)
+        normalized = normalize_genres(genres)
+        return genres, normalized
+    finally:
+        cleanup_file(upload_path)
+        cleanup_file(wav_path)
+
+
 @app.get("/")
 def index(request: Request):
     return templates.TemplateResponse(
@@ -200,25 +224,9 @@ def health():
 @app.post("/classify")
 async def classify(file: UploadFile = File(...)):
     file_bytes = await file.read()
-    validate_upload(file_bytes, file.filename or "")
-
-    suffix = Path(file.filename or "").suffix.lower() or ".bin"
-
-    upload_path = None
-    wav_path = None
 
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=str(TMP_DIR)) as tmp_upload:
-            tmp_upload.write(file_bytes)
-            upload_path = Path(tmp_upload.name)
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav", dir=str(TMP_DIR)) as tmp_wav:
-            wav_path = Path(tmp_wav.name)
-
-        normalize_audio_file(upload_path, wav_path)
-        genres = run_genre_classification(wav_path)
-        normalized = normalize_genres(genres)
-
+        genres, normalized = process_uploaded_audio(file_bytes, file.filename or "")
     except Exception as e:
         return JSONResponse(
             {
@@ -227,9 +235,6 @@ async def classify(file: UploadFile = File(...)):
             },
             status_code=400
         )
-    finally:
-        cleanup_file(upload_path)
-        cleanup_file(wav_path)
 
     return {
         "ok": True,
@@ -243,24 +248,8 @@ async def classify(file: UploadFile = File(...)):
 async def classify_form(request: Request, file: UploadFile = File(...)):
     file_bytes = await file.read()
 
-    upload_path = None
-    wav_path = None
-
     try:
-        validate_upload(file_bytes, file.filename or "")
-        suffix = Path(file.filename or "").suffix.lower() or ".bin"
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=str(TMP_DIR)) as tmp_upload:
-            tmp_upload.write(file_bytes)
-            upload_path = Path(tmp_upload.name)
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav", dir=str(TMP_DIR)) as tmp_wav:
-            wav_path = Path(tmp_wav.name)
-
-        normalize_audio_file(upload_path, wav_path)
-        genres = run_genre_classification(wav_path)
-        normalized = normalize_genres(genres)
-
+        genres, normalized = process_uploaded_audio(file_bytes, file.filename or "")
     except Exception as e:
         return templates.TemplateResponse(
             "index.html",
@@ -271,9 +260,6 @@ async def classify_form(request: Request, file: UploadFile = File(...)):
             },
             status_code=400
         )
-    finally:
-        cleanup_file(upload_path)
-        cleanup_file(wav_path)
 
     result = {
         "message": "Аудио проанализировано",
