@@ -4,6 +4,7 @@ import subprocess
 import json
 import os
 import tempfile
+import logging
 
 import numpy as np
 from fastapi import FastAPI, File, Request, UploadFile
@@ -35,6 +36,13 @@ app.mount(
 )
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+logger = logging.getLogger("genre_classifier")
+
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s"
+    )
 
 
 def normalize_audio_file(input_path: Path, output_path: Path):
@@ -181,7 +189,25 @@ def cleanup_file(path):
 
 
 def process_uploaded_audio(file_bytes: bytes, filename: str):
-    validate_upload(file_bytes, filename)
+    safe_filename = filename or ""
+    file_size = len(file_bytes)
+    logger.info(
+        "event=file_processing_started filename=%s size_bytes=%d",
+        safe_filename,
+        file_size
+    )
+
+    try:
+        validate_upload(file_bytes, safe_filename)
+    except Exception as e:
+        logger.warning(
+            "event=validation_error filename=%s size_bytes=%d error=%s",
+            safe_filename,
+            file_size,
+            str(e)
+        )
+        raise
+
     suffix = Path(filename or "").suffix.lower() or ".bin"
 
     upload_path = None
@@ -195,9 +221,24 @@ def process_uploaded_audio(file_bytes: bytes, filename: str):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav", dir=str(TMP_DIR)) as tmp_wav:
             wav_path = Path(tmp_wav.name)
 
-        normalize_audio_file(upload_path, wav_path)
+        try:
+            normalize_audio_file(upload_path, wav_path)
+        except Exception as e:
+            logger.error(
+                "event=ffmpeg_error filename=%s size_bytes=%d error=%s",
+                safe_filename,
+                file_size,
+                str(e)
+            )
+            raise
+
         genres = run_genre_classification(wav_path)
         normalized = normalize_genres(genres)
+        logger.info(
+            "event=file_processing_succeeded filename=%s size_bytes=%d",
+            safe_filename,
+            file_size
+        )
         return genres, normalized
     finally:
         cleanup_file(upload_path)
