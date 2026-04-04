@@ -13,3 +13,5 @@ genre-classifier/app/tmp/
 
 genre-classifier/app/models/*.pb
 genre-classifier/app/models/*.json
+
+.codex
