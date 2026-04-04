@@ -94,6 +94,38 @@ def build_cache_key(url):
     return url.strip().lower()
 
 
+def _is_valid_cached_payload(payload):
+    if not isinstance(payload, dict):
+        return False
+
+    if not isinstance(payload.get("source_url"), str) or not payload.get("source_url").strip():
+        return False
+
+    if not isinstance(payload.get("entity_type"), str) or not payload.get("entity_type").strip():
+        return False
+
+    if not isinstance(payload.get("tidal_id"), (str, int)):
+        return False
+
+    for field in ("genres", "audio_genres_raw", "audio_genres_pretty", "final_genres"):
+        value = payload.get(field)
+        if value is not None and not isinstance(value, list):
+            return False
+
+    blog_output = payload.get("blog_output")
+    if blog_output is not None and not isinstance(blog_output, dict):
+        return False
+
+    return True
+
+
+def _build_cache_payload(result):
+    payload = dict(result)
+    payload.pop("from_cache", None)
+    payload.pop("audio_note", None)
+    return payload
+
+
 def get_cached_result(cache_key):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -109,13 +141,15 @@ def get_cached_result(cache_key):
     except Exception:
         return None
 
+    if not _is_valid_cached_payload(payload):
+        return None
+
     payload["from_cache"] = True
     return payload
 
 
 def save_cached_result(result):
-    payload = dict(result)
-    payload["from_cache"] = False
+    payload = _build_cache_payload(result)
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -595,6 +629,8 @@ async def compute_result(url):
 async def build_result(url, force_refresh=False, baseline=None):
     cache_key = build_cache_key(url)
     cached = get_cached_result(cache_key)
+    if baseline is not None and not _is_valid_cached_payload(baseline):
+        baseline = None
 
     if not force_refresh and cached:
         logger.info(
@@ -651,7 +687,6 @@ async def parse_form(
                 result["blog_output"] = build_blog_output(result)
                 result["from_cache"] = False
                 result["audio_note"] = None
-                save_cached_result(result)
         elif force_refresh == "1":
             result["audio_note"] = "Обновление без кэша не повторяет аудио-анализ. Если нужен новый audio-анализ, загрузи файл заново."
 
