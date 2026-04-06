@@ -1,3 +1,4 @@
+import asyncio
 import html
 import json
 import os
@@ -676,7 +677,11 @@ async def parse_form(
         if audio and audio.filename:
             audio_bytes = await audio.read()
             if audio_bytes:
-                audio_info = classify_audio_file(audio_bytes, audio.filename)
+                audio_info = await asyncio.to_thread(
+                    classify_audio_file,
+                    audio_bytes,
+                    audio.filename,
+                )
                 result["audio_genres_raw"] = audio_info.get("raw", [])
                 result["audio_genres_pretty"] = audio_info.get("pretty", [])
                 result["final_genres"] = merge_final_genres(

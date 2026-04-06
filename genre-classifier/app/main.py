@@ -1,3 +1,5 @@
+import asyncio
+from functools import partial
 from pathlib import Path
 import shutil
 import subprocess
@@ -267,7 +269,11 @@ async def classify(file: UploadFile = File(...)):
     file_bytes = await file.read()
 
     try:
-        genres, normalized = process_uploaded_audio(file_bytes, file.filename or "")
+        loop = asyncio.get_event_loop()
+        genres, normalized = await loop.run_in_executor(
+            None,
+            partial(process_uploaded_audio, file_bytes, file.filename or ""),
+        )
     except Exception as e:
         return JSONResponse(
             {
@@ -290,7 +296,11 @@ async def classify_form(request: Request, file: UploadFile = File(...)):
     file_bytes = await file.read()
 
     try:
-        genres, normalized = process_uploaded_audio(file_bytes, file.filename or "")
+        loop = asyncio.get_event_loop()
+        genres, normalized = await loop.run_in_executor(
+            None,
+            partial(process_uploaded_audio, file_bytes, file.filename or ""),
+        )
     except Exception as e:
         return templates.TemplateResponse(
             "index.html",
