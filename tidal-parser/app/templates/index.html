@@ -18,8 +18,9 @@
     <p class="subtitle">Вставь ссылку TIDAL и, при желании, загрузи mp3-фрагмент для анализа по аудио.</p>
 
     <form method="post" class="card form-card" enctype="multipart/form-data">
-      <input type="url" name="url" placeholder="https://tidal.com/track/498894205/u" required />
+      <input type="url" name="url" placeholder="https://tidal.com/track/498894205/u" value="{{ form_url or '' }}" required />
       <input type="file" name="audio" accept=".mp3,.wav,.m4a,.flac,.ogg" />
+      <div class="note">После отправки браузер очищает поле файла. Если нужен повторный audio-анализ, выбери файл заново.</div>
       <input type="hidden" name="force_refresh" value="0" />
       <button type="submit">Разобрать</button>
     </form>

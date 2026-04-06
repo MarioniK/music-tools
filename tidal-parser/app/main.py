@@ -61,6 +61,7 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
             "request": request,
             "result": None,
             "error": "Слишком много запросов. Подожди немного и попробуй снова.",
+            "form_url": request.query_params.get("url", ""),
         },
         status_code=429,
     )
@@ -659,7 +660,7 @@ async def build_result(url, force_refresh=False, baseline=None):
 async def index(request: Request):
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "result": None, "error": None},
+        {"request": request, "result": None, "error": None, "form_url": ""},
     )
 
 
@@ -697,12 +698,12 @@ async def parse_form(
 
         return templates.TemplateResponse(
             "index.html",
-            {"request": request, "result": result, "error": None},
+            {"request": request, "result": result, "error": None, "form_url": url},
         )
     except Exception as e:
         return templates.TemplateResponse(
             "index.html",
-            {"request": request, "result": None, "error": str(e)},
+            {"request": request, "result": None, "error": str(e), "form_url": url},
             status_code=400,
         )
 
@@ -718,14 +719,14 @@ async def clear_cache(request: Request, url: str = Form(...)):
         result["audio_note"] = "Кэш пересобран безопасно: если свежий матч оказался слабее, сохранены лучшие найденные данные."
         return templates.TemplateResponse(
             "index.html",
-            {"request": request, "result": result, "error": None},
+            {"request": request, "result": result, "error": None, "form_url": url},
         )
     except Exception as e:
         if old_cached:
             old_cached["audio_note"] = "Не удалось безопасно пересобрать кэш. Показан последний хороший результат."
             return templates.TemplateResponse(
                 "index.html",
-                {"request": request, "result": old_cached, "error": str(e)},
+                {"request": request, "result": old_cached, "error": str(e), "form_url": url},
                 status_code=400,
             )
 
