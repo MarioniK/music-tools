@@ -8,6 +8,7 @@ import httpx
 
 DISCOGS_TOKEN = os.getenv("DISCOGS_TOKEN", "").strip()
 USER_AGENT = "TIDALParser/1.0 (+local app)"
+DISCOGS_RANK_LIMIT = 5
 
 logger = logging.getLogger("tidal_parser")
 
@@ -78,6 +79,52 @@ def unique_clean_tags(tags):
     return result[:8]
 
 
+def score_similarity(a, b):
+    a = (clean_text(a) or "").lower()
+    b = (clean_text(b) or "").lower()
+
+    if not a or not b:
+        return 0
+
+    if a == b:
+        return 100
+
+    if a in b or b in a:
+        return 70
+
+    a_words = set(re.findall(r"[^\W_]+", a, flags=re.UNICODE))
+    b_words = set(re.findall(r"[^\W_]+", b, flags=re.UNICODE))
+    if not a_words or not b_words:
+        return 0
+
+    overlap = len(a_words & b_words)
+    total = len(a_words | b_words)
+    return int((overlap / float(total)) * 100)
+
+
+def _parse_search_result_title(raw_title):
+    title = clean_text(raw_title)
+    if not title:
+        return None, None
+
+    parts = title.split(" - ", 1)
+    if len(parts) == 2:
+        return clean_text(parts[0]), clean_text(parts[1])
+
+    return None, title
+
+
+def rank_discogs_candidate(candidate, artist, release_title):
+    candidate_artist, candidate_title = _parse_search_result_title(candidate.get("title"))
+
+    title_score = score_similarity(release_title, candidate_title or candidate.get("title"))
+    artist_score = score_similarity(artist, candidate_artist)
+    exact_bonus = 20 if title_score == 100 and artist_score == 100 else 0
+    partial_bonus = 10 if title_score >= 70 and artist_score >= 70 else 0
+
+    return title_score + artist_score + exact_bonus + partial_bonus
+
+
 async def fetch_json(url, params, headers=None):
     req_headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
     if headers:
@@ -87,6 +134,35 @@ async def fetch_json(url, params, headers=None):
         response = await client.get(url, params=params, follow_redirects=True)
         response.raise_for_status()
         return response.json()
+
+
+def _extract_release_tags(payload):
+    raw_tags = []
+
+    for field in ("genres", "styles", "genre", "style"):
+        values = payload.get(field, [])
+        if isinstance(values, list):
+            raw_tags.extend(values)
+
+    return unique_clean_tags(raw_tags)
+
+
+def _detail_matches_release(payload, artist, release_title):
+    detail_title = payload.get("title")
+    detail_artist = None
+
+    artists = payload.get("artists", [])
+    if artists and isinstance(artists[0], dict):
+        detail_artist = clean_text(
+            artists[0].get("name")
+            or artists[0].get("anv")
+            or artists[0].get("sort_name")
+        )
+
+    title_score = score_similarity(release_title, detail_title)
+    artist_score = score_similarity(artist, detail_artist)
+
+    return title_score >= 70 and artist_score >= 70
 
 
 async def search_discogs_release_metadata(artist, release_title):
@@ -122,18 +198,64 @@ async def search_discogs_release_metadata(artist, release_title):
             },
             headers=headers,
         )
-    except Exception as e:
-        logger.exception("event=discogs_api_error")
+    except httpx.TimeoutException as e:
+        logger.warning(
+            "event=discogs_lookup outcome=timeout context=search artist=%s release_title=%s candidates_count=0 selected_candidate_score=%s detail_validation_passed=%s error=%s",
+            artist,
+            release_title,
+            None,
+            None,
+            e,
+        )
         return {
             "genres": [],
             "meta_source_url": None,
             "source_name": "Discogs",
-            "note": "Ошибка запроса к Discogs: {}".format(e),
+            "note": "Таймаут запроса к Discogs: {}".format(e),
+            "release_year": None,
+        }
+    except httpx.HTTPStatusError as e:
+        logger.warning(
+            "event=discogs_lookup outcome=http_error context=search artist=%s release_title=%s candidates_count=0 selected_candidate_score=%s detail_validation_passed=%s status=%s error=%s",
+            artist,
+            release_title,
+            None,
+            None,
+            e.response.status_code,
+            e,
+        )
+        return {
+            "genres": [],
+            "meta_source_url": None,
+            "source_name": "Discogs",
+            "note": "HTTP ошибка Discogs: {}".format(e),
+            "release_year": None,
+        }
+    except Exception as e:
+        logger.exception(
+            "event=discogs_lookup outcome=unexpected_error context=search artist=%s release_title=%s candidates_count=0 selected_candidate_score=%s detail_validation_passed=%s",
+            artist,
+            release_title,
+            None,
+            None,
+        )
+        return {
+            "genres": [],
+            "meta_source_url": None,
+            "source_name": "Discogs",
+            "note": "Неожиданная ошибка Discogs: {}".format(e),
             "release_year": None,
         }
 
     results = search_data.get("results", [])
     if not results:
+        logger.info(
+            "event=discogs_lookup outcome=not_found artist=%s release_title=%s candidates_count=0 selected_candidate_score=%s detail_validation_passed=%s",
+            artist,
+            release_title,
+            None,
+            None,
+        )
         return {
             "genres": [],
             "meta_source_url": None,
@@ -142,23 +264,123 @@ async def search_discogs_release_metadata(artist, release_title):
             "release_year": None,
         }
 
-    best = results[0]
-    raw_tags = []
+    ranked_candidates = results[:DISCOGS_RANK_LIMIT]
+    ranked_results = sorted(
+        ranked_candidates,
+        key=lambda item: rank_discogs_candidate(item, artist, release_title),
+        reverse=True,
+    )
+    best = ranked_results[0]
+    best_score = rank_discogs_candidate(best, artist, release_title)
 
-    for field in ("genre", "style"):
-        values = best.get(field, [])
-        if isinstance(values, list):
-            raw_tags.extend(values)
+    detail_url = best.get("resource_url")
+    if not detail_url:
+        logger.info(
+            "event=discogs_lookup outcome=not_found artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s detail_validation_passed=%s",
+            artist,
+            release_title,
+            len(ranked_candidates),
+            best_score,
+            None,
+        )
+        return {
+            "genres": [],
+            "meta_source_url": None,
+            "source_name": "Discogs",
+            "note": "Discogs нашёл кандидата, но detail lookup недоступен.",
+            "release_year": None,
+        }
 
-    genres = unique_clean_tags(raw_tags)
+    try:
+        detail = await fetch_json(detail_url, {}, headers=headers)
+    except httpx.TimeoutException as e:
+        logger.warning(
+            "event=discogs_lookup outcome=timeout context=detail artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s detail_validation_passed=%s error=%s",
+            artist,
+            release_title,
+            len(ranked_candidates),
+            best_score,
+            None,
+            e,
+        )
+        return {
+            "genres": [],
+            "meta_source_url": None,
+            "source_name": "Discogs",
+            "note": "Таймаут detail lookup Discogs: {}".format(e),
+            "release_year": None,
+        }
+    except httpx.HTTPStatusError as e:
+        logger.warning(
+            "event=discogs_lookup outcome=http_error context=detail artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s detail_validation_passed=%s status=%s error=%s",
+            artist,
+            release_title,
+            len(ranked_candidates),
+            best_score,
+            None,
+            e.response.status_code,
+            e,
+        )
+        return {
+            "genres": [],
+            "meta_source_url": None,
+            "source_name": "Discogs",
+            "note": "HTTP ошибка detail lookup Discogs: {}".format(e),
+            "release_year": None,
+        }
+    except Exception as e:
+        logger.exception(
+            "event=discogs_lookup outcome=unexpected_error context=detail artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s detail_validation_passed=%s",
+            artist,
+            release_title,
+            len(ranked_candidates),
+            best_score,
+            None,
+        )
+        return {
+            "genres": [],
+            "meta_source_url": None,
+            "source_name": "Discogs",
+            "note": "Неожиданная ошибка detail lookup Discogs: {}".format(e),
+            "release_year": None,
+        }
 
-    year = best.get("year")
+    detail_validation_passed = _detail_matches_release(detail, artist, release_title)
+    if not detail_validation_passed:
+        logger.info(
+            "event=discogs_lookup outcome=not_found artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s detail_validation_passed=%s",
+            artist,
+            release_title,
+            len(ranked_candidates),
+            best_score,
+            False,
+        )
+        return {
+            "genres": [],
+            "meta_source_url": None,
+            "source_name": "Discogs",
+            "note": "Discogs нашёл кандидата, но detail lookup не подтвердил совпадение релиза.",
+            "release_year": None,
+        }
+
+    genres = _extract_release_tags(detail)
+
+    year = detail.get("year")
     if isinstance(year, int) and year <= 0:
         year = None
 
-    source_url = best.get("uri")
+    source_url = detail.get("uri") or best.get("uri")
     if source_url and source_url.startswith("/"):
         source_url = "https://www.discogs.com{}".format(source_url)
+
+    logger.info(
+        "event=discogs_lookup outcome=success artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s detail_validation_passed=%s",
+        artist,
+        release_title,
+        len(ranked_candidates),
+        best_score,
+        True,
+    )
 
     return {
         "genres": genres,
