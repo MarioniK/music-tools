@@ -185,6 +185,63 @@ async def test_parse_form_does_not_save_audio_result_to_cache(monkeypatch):
     assert save_calls == []
 
 
+@pytest.mark.asyncio
+async def test_compute_result_ignores_musicbrainz_failure_but_still_looks_up_country_by_artist(monkeypatch):
+    country_calls = []
+
+    async def fake_run_timed_stage(stage, coro):
+        return await coro
+
+    async def fake_parse_tidal(url):
+        return {
+            "source_url": url,
+            "entity_type": "track",
+            "tidal_id": "123",
+            "artist": "Artist",
+            "title": "Track Title",
+            "album": "Album Title",
+        }
+
+    async def fake_search_discogs_release_metadata(artist, release_title):
+        return {
+            "genres": ["rock"],
+            "meta_source_url": "https://example.com/discogs",
+            "source_name": "Discogs",
+            "note": None,
+            "release_year": 2024,
+        }
+
+    async def fake_search_musicbrainz_release_info(artist, title, album, entity_type):
+        return {
+            "release_year": 1999,
+            "release_date": "1999-01-01",
+            "release_kind": "ep",
+            "artist_id": "mbid-1",
+            "confidence": 0.99,
+            "outcome": "timeout",
+        }
+
+    async def fake_search_artist_country_tag(artist, artist_id=None):
+        country_calls.append((artist, artist_id))
+        return "american"
+
+    monkeypatch.setattr(main, "run_timed_stage", fake_run_timed_stage)
+    monkeypatch.setattr(main, "parse_tidal", fake_parse_tidal)
+    monkeypatch.setattr(main, "search_discogs_release_metadata", fake_search_discogs_release_metadata)
+    monkeypatch.setattr(main, "search_musicbrainz_release_info", fake_search_musicbrainz_release_info)
+    monkeypatch.setattr(main, "search_artist_country_tag", fake_search_artist_country_tag)
+
+    result = await main.compute_result("https://tidal.com/browse/track/123")
+
+    assert result["release_year"] == 2024
+    assert result["release_kind"] == "single"
+    assert result["artist_country_tag"] == "american"
+    assert result["genres"] == ["rock"]
+    assert result["source_name"] == "Discogs"
+    assert "outcome" not in result
+    assert country_calls == [("Artist", None)]
+
+
 def test_merge_prefer_better_does_not_preserve_stale_note():
     old_result = _valid_result()
     old_result["note"] = "stale note"

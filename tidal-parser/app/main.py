@@ -609,25 +609,32 @@ async def compute_result(url):
             tidal_data.get("album"),
             tidal_data.get("entity_type"),
         )
-        artist_country_tag = await search_artist_country_tag(
-            tidal_data.get("artist"),
-            mb_data.get("artist_id"),
-        )
+        artist_country_tag = None
+        if mb_data.get("outcome") == "success" and mb_data.get("artist_id"):
+            artist_country_tag = await search_artist_country_tag(
+                tidal_data.get("artist"),
+                mb_data.get("artist_id"),
+            )
+        else:
+            artist_country_tag = await search_artist_country_tag(
+                tidal_data.get("artist"),
+            )
         return mb_data, artist_country_tag
 
     mb_data, artist_country_tag = await run_timed_stage("musicbrainz", _musicbrainz())
+    mb_success = mb_data.get("outcome") == "success"
 
     release_year = discogs_data.get("release_year")
-    if not release_year and mb_data.get("release_year") and mb_data.get("confidence", 0) >= 0.65:
+    if not release_year and mb_success and mb_data.get("release_year") and mb_data.get("confidence", 0) >= 0.65:
         release_year = mb_data.get("release_year")
 
     if tidal_data.get("entity_type") == "album":
         release_kind = "album"
-        if mb_data.get("release_kind") in ["album", "ep"]:
+        if mb_success and mb_data.get("release_kind") in ["album", "ep"]:
             release_kind = mb_data.get("release_kind")
     else:
         release_kind = "single"
-        if mb_data.get("release_kind") in ["single", "ep"] and mb_data.get("confidence", 0) >= 0.75:
+        if mb_success and mb_data.get("release_kind") in ["single", "ep"] and mb_data.get("confidence", 0) >= 0.75:
             release_kind = mb_data.get("release_kind")
 
     result = {
