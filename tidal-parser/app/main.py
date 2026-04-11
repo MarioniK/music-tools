@@ -223,7 +223,7 @@ def score_similarity(a, b):
 
 
 def metadata_quality_score(result):
-    score = 0
+    score = _genre_metadata_quality_score(result)
 
     if result.get("release_year"):
         score += 30
@@ -237,17 +237,35 @@ def metadata_quality_score(result):
     if result.get("mb_release_date"):
         score += 10
 
-    genres = result.get("genres") or []
-    score += min(len(genres) * 3, 15)
-
-    if result.get("meta_source_url"):
-        score += 5
-
     confidence = result.get("mb_confidence")
     if isinstance(confidence, (int, float)):
         score += int(confidence * 10)
 
     return score
+
+
+def _genre_metadata_quality_score(result):
+    score = 0
+    genres = result.get("genres") or []
+    if genres:
+        score += min(len(genres) * 3, 15)
+
+        if result.get("meta_source_url"):
+            score += 5
+
+    return score
+
+
+def _apply_genre_metadata_block(target, source):
+    genres = source.get("genres") or []
+    if genres:
+        target["genres"] = genres
+        target["source_name"] = source.get("source_name")
+        target["meta_source_url"] = source.get("meta_source_url")
+    else:
+        target["genres"] = []
+        target["source_name"] = None
+        target["meta_source_url"] = None
 
 
 def merge_prefer_better(old_result, new_result):
@@ -256,6 +274,8 @@ def merge_prefer_better(old_result, new_result):
 
     old_score = metadata_quality_score(old_result)
     new_score = metadata_quality_score(new_result)
+    old_genre_score = _genre_metadata_quality_score(old_result)
+    new_genre_score = _genre_metadata_quality_score(new_result)
 
     merged = dict(new_result)
 
@@ -265,9 +285,6 @@ def merge_prefer_better(old_result, new_result):
         "release_kind",
         "mb_release_date",
         "mb_confidence",
-        "meta_source_url",
-        "source_name",
-        "note",
     ]
 
     for field in fields_to_preserve:
@@ -278,15 +295,22 @@ def merge_prefer_better(old_result, new_result):
             merged[field] = old_value
 
     if old_result.get("genres") and not merged.get("genres"):
-        merged["genres"] = old_result["genres"]
+        _apply_genre_metadata_block(merged, old_result)
+    elif not merged.get("genres"):
+        merged["source_name"] = None
+        merged["meta_source_url"] = None
 
     if old_score > new_score:
         for field in fields_to_preserve:
             if old_result.get(field) not in (None, "", [], {}):
                 merged[field] = old_result.get(field)
 
-        if old_result.get("genres"):
-            merged["genres"] = old_result["genres"]
+        if old_genre_score > new_genre_score:
+            _apply_genre_metadata_block(merged, old_result)
+
+    if not merged.get("genres"):
+        merged["source_name"] = None
+        merged["meta_source_url"] = None
 
     return merged
 
