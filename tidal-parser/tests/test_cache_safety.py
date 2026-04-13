@@ -47,6 +47,7 @@ def _valid_result():
         "source_name": "Discogs",
         "note": None,
         "release_year": 2024,
+        "country": "United States",
         "artist_country_tag": "american",
         "release_kind": "single",
         "mb_release_date": "2024-01-01",
@@ -104,6 +105,56 @@ def test_get_cached_result_returns_none_for_invalid_payload(tmp_path, monkeypatc
     assert main.get_cached_result("key") is None
 
 
+def test_get_cached_result_normalizes_legacy_country_fields(tmp_path, monkeypatch):
+    db_path = _make_test_db(tmp_path)
+    monkeypatch.setattr(main, "get_db_connection", _db_connection_factory(db_path))
+
+    legacy_payload = _valid_result()
+    legacy_payload.pop("country")
+
+    conn = main.get_db_connection()
+    conn.execute(
+        "INSERT INTO parsed_cache (cache_key, payload_json, created_at) VALUES (?, ?, ?)",
+        ("key", json.dumps(legacy_payload), 1),
+    )
+    conn.commit()
+    conn.close()
+
+    cached = main.get_cached_result("key")
+
+    assert cached["country"] == "United States"
+    assert cached["artist_country_tag"] == "american"
+    assert "country_tag" not in cached
+
+
+def test_get_cached_result_rebuilds_blog_output_from_final_cached_fields(tmp_path, monkeypatch):
+    db_path = _make_test_db(tmp_path)
+    monkeypatch.setattr(main, "get_db_connection", _db_connection_factory(db_path))
+
+    stale_payload = _valid_result()
+    stale_payload["release_year"] = 2002
+    stale_payload["country"] = "United States"
+    stale_payload["artist_country_tag"] = "american"
+    stale_payload["blog_output"] = {
+        "line1": "Artist - Title (2016)",
+        "line2": "#music #music2016 #artist #djdrugfm",
+    }
+
+    conn = main.get_db_connection()
+    conn.execute(
+        "INSERT INTO parsed_cache (cache_key, payload_json, created_at) VALUES (?, ?, ?)",
+        ("key", json.dumps(stale_payload), 1),
+    )
+    conn.commit()
+    conn.close()
+
+    cached = main.get_cached_result("key")
+
+    assert "#american" in cached["blog_output"]["line2"]
+    assert "#music2002" in cached["blog_output"]["line2"]
+    assert "#music2016" not in cached["blog_output"]["line2"]
+
+
 def test_save_cached_result_does_not_persist_transient_fields(tmp_path, monkeypatch):
     db_path = _make_test_db(tmp_path)
     monkeypatch.setattr(main, "get_db_connection", _db_connection_factory(db_path))
@@ -121,11 +172,20 @@ def test_save_cached_result_does_not_persist_transient_fields(tmp_path, monkeypa
     payload = json.loads(row["payload_json"])
     assert "from_cache" not in payload
     assert "audio_note" not in payload
+    assert payload["country"] == "United States"
+    assert payload["artist_country_tag"] == "american"
+    assert "country_tag" not in payload
+    assert "#american" in payload["blog_output"]["line2"]
+    assert "#music2024" in payload["blog_output"]["line2"]
 
 
 @pytest.mark.asyncio
 async def test_build_result_ignores_invalid_baseline(monkeypatch):
     computed = _valid_result()
+    computed["blog_output"] = {
+        "line1": "stale line",
+        "line2": "#music #music2016 #djdrugfm",
+    }
     saved = []
 
     async def fake_compute_result(url):
@@ -141,8 +201,68 @@ async def test_build_result_ignores_invalid_baseline(monkeypatch):
         baseline={"broken": True},
     )
 
-    assert result == computed
-    assert saved == [computed]
+    assert result["source_url"] == computed["source_url"]
+    assert result["entity_type"] == computed["entity_type"]
+    assert result["tidal_id"] == computed["tidal_id"]
+    assert result["artist"] == computed["artist"]
+    assert result["title"] == computed["title"]
+    assert result["album"] == computed["album"]
+    assert result["genres"] == computed["genres"]
+    assert result["release_year"] == computed["release_year"]
+    assert result["country"] == computed["country"]
+    assert result["artist_country_tag"] == computed["artist_country_tag"]
+    assert result["release_kind"] == computed["release_kind"]
+    assert result["mb_release_date"] == computed["mb_release_date"]
+    assert result["mb_confidence"] == computed["mb_confidence"]
+    assert result["final_genres"] == computed["final_genres"]
+    assert "#american" in result["blog_output"]["line2"]
+    assert "#music2024" in result["blog_output"]["line2"]
+    assert "#music2016" not in result["blog_output"]["line2"]
+
+    assert len(saved) == 1
+    assert saved[0]["release_year"] == result["release_year"]
+    assert saved[0]["country"] == result["country"]
+    assert saved[0]["artist_country_tag"] == result["artist_country_tag"]
+    assert saved[0]["blog_output"] == result["blog_output"]
+
+
+@pytest.mark.asyncio
+async def test_build_result_rebuilds_blog_output_after_merge(monkeypatch):
+    computed = _valid_result()
+    computed["release_year"] = None
+    computed["country"] = None
+    computed["artist_country_tag"] = None
+    computed["blog_output"] = {
+        "line1": "Artist - Title",
+        "line2": "#music #music2016 #artist #djdrugfm",
+    }
+
+    baseline = _valid_result()
+    baseline["release_year"] = 2002
+    baseline["country"] = "United States"
+    baseline["artist_country_tag"] = "american"
+
+    saved = []
+
+    async def fake_compute_result(url):
+        return dict(computed)
+
+    monkeypatch.setattr(main, "compute_result", fake_compute_result)
+    monkeypatch.setattr(main, "get_cached_result", lambda cache_key: None)
+    monkeypatch.setattr(main, "save_cached_result", lambda result: saved.append(dict(result)))
+
+    result = await main.build_result(
+        computed["source_url"],
+        force_refresh=True,
+        baseline=baseline,
+    )
+
+    assert result["release_year"] == 2002
+    assert result["country"] == "United States"
+    assert result["artist_country_tag"] == "american"
+    assert "#american" in result["blog_output"]["line2"]
+    assert "#music2002" in result["blog_output"]["line2"]
+    assert "#music2016" not in result["blog_output"]["line2"]
 
 
 @pytest.mark.asyncio
@@ -235,6 +355,7 @@ async def test_compute_result_ignores_musicbrainz_failure_but_still_looks_up_cou
 
     assert result["release_year"] == 2024
     assert result["release_kind"] == "single"
+    assert result["country"] == "United States"
     assert result["artist_country_tag"] == "american"
     assert result["genres"] == ["rock"]
     assert result["source_name"] == "Discogs"
@@ -242,10 +363,20 @@ async def test_compute_result_ignores_musicbrainz_failure_but_still_looks_up_cou
     assert country_calls == [("Artist", None)]
 
 
+def test_build_blog_output_uses_country_tag_not_display_country():
+    result = _valid_result()
+
+    blog_output = main.build_blog_output(result)
+
+    assert "#american" in blog_output["line2"]
+    assert "#unitedstates" not in blog_output["line2"]
+
+
 def test_merge_prefer_better_does_not_preserve_stale_note():
     old_result = _valid_result()
     old_result["note"] = "stale note"
     old_result["release_year"] = None
+    old_result["country"] = None
     old_result["artist_country_tag"] = None
     old_result["release_kind"] = None
     old_result["mb_release_date"] = None
@@ -266,6 +397,7 @@ def test_merge_prefer_better_keeps_stronger_metadata():
     old_result = _valid_result()
     new_result = _valid_result()
     new_result["release_year"] = None
+    new_result["country"] = None
     new_result["artist_country_tag"] = None
     new_result["mb_release_date"] = None
     new_result["mb_confidence"] = 0.0
@@ -276,6 +408,7 @@ def test_merge_prefer_better_keeps_stronger_metadata():
     merged = main.merge_prefer_better(old_result, new_result)
 
     assert merged["release_year"] == old_result["release_year"]
+    assert merged["country"] == old_result["country"]
     assert merged["artist_country_tag"] == old_result["artist_country_tag"]
     assert merged["genres"] == old_result["genres"]
 
@@ -306,6 +439,7 @@ def test_merge_prefer_better_preserves_best_metadata_block_as_unit():
 
     new_result = _valid_result()
     new_result["release_year"] = None
+    new_result["country"] = None
     new_result["artist_country_tag"] = None
     new_result["mb_release_date"] = None
     new_result["mb_confidence"] = 0.0
@@ -342,6 +476,7 @@ def test_merge_prefer_better_keeps_better_new_genre_block_even_if_old_metadata_w
     merged = main.merge_prefer_better(old_result, new_result)
 
     assert merged["release_year"] == old_result["release_year"]
+    assert merged["country"] == old_result["country"]
     assert merged["artist_country_tag"] == old_result["artist_country_tag"]
     assert merged["genres"] == new_result["genres"]
     assert merged["source_name"] == new_result["source_name"]

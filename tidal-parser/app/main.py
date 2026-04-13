@@ -23,7 +23,11 @@ from slowapi.util import get_remote_address
 
 from app.pipeline_logging import logger, run_timed_stage, run_timed_stage_sync
 from app.services.discogs import search_discogs_release_metadata
-from app.services.musicbrainz import search_artist_country_tag, search_musicbrainz_release_info
+from app.services.musicbrainz import (
+    country_display_from_tag,
+    search_artist_country_tag,
+    search_musicbrainz_release_info,
+)
 
 
 APP_DIR = Path("/app")
@@ -121,8 +125,25 @@ def _is_valid_cached_payload(payload):
     return True
 
 
+def _normalize_country_fields(result):
+    if not isinstance(result, dict):
+        return result
+
+    country_tag = result.get("artist_country_tag")
+    country = result.get("country")
+
+    if not country and country_tag:
+        country = country_display_from_tag(country_tag)
+
+    result["country"] = country
+    result["artist_country_tag"] = country_tag
+    result.pop("country_tag", None)
+    return result
+
+
 def _build_cache_payload(result):
-    payload = dict(result)
+    payload = _normalize_country_fields(dict(result))
+    payload["blog_output"] = build_blog_output(payload)
     payload.pop("from_cache", None)
     payload.pop("audio_note", None)
     return payload
@@ -146,6 +167,8 @@ def get_cached_result(cache_key):
     if not _is_valid_cached_payload(payload):
         return None
 
+    payload = _normalize_country_fields(payload)
+    payload["blog_output"] = build_blog_output(payload)
     payload["from_cache"] = True
     return payload
 
@@ -270,7 +293,10 @@ def _apply_genre_metadata_block(target, source):
 
 def merge_prefer_better(old_result, new_result):
     if not old_result:
-        return new_result
+        return _normalize_country_fields(new_result)
+
+    old_result = _normalize_country_fields(dict(old_result))
+    new_result = _normalize_country_fields(dict(new_result))
 
     old_score = metadata_quality_score(old_result)
     new_score = metadata_quality_score(new_result)
@@ -281,6 +307,7 @@ def merge_prefer_better(old_result, new_result):
 
     fields_to_preserve = [
         "release_year",
+        "country",
         "artist_country_tag",
         "release_kind",
         "mb_release_date",
@@ -312,7 +339,7 @@ def merge_prefer_better(old_result, new_result):
         merged["source_name"] = None
         merged["meta_source_url"] = None
 
-    return merged
+    return _normalize_country_fields(merged)
 
 
 def extract_tidal_id(url):
@@ -644,6 +671,7 @@ async def compute_result(url):
         "source_name": discogs_data.get("source_name"),
         "note": discogs_data.get("note"),
         "release_year": release_year,
+        "country": country_display_from_tag(artist_country_tag),
         "artist_country_tag": artist_country_tag,
         "release_kind": release_kind,
         "mb_release_date": mb_data.get("release_date"),
@@ -655,6 +683,7 @@ async def compute_result(url):
         "from_cache": False,
     }
 
+    result = _normalize_country_fields(result)
     result["blog_output"] = build_blog_output(result)
     return result
 
@@ -681,6 +710,8 @@ async def build_result(url, force_refresh=False, baseline=None):
     previous = baseline or cached
     result = await compute_result(url)
     result = merge_prefer_better(previous, result)
+    result = _normalize_country_fields(result)
+    result["blog_output"] = build_blog_output(result)
 
     save_cached_result(result)
     return result

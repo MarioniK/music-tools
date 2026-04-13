@@ -111,6 +111,53 @@ COUNTRY_TAG_MAP = {
     "SOUTH AFRICA": "southafrican",
 }
 
+COUNTRY_DISPLAY_MAP = {
+    "american": "United States",
+    "british": "United Kingdom",
+    "irish": "Ireland",
+    "canadian": "Canada",
+    "australian": "Australia",
+    "newzealand": "New Zealand",
+    "german": "Germany",
+    "french": "France",
+    "italian": "Italy",
+    "spanish": "Spain",
+    "swedish": "Sweden",
+    "norwegian": "Norway",
+    "danish": "Denmark",
+    "finnish": "Finland",
+    "icelandic": "Iceland",
+    "dutch": "Netherlands",
+    "belgian": "Belgium",
+    "swiss": "Switzerland",
+    "austrian": "Austria",
+    "polish": "Poland",
+    "czech": "Czechia",
+    "slovak": "Slovakia",
+    "hungarian": "Hungary",
+    "romanian": "Romania",
+    "bulgarian": "Bulgaria",
+    "greek": "Greece",
+    "turkish": "Turkey",
+    "ukrainian": "Ukraine",
+    "belarusian": "Belarus",
+    "russian": "Russia",
+    "japanese": "Japan",
+    "korean": "South Korea",
+    "chinese": "China",
+    "taiwanese": "Taiwan",
+    "hongkong": "Hong Kong",
+    "singaporean": "Singapore",
+    "brazilian": "Brazil",
+    "argentinian": "Argentina",
+    "mexican": "Mexico",
+    "chilean": "Chile",
+    "colombian": "Colombia",
+    "peruvian": "Peru",
+    "portuguese": "Portugal",
+    "southafrican": "South Africa",
+}
+
 
 def clean_text(value):
     if not value:
@@ -118,6 +165,12 @@ def clean_text(value):
     value = html.unescape(str(value)).strip()
     value = re.sub(r"\s+", " ", value)
     return value
+
+
+def country_display_from_tag(country_tag):
+    if not country_tag:
+        return None
+    return COUNTRY_DISPLAY_MAP.get(str(country_tag).strip().lower())
 
 
 def score_similarity(a, b):
