@@ -375,57 +375,175 @@ async def fetch_html(url):
         return response.text
 
 
+def _fill_missing_fields(target, source):
+    for field in ("title", "artist", "album"):
+        if not target.get(field) and source.get(field):
+            target[field] = source[field]
+
+
+def _extract_name_from_json_ld_person(value):
+    if isinstance(value, dict):
+        return clean_text(value.get("name"))
+    if isinstance(value, list):
+        for item in value:
+            name = _extract_name_from_json_ld_person(item)
+            if name:
+                return name
+    return clean_text(value)
+
+
+def _extract_name_from_json_ld_album(value):
+    if isinstance(value, dict):
+        return clean_text(value.get("name"))
+    if isinstance(value, list):
+        for item in value:
+            name = _extract_name_from_json_ld_album(item)
+            if name:
+                return name
+    return clean_text(value)
+
+
+def _iter_json_ld_objects(payload):
+    if isinstance(payload, dict):
+        yield payload
+        graph = payload.get("@graph")
+        if isinstance(graph, list):
+            for item in graph:
+                if isinstance(item, dict):
+                    yield item
+    elif isinstance(payload, list):
+        for item in payload:
+            if isinstance(item, dict):
+                yield item
+
+
+def _json_ld_type_score(obj, entity_type):
+    raw_type = obj.get("@type")
+    if isinstance(raw_type, list):
+        types = {str(item).lower() for item in raw_type}
+    elif raw_type:
+        types = {str(raw_type).lower()}
+    else:
+        types = set()
+
+    ignored_types = {"breadcrumblist", "website", "organization", "person"}
+    if types & ignored_types:
+        return -1
+
+    has_relevant_music_type = "musicrecording" in types or "musicalbum" in types
+    if not has_relevant_music_type:
+        return 0
+
+    score = 0
+    if entity_type == "track":
+        if "musicrecording" in types:
+            score += 100
+        if "musicalbum" in types:
+            score += 30
+    elif entity_type == "album":
+        if "musicalbum" in types:
+            score += 100
+        if "musicrecording" in types:
+            score += 20
+
+    if clean_text(obj.get("name")):
+        score += 10
+    if _extract_name_from_json_ld_person(obj.get("byArtist")):
+        score += 10
+    if _extract_name_from_json_ld_album(obj.get("inAlbum")):
+        score += 5
+
+    return score
+
+
+def _extract_json_ld_metadata(obj, entity_type):
+    result = {
+        "title": clean_text(obj.get("name")),
+        "artist": _extract_name_from_json_ld_person(obj.get("byArtist")),
+        "album": None,
+    }
+
+    if entity_type == "track":
+        result["album"] = _extract_name_from_json_ld_album(obj.get("inAlbum"))
+    elif entity_type == "album":
+        result["album"] = clean_text(obj.get("name"))
+
+    return result
+
+
+def _parse_title_like_value(raw_value):
+    raw = clean_text(raw_value)
+    if not raw:
+        return {"title": None, "artist": None, "album": None}
+
+    match = re.match(r"(.+?) by (.+?) on TIDAL", raw, flags=re.IGNORECASE)
+    if match:
+        return {
+            "title": clean_text(match.group(1)),
+            "artist": clean_text(match.group(2)),
+            "album": None,
+        }
+
+    parts = raw.split(" - ")
+    if len(parts) == 2:
+        return {
+            "title": clean_text(parts[1]),
+            "artist": clean_text(parts[0]),
+            "album": None,
+        }
+
+    return {"title": raw, "artist": None, "album": None}
+
+
+def _extract_best_json_ld_metadata(soup, entity_type):
+    candidates = []
+    json_ld_blocks = soup.find_all("script", attrs={"type": "application/ld+json"})
+
+    for block in json_ld_blocks:
+        content = block.string or block.text
+        if not content or not content.strip():
+            continue
+
+        try:
+            payload = json.loads(content)
+        except Exception:
+            continue
+
+        for obj in _iter_json_ld_objects(payload):
+            score = _json_ld_type_score(obj, entity_type)
+            if score <= 0:
+                continue
+
+            candidates.append((score, _extract_json_ld_metadata(obj, entity_type)))
+
+    if not candidates:
+        return {}
+
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    return candidates[0][1]
+
+
 
 
 def parse_tidal_metadata_from_html(html_text, entity_type):
     soup = BeautifulSoup(html_text, "lxml")
 
-    title = None
-    artist = None
-    album = None
+    result = {"title": None, "artist": None, "album": None}
+
+    _fill_missing_fields(result, _extract_best_json_ld_metadata(soup, entity_type))
 
     og_title = soup.find("meta", attrs={"property": "og:title"})
     if og_title and og_title.get("content"):
-        raw = clean_text(og_title["content"])
-        if raw:
-            m = re.match(r"(.+?) by (.+?) on TIDAL", raw, flags=re.IGNORECASE)
-            if m:
-                title = clean_text(m.group(1))
-                artist = clean_text(m.group(2))
-            else:
-                parts = raw.split(" - ")
-                if len(parts) == 2:
-                    artist = clean_text(parts[0])
-                    title = clean_text(parts[1])
-                else:
-                    title = raw
+        _fill_missing_fields(result, _parse_title_like_value(og_title.get("content")))
 
-    json_ld_blocks = soup.find_all("script", attrs={"type": "application/ld+json"})
-    for block in json_ld_blocks:
-        content = block.string or block.text
-        if not content:
-            continue
+    twitter_title = soup.find("meta", attrs={"name": "twitter:title"})
+    if twitter_title and twitter_title.get("content"):
+        _fill_missing_fields(result, _parse_title_like_value(twitter_title.get("content")))
 
-        if entity_type == "track" and not album:
-            m = re.search(r'"inAlbum"\s*:\s*\{.*?"name"\s*:\s*"([^"]+)"', content, re.S)
-            if m:
-                album = clean_text(m.group(1))
+    if soup.title and soup.title.string:
+        _fill_missing_fields(result, _parse_title_like_value(soup.title.string))
 
-        if not artist:
-            m = re.search(r'"byArtist"\s*:\s*\{.*?"name"\s*:\s*"([^"]+)"', content, re.S)
-            if m:
-                artist = clean_text(m.group(1))
-
-        if not title:
-            m = re.search(r'"name"\s*:\s*"([^"]+)"', content)
-            if m:
-                title = clean_text(m.group(1))
-
-    return {
-        "title": title,
-        "artist": artist,
-        "album": album,
-    }
+    return result
 
 
 async def parse_tidal(url):
