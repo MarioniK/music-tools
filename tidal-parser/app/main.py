@@ -21,6 +21,12 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
+from app.genre_normalization import (
+    genre_to_blog_tag,
+    is_allowed_final_genre,
+    normalize_audio_prediction_genres,
+    normalize_genres,
+)
 from app.pipeline_logging import logger, run_timed_stage, run_timed_stage_sync
 from app.services.discogs import search_discogs_release_metadata
 from app.services.musicbrainz import (
@@ -564,53 +570,12 @@ async def parse_tidal(url):
 
 
 def normalize_audio_genres(raw_genres):
-    filtered = [g for g in raw_genres if g.get("prob", 0) >= 0.08]
-    tags = [str(g["tag"]).lower() for g in filtered if g.get("tag")]
-    tag_set = set(tags)
-
-    result = []
-
-    def add(tag):
-        if tag not in result:
-            result.append(tag)
-
-    if "indie rock" in tag_set:
-        add("indie rock")
-    elif "indie" in tag_set and "rock" in tag_set:
-        add("indie rock")
-
-    if "experimental rock" in tag_set:
-        add("experimental rock")
-    elif "experimental" in tag_set and "rock" in tag_set:
-        add("experimental rock")
-
-    if "jazz rock" in tag_set:
-        add("jazz rock")
-    elif "jazz" in tag_set and "rock" in tag_set:
-        add("jazz rock")
-    elif "jazz" in tag_set and "instrumental" in tag_set and "experimental" in tag_set:
-        add("avant-jazz")
-
-    if "alternative rock" in tag_set:
-        add("alternative rock")
-    elif "alternative" in tag_set and "rock" in tag_set:
-        add("alternative rock")
-
-    if "instrumental rock" in tag_set:
-        add("instrumental rock")
-    elif "instrumental" in tag_set and "rock" in tag_set:
-        add("instrumental rock")
-
-    if "electronic" in tag_set:
-        add("electronic")
-
-    for item in filtered:
-        add(str(item["tag"]).lower())
-
-    return result[:8]
+    return normalize_audio_prediction_genres(raw_genres, min_prob=0.05)
 
 
 def merge_final_genres(release_genres, audio_genres_pretty, entity_type):
+    release_genres = [g for g in normalize_genres(release_genres) if is_allowed_final_genre(g)]
+    audio_genres_pretty = [g for g in normalize_genres(audio_genres_pretty) if is_allowed_final_genre(g)]
     release_set = set(release_genres)
     audio_set = set(audio_genres_pretty)
     result = []
@@ -638,7 +603,7 @@ def merge_final_genres(release_genres, audio_genres_pretty, entity_type):
         add("electronic")
 
     if entity_type == "album" and "instrumental rock" in audio_set and "experimental rock" in audio_set:
-        add("post-rock")
+        add("post rock")
 
     for tag in audio_genres_pretty:
         add(tag)
@@ -655,10 +620,10 @@ def build_blog_output(result):
     entity_type = result.get("entity_type")
     year = result.get("release_year")
     country_tag = result.get("artist_country_tag")
-    final_genres = result.get("final_genres", [])
+    final_genres = [g for g in result.get("final_genres", []) if is_allowed_final_genre(g)]
 
     artist_tag = slugify_for_tag(artist)
-    genre_tags = [slugify_for_tag(g) for g in final_genres if slugify_for_tag(g)]
+    genre_tags = [genre_to_blog_tag(g) for g in final_genres if genre_to_blog_tag(g)]
 
     tags = ["#music"]
 
@@ -796,7 +761,7 @@ async def compute_result(url):
         "mb_confidence": mb_data.get("confidence"),
         "audio_genres_raw": [],
         "audio_genres_pretty": [],
-        "final_genres": discogs_data.get("genres", []),
+        "final_genres": normalize_genres(discogs_data.get("genres", [])),
         "audio_note": None,
         "from_cache": False,
     }

@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from essentia.standard import MonoLoader, TensorflowPredictMusiCNN
+from app.genre_normalization import normalize_audio_prediction_genres
 
 
 MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 MB
@@ -113,57 +114,7 @@ def run_genre_classification(wav_path: Path):
 
 
 def normalize_genres(raw_genres):
-    # Смягчённая логика:
-    # - не душим теги слишком рано
-    # - собираем полезные комбинации
-    # - сохраняем больше исходной информации для tidal-parser
-    filtered = [g for g in raw_genres if g.get("prob", 0) >= 0.05]
-
-    tags = [str(g["tag"]).lower() for g in filtered if g.get("tag")]
-    tag_set = set(tags)
-
-    result = []
-
-    def add(tag):
-        if tag and tag not in result:
-            result.append(tag)
-
-    # Комбинации
-    if "indie rock" in tag_set:
-        add("indie rock")
-    elif "indie" in tag_set and "rock" in tag_set:
-        add("indie rock")
-
-    if "experimental rock" in tag_set:
-        add("experimental rock")
-    elif "experimental" in tag_set and "rock" in tag_set:
-        add("experimental rock")
-
-    if "jazz rock" in tag_set:
-        add("jazz rock")
-    elif "jazz" in tag_set and "rock" in tag_set:
-        add("jazz rock")
-    elif "jazz" in tag_set and "instrumental" in tag_set and "experimental" in tag_set:
-        add("avant-jazz")
-
-    if "alternative rock" in tag_set:
-        add("alternative rock")
-    elif "alternative" in tag_set and "rock" in tag_set:
-        add("alternative rock")
-
-    if "instrumental rock" in tag_set:
-        add("instrumental rock")
-    elif "instrumental" in tag_set and "rock" in tag_set:
-        add("instrumental rock")
-
-    if "electronic" in tag_set:
-        add("electronic")
-
-    # Сохраняем и исходные теги, чтобы не обеднять результат
-    for item in filtered:
-        add(str(item["tag"]).lower())
-
-    return result[:8]
+    return normalize_audio_prediction_genres(raw_genres, min_prob=0.05)
 
 
 def validate_upload(file_bytes: bytes, filename: str):

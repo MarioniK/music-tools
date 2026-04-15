@@ -5,6 +5,7 @@ import re
 
 import httpx
 
+from app.genre_normalization import normalize_genre_value
 
 DISCOGS_TOKEN = os.getenv("DISCOGS_TOKEN", "").strip()
 USER_AGENT = "TIDALParser/1.0 (+local app)"
@@ -22,11 +23,10 @@ def clean_text(value):
 
 
 def normalize_tag(tag):
-    tag = clean_text(tag)
+    tag = normalize_genre_value(tag)
     if not tag:
         return None
 
-    lowered = tag.lower()
     banned = {
         "seen live",
         "favorites",
@@ -51,19 +51,19 @@ def normalize_tag(tag):
         "party",
     }
 
-    if lowered in banned:
+    if tag in banned:
         return None
 
-    if re.match(r"^\d{2}s$", lowered):
+    if re.match(r"^\d{2}s$", tag):
         return None
 
-    if re.match(r"^\d{4}$", lowered):
+    if re.match(r"^\d{4}$", tag):
         return None
 
-    if len(lowered) < 3 or len(lowered) > 30:
+    if len(tag) < 3 or len(tag) > 30:
         return None
 
-    return lowered
+    return tag
 
 
 def unique_clean_tags(tags):

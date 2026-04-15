@@ -30,6 +30,12 @@ def test_score_similarity_supports_cyrillic_tokens():
     assert discogs.score_similarity("Молчат Дома", "Дома") >= 70
 
 
+def test_normalize_tag_keeps_banned_filtering_after_shared_normalization():
+    assert discogs.normalize_tag("Female_Vocalists") is None
+    assert discogs.normalize_tag("female-vocalists") is None
+    assert discogs.normalize_tag(" Indie-Rock ") == "indie rock"
+
+
 @pytest.mark.asyncio
 async def test_search_discogs_release_metadata_uses_ranked_candidate_and_detail(monkeypatch):
     async def fake_fetch_json(url, params, headers=None):
