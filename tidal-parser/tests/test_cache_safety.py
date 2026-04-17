@@ -61,11 +61,11 @@ def _valid_result():
     }
 
 
-def _make_request():
+def _make_request(method="POST", path="/"):
     scope = {
         "type": "http",
-        "method": "POST",
-        "path": "/",
+        "method": method,
+        "path": path,
         "headers": [],
         "query_string": b"",
         "server": ("testserver", 80),
@@ -303,6 +303,148 @@ async def test_parse_form_does_not_save_audio_result_to_cache(monkeypatch):
 
     assert response.status_code == 200
     assert save_calls == []
+
+
+@pytest.mark.asyncio
+async def test_parse_api_empty_input_returns_400():
+    parse_api_handler = getattr(main.parse_api, "__wrapped__", main.parse_api)
+
+    response = await parse_api_handler(_make_request(method="GET", path="/api/parse"), url="", force_refresh=0)
+
+    assert response.status_code == 400
+    assert json.loads(response.body) == {
+        "ok": False,
+        "error": "Нужна ссылка TIDAL на track или album.",
+    }
+
+
+@pytest.mark.asyncio
+async def test_parse_api_invalid_url_returns_400():
+    parse_api_handler = getattr(main.parse_api, "__wrapped__", main.parse_api)
+
+    response = await parse_api_handler(
+        _make_request(method="GET", path="/api/parse"),
+        url="https://example.com/not-tidal",
+        force_refresh=0,
+    )
+
+    assert response.status_code == 400
+    assert json.loads(response.body)["ok"] is False
+    assert "Не удалось распознать ссылку TIDAL" in json.loads(response.body)["error"]
+
+
+@pytest.mark.asyncio
+async def test_parse_api_internal_failure_returns_500(monkeypatch):
+    async def fake_build_result(url, force_refresh=False, baseline=None):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+    parse_api_handler = getattr(main.parse_api, "__wrapped__", main.parse_api)
+
+    response = await parse_api_handler(
+        _make_request(method="GET", path="/api/parse"),
+        url="https://tidal.com/browse/track/123",
+        force_refresh=0,
+    )
+
+    assert response.status_code == 500
+    assert json.loads(response.body) == {
+        "ok": False,
+        "error": "Внутренняя ошибка сервера. Попробуй позже.",
+    }
+
+
+@pytest.mark.asyncio
+async def test_parse_api_unexpected_exception_returns_500(monkeypatch):
+    async def fake_build_result(url, force_refresh=False, baseline=None):
+        raise TypeError("unexpected")
+
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+    parse_api_handler = getattr(main.parse_api, "__wrapped__", main.parse_api)
+
+    response = await parse_api_handler(
+        _make_request(method="GET", path="/api/parse"),
+        url="https://tidal.com/browse/track/123",
+        force_refresh=0,
+    )
+
+    assert response.status_code == 500
+    assert json.loads(response.body) == {
+        "ok": False,
+        "error": "Внутренняя ошибка сервера. Попробуй позже.",
+    }
+
+
+@pytest.mark.asyncio
+async def test_parse_form_empty_input_returns_html_400():
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+
+    response = await parse_form_handler(
+        _make_request(),
+        url="",
+        force_refresh="0",
+        audio=None,
+    )
+
+    assert response.status_code == 400
+    assert "Нужна ссылка TIDAL на track или album." in response.body.decode("utf-8")
+
+
+@pytest.mark.asyncio
+async def test_parse_form_invalid_url_returns_html_400():
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+
+    response = await parse_form_handler(
+        _make_request(),
+        url="https://example.com/not-tidal",
+        force_refresh="0",
+        audio=None,
+    )
+
+    assert response.status_code == 400
+    assert "Не удалось распознать ссылку TIDAL" in response.body.decode("utf-8")
+
+
+@pytest.mark.asyncio
+async def test_parse_form_internal_failure_returns_html_500(monkeypatch):
+    async def fake_build_result(url, force_refresh=False, baseline=None):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+
+    response = await parse_form_handler(
+        _make_request(),
+        url="https://tidal.com/browse/track/123",
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 500
+    assert "Не удалось обработать запрос. Попробуй ещё раз позже." in body
+    assert "db down" not in body
+
+
+@pytest.mark.asyncio
+async def test_parse_api_recoverable_degraded_result_stays_200(monkeypatch):
+    degraded = _valid_result()
+    degraded["note"] = "Discogs не нашёл подходящий релиз."
+
+    async def fake_build_result(url, force_refresh=False, baseline=None):
+        return dict(degraded)
+
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+    parse_api_handler = getattr(main.parse_api, "__wrapped__", main.parse_api)
+
+    response = await parse_api_handler(
+        _make_request(method="GET", path="/api/parse"),
+        url="https://tidal.com/browse/track/123",
+        force_refresh=0,
+    )
+
+    assert response["ok"] is True
+    assert response["data"]["note"] == degraded["note"]
 
 
 @pytest.mark.asyncio

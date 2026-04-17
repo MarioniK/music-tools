@@ -102,6 +102,10 @@ def init_db():
 init_db()
 
 
+class ClientInputError(ValueError):
+    pass
+
+
 def build_cache_key(url):
     return url.strip().lower()
 
@@ -360,6 +364,19 @@ def extract_tidal_id(url):
             return {"type": entity_type, "id": match.group(1)}
 
     raise ValueError("Не удалось распознать ссылку TIDAL. Нужна ссылка на track или album.")
+
+
+def validate_user_input_url(url):
+    normalized = (url or "").strip()
+    if not normalized:
+        raise ClientInputError("Нужна ссылка TIDAL на track или album.")
+
+    try:
+        extract_tidal_id(normalized)
+    except ValueError as e:
+        raise ClientInputError(str(e))
+
+    return normalized
 
 
 async def fetch_html(url):
@@ -818,6 +835,7 @@ async def parse_form(
     audio: UploadFile = File(default=None),
 ):
     try:
+        url = validate_user_input_url(url)
         result = await build_result(url, force_refresh=(force_refresh == "1"))
 
         if audio and audio.filename:
@@ -845,11 +863,33 @@ async def parse_form(
             "index.html",
             {"request": request, "result": result, "error": None, "form_url": url},
         )
-    except Exception as e:
+    except ClientInputError as e:
+        logger.warning(
+            "event=parse_form outcome=client_error path=%s url=%s error=%s",
+            request.url.path,
+            url,
+            str(e),
+        )
         return templates.TemplateResponse(
             "index.html",
             {"request": request, "result": None, "error": str(e), "form_url": url},
             status_code=400,
+        )
+    except Exception:
+        logger.exception(
+            "event=parse_form outcome=server_error path=%s url=%s",
+            request.url.path,
+            url,
+        )
+        return templates.TemplateResponse(
+            "index.html",
+            {
+                "request": request,
+                "result": None,
+                "error": "Не удалось обработать запрос. Попробуй ещё раз позже.",
+                "form_url": url,
+            },
+            status_code=500,
         )
 
 
@@ -882,10 +922,27 @@ async def clear_cache(request: Request, url: str = Form(...)):
 @limiter.limit("10/minute")
 async def parse_api(request: Request, url: str, force_refresh: int = 0):
     try:
+        url = validate_user_input_url(url)
         result = await build_result(url, force_refresh=(force_refresh == 1))
         return {"ok": True, "data": result}
-    except Exception as e:
+    except ClientInputError as e:
+        logger.warning(
+            "event=parse_api outcome=client_error path=%s url=%s error=%s",
+            request.url.path,
+            url,
+            str(e),
+        )
         return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+    except Exception:
+        logger.exception(
+            "event=parse_api outcome=server_error path=%s url=%s",
+            request.url.path,
+            url,
+        )
+        return JSONResponse(
+            {"ok": False, "error": "Внутренняя ошибка сервера. Попробуй позже."},
+            status_code=500,
+        )
 
 
 @app.get("/health")
