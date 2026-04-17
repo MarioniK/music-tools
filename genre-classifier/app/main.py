@@ -1,10 +1,8 @@
 import asyncio
 from functools import partial
 from pathlib import Path
-import shutil
 import subprocess
 import json
-import os
 import tempfile
 import logging
 
@@ -126,6 +124,9 @@ def validate_upload(file_bytes: bytes, filename: str):
 
     suffix = Path(filename or "").suffix.lower()
     allowed = {".mp3", ".wav", ".m4a", ".flac", ".ogg"}
+
+    if not suffix:
+        raise RuntimeError("У файла должно быть расширение")
 
     if suffix and suffix not in allowed:
         raise RuntimeError("Неподдерживаемый формат файла")
