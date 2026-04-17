@@ -1,8 +1,23 @@
 .env
 .env.*
 *.db
+*.sqlite3
 __pycache__/
 *.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+.idea/
+.vscode/
+*.swp
+*.tmp
+*.bak
+*~
 .DS_Store
 
 tidal-parser/data/
