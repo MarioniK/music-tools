@@ -73,7 +73,7 @@ async def test_search_discogs_release_metadata_uses_ranked_candidate_and_detail(
 
         raise AssertionError("unexpected detail lookup url: {}".format(url))
 
-    monkeypatch.setattr(discogs, "DISCOGS_TOKEN", "token")
+    monkeypatch.setenv("DISCOGS_TOKEN", "token")
     monkeypatch.setattr(discogs, "fetch_json", fake_fetch_json)
 
     result = await discogs.search_discogs_release_metadata("Artist", "Release Title")
@@ -89,7 +89,7 @@ async def test_search_discogs_release_metadata_returns_not_found_for_empty_searc
     async def fake_fetch_json(url, params, headers=None):
         return {"results": []}
 
-    monkeypatch.setattr(discogs, "DISCOGS_TOKEN", "token")
+    monkeypatch.setenv("DISCOGS_TOKEN", "token")
     monkeypatch.setattr(discogs, "fetch_json", fake_fetch_json)
 
     result = await discogs.search_discogs_release_metadata("Artist", "Release Title")
@@ -115,7 +115,7 @@ async def test_search_discogs_release_metadata_distinguishes_timeout_failure(mon
 
         raise httpx.TimeoutException("timeout")
 
-    monkeypatch.setattr(discogs, "DISCOGS_TOKEN", "token")
+    monkeypatch.setenv("DISCOGS_TOKEN", "token")
     monkeypatch.setattr(discogs, "fetch_json", fake_fetch_json)
 
     result = await discogs.search_discogs_release_metadata("Artist", "Release Title")
@@ -129,7 +129,7 @@ async def test_search_discogs_release_metadata_distinguishes_timeout_on_search(m
     async def fake_fetch_json(url, params, headers=None):
         raise httpx.TimeoutException("search timeout")
 
-    monkeypatch.setattr(discogs, "DISCOGS_TOKEN", "token")
+    monkeypatch.setenv("DISCOGS_TOKEN", "token")
     monkeypatch.setattr(discogs, "fetch_json", fake_fetch_json)
 
     result = await discogs.search_discogs_release_metadata("Artist", "Release Title")
@@ -145,7 +145,7 @@ async def test_search_discogs_release_metadata_distinguishes_http_error(monkeypa
         response = httpx.Response(429, request=request)
         raise httpx.HTTPStatusError("rate limited", request=request, response=response)
 
-    monkeypatch.setattr(discogs, "DISCOGS_TOKEN", "token")
+    monkeypatch.setenv("DISCOGS_TOKEN", "token")
     monkeypatch.setattr(discogs, "fetch_json", fake_fetch_json)
 
     result = await discogs.search_discogs_release_metadata("Artist", "Release Title")
@@ -159,7 +159,7 @@ async def test_search_discogs_release_metadata_distinguishes_unexpected_error(mo
     async def fake_fetch_json(url, params, headers=None):
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(discogs, "DISCOGS_TOKEN", "token")
+    monkeypatch.setenv("DISCOGS_TOKEN", "token")
     monkeypatch.setattr(discogs, "fetch_json", fake_fetch_json)
 
     result = await discogs.search_discogs_release_metadata("Artist", "Release Title")
@@ -192,7 +192,7 @@ async def test_search_discogs_release_metadata_rejects_detail_mismatch(monkeypat
             "artists": [{"name": "Other Artist"}],
         }
 
-    monkeypatch.setattr(discogs, "DISCOGS_TOKEN", "token")
+    monkeypatch.setenv("DISCOGS_TOKEN", "token")
     monkeypatch.setattr(discogs, "fetch_json", fake_fetch_json)
 
     result = await discogs.search_discogs_release_metadata("Artist", "Release Title")

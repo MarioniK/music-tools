@@ -1,7 +1,6 @@
 import asyncio
 import html
 import json
-import os
 import re
 import sqlite3
 import tempfile
@@ -28,6 +27,7 @@ from app.genre_normalization import (
     normalize_genres,
 )
 from app.pipeline_logging import logger, run_timed_stage, run_timed_stage_sync
+from app import settings
 from app.services.discogs import search_discogs_release_metadata
 from app.services.musicbrainz import (
     country_display_from_tag,
@@ -39,11 +39,6 @@ from app.services.musicbrainz import (
 APP_DIR = Path("/app")
 DATA_DIR = APP_DIR / "data"
 DB_PATH = DATA_DIR / "cache.db"
-
-AUDIO_CLASSIFIER_URL = os.getenv(
-    "AUDIO_CLASSIFIER_URL",
-    "http://genre-classifier:8021/classify"
-).strip()
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -692,7 +687,7 @@ def classify_audio_file(file_bytes, filename):
         try:
             with open(temp_path, "rb") as f:
                 response = requests.post(
-                    AUDIO_CLASSIFIER_URL,
+                    settings.get_audio_classifier_url(),
                     files={"file": (filename or "audio{}".format(suffix), f)},
                     timeout=120,
                 )
@@ -706,7 +701,7 @@ def classify_audio_file(file_bytes, filename):
             return {"raw": raw, "pretty": pretty}
         finally:
             try:
-                os.unlink(temp_path)
+                Path(temp_path).unlink()
             except Exception:
                 pass
 

@@ -1,17 +1,12 @@
 import html
 import asyncio
 import logging
-import os
 import re
 import time
 
 import httpx
+from app import settings
 
-
-MUSICBRAINZ_APP_NAME = "tidal-parser/1.0"
-MUSICBRAINZ_MAX_ATTEMPTS = 3
-MUSICBRAINZ_RETRY_DELAY_S = 0.2
-MUSICBRAINZ_MIN_INTERVAL_S = 1.1
 
 logger = logging.getLogger("tidal_parser")
 _missing_contact_email_warned = False
@@ -173,32 +168,12 @@ def clean_text(value):
     return value
 
 
-def get_musicbrainz_contact_email():
-    return (os.getenv("MUSICBRAINZ_CONTACT_EMAIL") or "").strip()
-
-
-def get_musicbrainz_min_interval_s():
-    raw_value = (os.getenv("MUSICBRAINZ_MIN_INTERVAL_S") or "").strip()
-    if not raw_value:
-        return MUSICBRAINZ_MIN_INTERVAL_S
-
-    try:
-        parsed = float(raw_value)
-    except ValueError:
-        return MUSICBRAINZ_MIN_INTERVAL_S
-
-    if parsed <= 0:
-        return MUSICBRAINZ_MIN_INTERVAL_S
-
-    return parsed
-
-
 def build_musicbrainz_user_agent():
     global _missing_contact_email_warned
 
-    contact_email = get_musicbrainz_contact_email()
+    contact_email = settings.get_musicbrainz_contact_email()
     if contact_email:
-        return "{} ({})".format(MUSICBRAINZ_APP_NAME, contact_email)
+        return "{} ({})".format(settings.get_musicbrainz_app_name(), contact_email)
 
     if not _missing_contact_email_warned:
         logger.warning(
@@ -206,7 +181,7 @@ def build_musicbrainz_user_agent():
         )
         _missing_contact_email_warned = True
 
-    return MUSICBRAINZ_APP_NAME
+    return settings.get_musicbrainz_app_name()
 
 
 def build_musicbrainz_headers():
@@ -228,7 +203,7 @@ def get_musicbrainz_rate_limit_lock():
 async def wait_for_musicbrainz_rate_limit():
     global _musicbrainz_last_request_started_at
 
-    min_interval_s = get_musicbrainz_min_interval_s()
+    min_interval_s = settings.get_musicbrainz_min_interval_s()
     lock = get_musicbrainz_rate_limit_lock()
 
     async with lock:
@@ -304,7 +279,10 @@ async def fetch_musicbrainz_json_with_retry(url, params, context):
     last_error = None
     last_status_code = None
 
-    for attempt in range(1, MUSICBRAINZ_MAX_ATTEMPTS + 1):
+    max_attempts = settings.get_musicbrainz_max_attempts()
+    retry_delay_s = settings.get_musicbrainz_retry_delay_s()
+
+    for attempt in range(1, max_attempts + 1):
         try:
             data = await fetch_musicbrainz_json(url, params)
             return {
@@ -315,14 +293,14 @@ async def fetch_musicbrainz_json_with_retry(url, params, context):
             }
         except httpx.TimeoutException as e:
             last_error = e
-            if attempt < MUSICBRAINZ_MAX_ATTEMPTS:
+            if attempt < max_attempts:
                 logger.warning(
                     "event=musicbrainz_retry context=%s attempt=%d max_attempts=%d reason=timeout",
                     context,
                     attempt,
-                    MUSICBRAINZ_MAX_ATTEMPTS,
+                    max_attempts,
                 )
-                await asyncio.sleep(MUSICBRAINZ_RETRY_DELAY_S)
+                await asyncio.sleep(retry_delay_s)
                 continue
             return {
                 "outcome": "timeout",
@@ -332,14 +310,14 @@ async def fetch_musicbrainz_json_with_retry(url, params, context):
             }
         except httpx.RequestError as e:
             last_error = e
-            if attempt < MUSICBRAINZ_MAX_ATTEMPTS:
+            if attempt < max_attempts:
                 logger.warning(
                     "event=musicbrainz_retry context=%s attempt=%d max_attempts=%d reason=request_failed",
                     context,
                     attempt,
-                    MUSICBRAINZ_MAX_ATTEMPTS,
+                    max_attempts,
                 )
-                await asyncio.sleep(MUSICBRAINZ_RETRY_DELAY_S)
+                await asyncio.sleep(retry_delay_s)
                 continue
             return {
                 "outcome": "request_failed",
@@ -350,15 +328,15 @@ async def fetch_musicbrainz_json_with_retry(url, params, context):
         except httpx.HTTPStatusError as e:
             last_error = e
             last_status_code = e.response.status_code
-            if 500 <= e.response.status_code < 600 and attempt < MUSICBRAINZ_MAX_ATTEMPTS:
+            if 500 <= e.response.status_code < 600 and attempt < max_attempts:
                 logger.warning(
                     "event=musicbrainz_retry context=%s attempt=%d max_attempts=%d reason=http_5xx status=%s",
                     context,
                     attempt,
-                    MUSICBRAINZ_MAX_ATTEMPTS,
+                    max_attempts,
                     e.response.status_code,
                 )
-                await asyncio.sleep(MUSICBRAINZ_RETRY_DELAY_S)
+                await asyncio.sleep(retry_delay_s)
                 continue
             return {
                 "outcome": "http_error",

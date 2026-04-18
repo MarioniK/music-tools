@@ -1,6 +1,7 @@
 import httpx
 import pytest
 
+from app import settings
 from app.services import musicbrainz
 
 
@@ -246,7 +247,7 @@ async def test_fetch_musicbrainz_json_with_retry_second_attempt_passes_through_r
 
     assert result["outcome"] == "success"
     assert request_calls["count"] == 2
-    assert sleep_calls[0] == musicbrainz.MUSICBRAINZ_RETRY_DELAY_S
+    assert sleep_calls[0] == settings.get_musicbrainz_retry_delay_s()
     assert sleep_calls[1] == pytest.approx(1.0, abs=1e-6)
 
 
@@ -267,7 +268,7 @@ async def test_fetch_musicbrainz_json_with_retry_timeout_exhausted(monkeypatch):
     result = await musicbrainz.fetch_musicbrainz_json_with_retry("url", {}, "test")
 
     assert result["outcome"] == "timeout"
-    assert calls["count"] == musicbrainz.MUSICBRAINZ_MAX_ATTEMPTS
+    assert calls["count"] == settings.get_musicbrainz_max_attempts()
 
 
 @pytest.mark.asyncio
@@ -287,7 +288,7 @@ async def test_fetch_musicbrainz_json_with_retry_request_failed_exhausted(monkey
     result = await musicbrainz.fetch_musicbrainz_json_with_retry("url", {}, "test")
 
     assert result["outcome"] == "request_failed"
-    assert calls["count"] == musicbrainz.MUSICBRAINZ_MAX_ATTEMPTS
+    assert calls["count"] == settings.get_musicbrainz_max_attempts()
 
 
 @pytest.mark.asyncio

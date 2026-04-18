@@ -1,14 +1,12 @@
 import html
 import logging
-import os
 import re
 
 import httpx
 
 from app.genre_normalization import normalize_genre_value
+from app import settings
 
-DISCOGS_TOKEN = os.getenv("DISCOGS_TOKEN", "").strip()
-USER_AGENT = "TIDALParser/1.0 (+local app)"
 DISCOGS_RANK_LIMIT = 5
 
 logger = logging.getLogger("tidal_parser")
@@ -126,7 +124,10 @@ def rank_discogs_candidate(candidate, artist, release_title):
 
 
 async def fetch_json(url, params, headers=None):
-    req_headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    req_headers = {
+        "User-Agent": settings.get_discogs_user_agent(),
+        "Accept": "application/json",
+    }
     if headers:
         req_headers.update(headers)
 
@@ -166,7 +167,9 @@ def _detail_matches_release(payload, artist, release_title):
 
 
 async def search_discogs_release_metadata(artist, release_title):
-    if not DISCOGS_TOKEN:
+    discogs_token = settings.get_discogs_token()
+
+    if not discogs_token:
         return {
             "genres": [],
             "meta_source_url": None,
@@ -184,7 +187,7 @@ async def search_discogs_release_metadata(artist, release_title):
             "release_year": None,
         }
 
-    headers = {"Authorization": "Discogs token={}".format(DISCOGS_TOKEN)}
+    headers = {"Authorization": "Discogs token={}".format(discogs_token)}
 
     try:
         search_data = await fetch_json(
