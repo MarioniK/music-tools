@@ -1,16 +1,18 @@
 import html
 import asyncio
 import logging
+import os
 import re
 
 import httpx
 
 
-MUSICBRAINZ_USER_AGENT = "tidal-parser/1.0 (local-app@example.com)"
+MUSICBRAINZ_APP_NAME = "tidal-parser/1.0"
 MUSICBRAINZ_MAX_ATTEMPTS = 3
 MUSICBRAINZ_RETRY_DELAY_S = 0.2
 
 logger = logging.getLogger("tidal_parser")
+_missing_contact_email_warned = False
 
 COUNTRY_TAG_MAP = {
     "US": "american",
@@ -167,6 +169,33 @@ def clean_text(value):
     return value
 
 
+def get_musicbrainz_contact_email():
+    return (os.getenv("MUSICBRAINZ_CONTACT_EMAIL") or "").strip()
+
+
+def build_musicbrainz_user_agent():
+    global _missing_contact_email_warned
+
+    contact_email = get_musicbrainz_contact_email()
+    if contact_email:
+        return "{} ({})".format(MUSICBRAINZ_APP_NAME, contact_email)
+
+    if not _missing_contact_email_warned:
+        logger.warning(
+            "event=musicbrainz_user_agent_config outcome=missing_contact_email"
+        )
+        _missing_contact_email_warned = True
+
+    return MUSICBRAINZ_APP_NAME
+
+
+def build_musicbrainz_headers():
+    return {
+        "User-Agent": build_musicbrainz_user_agent(),
+        "Accept": "application/json",
+    }
+
+
 def country_display_from_tag(country_tag):
     if not country_tag:
         return None
@@ -211,10 +240,7 @@ def infer_mb_release_kind(primary_type, secondary_types, entity_type):
 
 
 async def fetch_musicbrainz_json(url, params):
-    headers = {
-        "User-Agent": MUSICBRAINZ_USER_AGENT,
-        "Accept": "application/json",
-    }
+    headers = build_musicbrainz_headers()
 
     async with httpx.AsyncClient(timeout=20, headers=headers) as client:
         response = await client.get(url, params=params, follow_redirects=True)

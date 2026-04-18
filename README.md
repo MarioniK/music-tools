@@ -77,10 +77,13 @@ docker compose up --build -d
 
 ### 3. Подготовить `.env` для `tidal-parser`
 
-Минимум нужен `DISCOGS_TOKEN`, если нужно обогащение через Discogs.
+Минимум нужны:
+- `DISCOGS_TOKEN`, если нужно обогащение через Discogs;
+- `MUSICBRAINZ_CONTACT_EMAIL`, чтобы `tidal-parser` отправлял корректный контакт в `User-Agent` для запросов к MusicBrainz.
 
 ```env
 DISCOGS_TOKEN=your_discogs_token
+MUSICBRAINZ_CONTACT_EMAIL=you@example.com
 ```
 
 ### 4. Запустить `tidal-parser`

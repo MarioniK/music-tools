@@ -4,6 +4,27 @@ import pytest
 from app.services import musicbrainz
 
 
+def test_build_musicbrainz_headers_uses_configured_contact_email(monkeypatch):
+    monkeypatch.setenv("MUSICBRAINZ_CONTACT_EMAIL", "contact@test.invalid")
+    monkeypatch.setattr(musicbrainz, "_missing_contact_email_warned", False)
+
+    headers = musicbrainz.build_musicbrainz_headers()
+
+    assert headers["User-Agent"] == "tidal-parser/1.0 (contact@test.invalid)"
+    assert headers["Accept"] == "application/json"
+
+
+def test_build_musicbrainz_headers_without_contact_email_uses_safe_fallback(monkeypatch, caplog):
+    monkeypatch.delenv("MUSICBRAINZ_CONTACT_EMAIL", raising=False)
+    monkeypatch.setattr(musicbrainz, "_missing_contact_email_warned", False)
+
+    with caplog.at_level("WARNING"):
+        headers = musicbrainz.build_musicbrainz_headers()
+
+    assert headers["User-Agent"] == "tidal-parser/1.0"
+    assert "missing_contact_email" in caplog.text
+
+
 @pytest.mark.asyncio
 async def test_fetch_musicbrainz_json_with_retry_timeout_then_success(monkeypatch):
     calls = {"count": 0}
