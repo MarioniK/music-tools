@@ -3,6 +3,7 @@ import asyncio
 import logging
 import os
 import re
+import time
 
 import httpx
 
@@ -10,9 +11,12 @@ import httpx
 MUSICBRAINZ_APP_NAME = "tidal-parser/1.0"
 MUSICBRAINZ_MAX_ATTEMPTS = 3
 MUSICBRAINZ_RETRY_DELAY_S = 0.2
+MUSICBRAINZ_MIN_INTERVAL_S = 1.1
 
 logger = logging.getLogger("tidal_parser")
 _missing_contact_email_warned = False
+_musicbrainz_rate_limit_lock = None
+_musicbrainz_last_request_started_at = None
 
 COUNTRY_TAG_MAP = {
     "US": "american",
@@ -173,6 +177,22 @@ def get_musicbrainz_contact_email():
     return (os.getenv("MUSICBRAINZ_CONTACT_EMAIL") or "").strip()
 
 
+def get_musicbrainz_min_interval_s():
+    raw_value = (os.getenv("MUSICBRAINZ_MIN_INTERVAL_S") or "").strip()
+    if not raw_value:
+        return MUSICBRAINZ_MIN_INTERVAL_S
+
+    try:
+        parsed = float(raw_value)
+    except ValueError:
+        return MUSICBRAINZ_MIN_INTERVAL_S
+
+    if parsed <= 0:
+        return MUSICBRAINZ_MIN_INTERVAL_S
+
+    return parsed
+
+
 def build_musicbrainz_user_agent():
     global _missing_contact_email_warned
 
@@ -194,6 +214,37 @@ def build_musicbrainz_headers():
         "User-Agent": build_musicbrainz_user_agent(),
         "Accept": "application/json",
     }
+
+
+def get_musicbrainz_rate_limit_lock():
+    global _musicbrainz_rate_limit_lock
+
+    if _musicbrainz_rate_limit_lock is None:
+        _musicbrainz_rate_limit_lock = asyncio.Lock()
+
+    return _musicbrainz_rate_limit_lock
+
+
+async def wait_for_musicbrainz_rate_limit():
+    global _musicbrainz_last_request_started_at
+
+    min_interval_s = get_musicbrainz_min_interval_s()
+    lock = get_musicbrainz_rate_limit_lock()
+
+    async with lock:
+        now = time.monotonic()
+        last_started_at = _musicbrainz_last_request_started_at
+
+        if last_started_at is not None:
+            wait_s = (last_started_at + min_interval_s) - now
+            if wait_s > 0:
+                logger.info(
+                    "event=musicbrainz_rate_limit outcome=wait wait_s=%.3f",
+                    wait_s,
+                )
+                await asyncio.sleep(wait_s)
+
+        _musicbrainz_last_request_started_at = time.monotonic()
 
 
 def country_display_from_tag(country_tag):
@@ -241,6 +292,7 @@ def infer_mb_release_kind(primary_type, secondary_types, entity_type):
 
 async def fetch_musicbrainz_json(url, params):
     headers = build_musicbrainz_headers()
+    await wait_for_musicbrainz_rate_limit()
 
     async with httpx.AsyncClient(timeout=20, headers=headers) as client:
         response = await client.get(url, params=params, follow_redirects=True)
