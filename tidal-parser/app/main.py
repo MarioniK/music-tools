@@ -791,13 +791,14 @@ async def build_result(url, force_refresh=False, baseline=None):
 
     if not force_refresh and cached:
         logger.info(
-            "event=cache_lookup outcome=hit cache_key=%s",
+            "event=cache_lookup outcome=hit source=cache cache_key=%s from_cache=true force_refresh=%s",
             cache_key,
+            force_refresh,
         )
         return cached
 
     logger.info(
-        "event=cache_lookup outcome=miss cache_key=%s force_refresh=%s",
+        "event=cache_lookup outcome=miss source=cache cache_key=%s from_cache=false force_refresh=%s",
         cache_key,
         force_refresh,
     )
@@ -809,6 +810,12 @@ async def build_result(url, force_refresh=False, baseline=None):
     result["blog_output"] = build_blog_output(result)
 
     save_cached_result(result)
+    logger.info(
+        "event=result_build outcome=success source=tidal_parser entity_type=%s from_cache=false force_refresh=%s final_genres_count=%d",
+        result.get("entity_type"),
+        force_refresh,
+        len(result.get("final_genres", [])),
+    )
     return result
 
 

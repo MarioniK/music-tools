@@ -13,41 +13,43 @@ if not logging.getLogger().handlers:
 T = TypeVar("T")
 
 
+def _duration_ms(t0: float) -> int:
+    return int((perf_counter() - t0) * 1000)
+
+
 async def run_timed_stage(stage: str, coro: Awaitable[T]) -> T:
     t0 = perf_counter()
-    logger.info("event=stage_start stage=%s", stage)
     try:
         result = await coro
     except Exception:
         logger.exception(
-            "event=stage_error stage=%s duration_s=%.3f",
+            "event=stage outcome=error stage=%s duration_ms=%d",
             stage,
-            perf_counter() - t0,
+            _duration_ms(t0),
         )
         raise
     logger.info(
-        "event=stage_end stage=%s duration_s=%.3f",
+        "event=stage outcome=success stage=%s duration_ms=%d",
         stage,
-        perf_counter() - t0,
+        _duration_ms(t0),
     )
     return result
 
 
 def run_timed_stage_sync(stage: str, fn: Callable[[], T]) -> T:
     t0 = perf_counter()
-    logger.info("event=stage_start stage=%s", stage)
     try:
         result = fn()
     except Exception:
         logger.exception(
-            "event=stage_error stage=%s duration_s=%.3f",
+            "event=stage outcome=error stage=%s duration_ms=%d",
             stage,
-            perf_counter() - t0,
+            _duration_ms(t0),
         )
         raise
     logger.info(
-        "event=stage_end stage=%s duration_s=%.3f",
+        "event=stage outcome=success stage=%s duration_ms=%d",
         stage,
-        perf_counter() - t0,
+        _duration_ms(t0),
     )
     return result

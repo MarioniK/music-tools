@@ -203,11 +203,9 @@ async def search_discogs_release_metadata(artist, release_title):
         )
     except httpx.TimeoutException as e:
         logger.warning(
-            "event=discogs_lookup outcome=timeout context=search artist=%s release_title=%s candidates_count=0 selected_candidate_score=%s detail_validation_passed=%s error=%s",
+            "event=discogs_lookup outcome=timeout source=discogs context=search artist=%s release_title=%s reason=timeout error=%s",
             artist,
             release_title,
-            None,
-            None,
             e,
         )
         return {
@@ -219,11 +217,9 @@ async def search_discogs_release_metadata(artist, release_title):
         }
     except httpx.HTTPStatusError as e:
         logger.warning(
-            "event=discogs_lookup outcome=http_error context=search artist=%s release_title=%s candidates_count=0 selected_candidate_score=%s detail_validation_passed=%s status=%s error=%s",
+            "event=discogs_lookup outcome=http_error source=discogs context=search artist=%s release_title=%s status_code=%s reason=http_error error=%s",
             artist,
             release_title,
-            None,
-            None,
             e.response.status_code,
             e,
         )
@@ -236,11 +232,9 @@ async def search_discogs_release_metadata(artist, release_title):
         }
     except Exception as e:
         logger.exception(
-            "event=discogs_lookup outcome=unexpected_error context=search artist=%s release_title=%s candidates_count=0 selected_candidate_score=%s detail_validation_passed=%s",
+            "event=discogs_lookup outcome=unexpected_error source=discogs context=search artist=%s release_title=%s reason=unexpected_error",
             artist,
             release_title,
-            None,
-            None,
         )
         return {
             "genres": [],
@@ -253,11 +247,9 @@ async def search_discogs_release_metadata(artist, release_title):
     results = search_data.get("results", [])
     if not results:
         logger.info(
-            "event=discogs_lookup outcome=not_found artist=%s release_title=%s candidates_count=0 selected_candidate_score=%s detail_validation_passed=%s",
+            "event=discogs_lookup outcome=not_found source=discogs context=search artist=%s release_title=%s candidates_count=0",
             artist,
             release_title,
-            None,
-            None,
         )
         return {
             "genres": [],
@@ -279,12 +271,11 @@ async def search_discogs_release_metadata(artist, release_title):
     detail_url = best.get("resource_url")
     if not detail_url:
         logger.info(
-            "event=discogs_lookup outcome=not_found artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s detail_validation_passed=%s",
+            "event=discogs_lookup outcome=not_found source=discogs context=detail artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s reason=missing_detail_url",
             artist,
             release_title,
             len(ranked_candidates),
             best_score,
-            None,
         )
         return {
             "genres": [],
@@ -298,12 +289,11 @@ async def search_discogs_release_metadata(artist, release_title):
         detail = await fetch_json(detail_url, {}, headers=headers)
     except httpx.TimeoutException as e:
         logger.warning(
-            "event=discogs_lookup outcome=timeout context=detail artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s detail_validation_passed=%s error=%s",
+            "event=discogs_lookup outcome=timeout source=discogs context=detail artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s reason=timeout error=%s",
             artist,
             release_title,
             len(ranked_candidates),
             best_score,
-            None,
             e,
         )
         return {
@@ -315,12 +305,11 @@ async def search_discogs_release_metadata(artist, release_title):
         }
     except httpx.HTTPStatusError as e:
         logger.warning(
-            "event=discogs_lookup outcome=http_error context=detail artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s detail_validation_passed=%s status=%s error=%s",
+            "event=discogs_lookup outcome=http_error source=discogs context=detail artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s status_code=%s reason=http_error error=%s",
             artist,
             release_title,
             len(ranked_candidates),
             best_score,
-            None,
             e.response.status_code,
             e,
         )
@@ -333,12 +322,11 @@ async def search_discogs_release_metadata(artist, release_title):
         }
     except Exception as e:
         logger.exception(
-            "event=discogs_lookup outcome=unexpected_error context=detail artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s detail_validation_passed=%s",
+            "event=discogs_lookup outcome=unexpected_error source=discogs context=detail artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s reason=unexpected_error",
             artist,
             release_title,
             len(ranked_candidates),
             best_score,
-            None,
         )
         return {
             "genres": [],
@@ -351,12 +339,11 @@ async def search_discogs_release_metadata(artist, release_title):
     detail_validation_passed = _detail_matches_release(detail, artist, release_title)
     if not detail_validation_passed:
         logger.info(
-            "event=discogs_lookup outcome=not_found artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s detail_validation_passed=%s",
+            "event=discogs_lookup outcome=not_found source=discogs context=detail artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s reason=detail_mismatch",
             artist,
             release_title,
             len(ranked_candidates),
             best_score,
-            False,
         )
         return {
             "genres": [],
@@ -377,12 +364,11 @@ async def search_discogs_release_metadata(artist, release_title):
         source_url = "https://www.discogs.com{}".format(source_url)
 
     logger.info(
-        "event=discogs_lookup outcome=success artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s detail_validation_passed=%s",
+        "event=discogs_lookup outcome=success source=discogs context=detail artist=%s release_title=%s candidates_count=%d selected_candidate_score=%s",
         artist,
         release_title,
         len(ranked_candidates),
         best_score,
-        True,
     )
 
     return {

@@ -177,7 +177,7 @@ def build_musicbrainz_user_agent():
 
     if not _missing_contact_email_warned:
         logger.warning(
-            "event=musicbrainz_user_agent_config outcome=missing_contact_email"
+            "event=musicbrainz_user_agent_config outcome=missing_contact_email source=musicbrainz reason=missing_contact_email"
         )
         _missing_contact_email_warned = True
 
@@ -214,7 +214,7 @@ async def wait_for_musicbrainz_rate_limit():
             wait_s = (last_started_at + min_interval_s) - now
             if wait_s > 0:
                 logger.info(
-                    "event=musicbrainz_rate_limit outcome=wait wait_s=%.3f",
+                    "event=musicbrainz_rate_limit outcome=wait source=musicbrainz wait_s=%.3f reason=min_interval",
                     wait_s,
                 )
                 await asyncio.sleep(wait_s)
@@ -294,8 +294,8 @@ async def fetch_musicbrainz_json_with_retry(url, params, context):
         except httpx.TimeoutException as e:
             last_error = e
             if attempt < max_attempts:
-                logger.warning(
-                    "event=musicbrainz_retry context=%s attempt=%d max_attempts=%d reason=timeout",
+                logger.info(
+                    "event=musicbrainz_retry outcome=retrying source=musicbrainz context=%s attempt=%d max_attempts=%d reason=timeout",
                     context,
                     attempt,
                     max_attempts,
@@ -311,8 +311,8 @@ async def fetch_musicbrainz_json_with_retry(url, params, context):
         except httpx.RequestError as e:
             last_error = e
             if attempt < max_attempts:
-                logger.warning(
-                    "event=musicbrainz_retry context=%s attempt=%d max_attempts=%d reason=request_failed",
+                logger.info(
+                    "event=musicbrainz_retry outcome=retrying source=musicbrainz context=%s attempt=%d max_attempts=%d reason=request_failed",
                     context,
                     attempt,
                     max_attempts,
@@ -329,8 +329,8 @@ async def fetch_musicbrainz_json_with_retry(url, params, context):
             last_error = e
             last_status_code = e.response.status_code
             if 500 <= e.response.status_code < 600 and attempt < max_attempts:
-                logger.warning(
-                    "event=musicbrainz_retry context=%s attempt=%d max_attempts=%d reason=http_5xx status=%s",
+                logger.info(
+                    "event=musicbrainz_retry outcome=retrying source=musicbrainz context=%s attempt=%d max_attempts=%d reason=http_5xx status_code=%s",
                     context,
                     attempt,
                     max_attempts,
@@ -347,7 +347,7 @@ async def fetch_musicbrainz_json_with_retry(url, params, context):
         except Exception as e:
             last_error = e
             logger.exception(
-                "event=musicbrainz_lookup outcome=unexpected_error context=%s",
+                "event=musicbrainz_lookup outcome=unexpected_error source=musicbrainz context=%s reason=unexpected_error",
                 context,
             )
             break
@@ -410,7 +410,7 @@ async def get_artist_country_by_mbid_result(artist_id):
     )
     if fetched["outcome"] != "success":
         logger.warning(
-            "event=musicbrainz_lookup outcome=%s context=artist_country_by_mbid artist_id=%s",
+            "event=musicbrainz_lookup outcome=%s source=musicbrainz context=artist_country_by_mbid artist_id=%s",
             fetched["outcome"],
             artist_id,
         )
@@ -419,7 +419,7 @@ async def get_artist_country_by_mbid_result(artist_id):
     country_tag = _extract_country_tag_from_artist_payload(fetched["data"])
     outcome = "success" if country_tag else "not_found"
     logger.info(
-        "event=musicbrainz_lookup outcome=%s context=artist_country_by_mbid artist_id=%s",
+        "event=musicbrainz_lookup outcome=%s source=musicbrainz context=artist_country_by_mbid artist_id=%s",
         outcome,
         artist_id,
     )
@@ -445,7 +445,7 @@ async def search_musicbrainz_release_info(artist, title, album, entity_type):
         )
         if fetched["outcome"] != "success":
             logger.warning(
-                "event=musicbrainz_lookup outcome=%s context=release_info_album artist=%s title=%s entity_type=%s",
+                "event=musicbrainz_lookup outcome=%s source=musicbrainz context=release_info_album artist=%s title=%s entity_type=%s",
                 fetched["outcome"],
                 artist,
                 title,
@@ -456,7 +456,7 @@ async def search_musicbrainz_release_info(artist, title, album, entity_type):
         releases = fetched["data"].get("releases", [])
         if not releases:
             logger.info(
-                "event=musicbrainz_lookup outcome=not_found context=release_info_album artist=%s title=%s entity_type=%s",
+                "event=musicbrainz_lookup outcome=not_found source=musicbrainz context=release_info_album artist=%s title=%s entity_type=%s",
                 artist,
                 title,
                 entity_type,
@@ -498,7 +498,7 @@ async def search_musicbrainz_release_info(artist, title, album, entity_type):
 
         confidence = min(best_score / 200.0, 0.95)
         logger.info(
-            "event=musicbrainz_lookup outcome=success context=release_info_album artist=%s title=%s entity_type=%s",
+            "event=musicbrainz_lookup outcome=success source=musicbrainz context=release_info_album artist=%s title=%s entity_type=%s",
             artist,
             title,
             entity_type,
@@ -525,7 +525,7 @@ async def search_musicbrainz_release_info(artist, title, album, entity_type):
     )
     if fetched["outcome"] != "success":
         logger.warning(
-            "event=musicbrainz_lookup outcome=%s context=release_info_recording artist=%s title=%s entity_type=%s",
+            "event=musicbrainz_lookup outcome=%s source=musicbrainz context=release_info_recording artist=%s title=%s entity_type=%s",
             fetched["outcome"],
             artist,
             title,
@@ -536,7 +536,7 @@ async def search_musicbrainz_release_info(artist, title, album, entity_type):
     recordings = fetched["data"].get("recordings", [])
     if not recordings:
         logger.info(
-            "event=musicbrainz_lookup outcome=not_found context=release_info_recording artist=%s title=%s entity_type=%s",
+            "event=musicbrainz_lookup outcome=not_found source=musicbrainz context=release_info_recording artist=%s title=%s entity_type=%s",
             artist,
             title,
             entity_type,
@@ -590,7 +590,7 @@ async def search_musicbrainz_release_info(artist, title, album, entity_type):
 
     if not best_release:
         logger.info(
-            "event=musicbrainz_lookup outcome=success context=release_info_recording artist=%s title=%s entity_type=%s",
+            "event=musicbrainz_lookup outcome=success source=musicbrainz context=release_info_recording artist=%s title=%s entity_type=%s",
             artist,
             title,
             entity_type,
@@ -617,7 +617,7 @@ async def search_musicbrainz_release_info(artist, title, album, entity_type):
         release_kind = "single"
 
     logger.info(
-        "event=musicbrainz_lookup outcome=success context=release_info_recording artist=%s title=%s entity_type=%s",
+        "event=musicbrainz_lookup outcome=success source=musicbrainz context=release_info_recording artist=%s title=%s entity_type=%s",
         artist,
         title,
         entity_type,
@@ -654,7 +654,7 @@ async def search_artist_country_tag(artist, artist_id=None):
     )
     if fetched["outcome"] != "success":
         logger.warning(
-            "event=musicbrainz_lookup outcome=%s context=artist_country_search artist=%s",
+            "event=musicbrainz_lookup outcome=%s source=musicbrainz context=artist_country_search artist=%s",
             fetched["outcome"],
             artist,
         )
@@ -663,7 +663,7 @@ async def search_artist_country_tag(artist, artist_id=None):
     artists = fetched["data"].get("artists", [])
     if not artists:
         logger.info(
-            "event=musicbrainz_lookup outcome=not_found context=artist_country_search artist=%s",
+            "event=musicbrainz_lookup outcome=not_found source=musicbrainz context=artist_country_search artist=%s",
             artist,
         )
         return None
@@ -679,7 +679,7 @@ async def search_artist_country_tag(artist, artist_id=None):
 
     if not best or best_score < 90:
         logger.info(
-            "event=musicbrainz_lookup outcome=not_found context=artist_country_search artist=%s",
+            "event=musicbrainz_lookup outcome=not_found source=musicbrainz context=artist_country_search artist=%s",
             artist,
         )
         return None
@@ -687,7 +687,7 @@ async def search_artist_country_tag(artist, artist_id=None):
     country_tag = _extract_country_tag_from_artist_payload(best)
     outcome = "success" if country_tag else "not_found"
     logger.info(
-        "event=musicbrainz_lookup outcome=%s context=artist_country_search artist=%s",
+        "event=musicbrainz_lookup outcome=%s source=musicbrainz context=artist_country_search artist=%s",
         outcome,
         artist,
     )
