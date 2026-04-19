@@ -2,12 +2,32 @@ import logging
 from time import perf_counter
 from typing import Awaitable, Callable, TypeVar
 
+from app import request_context
+
 logger = logging.getLogger("tidal_parser")
 
 
 def _configure_library_loggers():
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+
+class RequestContextFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        request_id = request_context.get_current_request_id()
+        record.request_id = request_id
+
+        message = record.getMessage()
+        if "request_id=" not in message:
+            record.msg = "request_id={} {}".format(request_id, message)
+            record.args = ()
+
+        return True
+
+
+def _configure_app_logger():
+    if not any(isinstance(existing_filter, RequestContextFilter) for existing_filter in logger.filters):
+        logger.addFilter(RequestContextFilter())
 
 
 if not logging.getLogger().handlers:
@@ -17,6 +37,7 @@ if not logging.getLogger().handlers:
     )
 
 _configure_library_loggers()
+_configure_app_logger()
 
 T = TypeVar("T")
 

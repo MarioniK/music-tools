@@ -28,6 +28,7 @@ from app.genre_normalization import (
 )
 from app.pipeline_logging import logger, run_timed_stage, run_timed_stage_sync
 from app import settings
+from app import request_context
 from app.services.discogs import search_discogs_release_metadata
 from app.services.musicbrainz import (
     country_display_from_tag,
@@ -49,6 +50,20 @@ templates = Jinja2Templates(directory="app/templates")
 limiter = Limiter(key_func=get_remote_address, default_limits=["20/minute"])
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
+
+
+@app.middleware("http")
+async def request_correlation_middleware(request: Request, call_next):
+    request_id = request_context.generate_request_id()
+    request.state.request_id = request_id
+    token = request_context.set_current_request_id(request_id)
+
+    try:
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+    finally:
+        request_context.reset_current_request_id(token)
 
 
 
