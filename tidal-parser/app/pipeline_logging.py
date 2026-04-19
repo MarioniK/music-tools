@@ -4,11 +4,19 @@ from typing import Awaitable, Callable, TypeVar
 
 logger = logging.getLogger("tidal_parser")
 
+
+def _configure_library_loggers():
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+
 if not logging.getLogger().handlers:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+
+_configure_library_loggers()
 
 T = TypeVar("T")
 
