@@ -61,9 +61,8 @@ class MetricsRegistry:
         with self._lock:
             return dict(self._counters)
 
-    def snapshot_with_metadata(self):
+    def process_metadata(self):
         with self._lock:
-            counters = dict(self._counters)
             generated_at_epoch = self._time_provider()
             uptime_seconds = int(
                 max(0.0, self._monotonic_provider() - self._started_at_monotonic)
@@ -73,6 +72,14 @@ class MetricsRegistry:
             "started_at": _format_utc_timestamp(self._started_at_epoch),
             "generated_at": _format_utc_timestamp(generated_at_epoch),
             "uptime_seconds": uptime_seconds,
+        }
+
+    def snapshot_with_metadata(self):
+        with self._lock:
+            counters = dict(self._counters)
+
+        return {
+            **self.process_metadata(),
             "summary": _build_summary(counters),
             "counters": counters,
             "metrics": dict(counters),
@@ -96,6 +103,10 @@ def snapshot():
 
 def snapshot_with_metadata():
     return registry.snapshot_with_metadata()
+
+
+def get_process_metadata():
+    return registry.process_metadata()
 
 
 def reset():

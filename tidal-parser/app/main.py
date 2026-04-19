@@ -1019,4 +1019,10 @@ async def get_metrics():
 @app.get("/health")
 @limiter.limit("30/minute")
 async def health(request: Request):
-    return {"ok": True}
+    process_metadata = metrics.get_process_metadata()
+    return {
+        "ok": True,
+        "status": "healthy",
+        "started_at": process_metadata["started_at"],
+        "uptime_seconds": process_metadata["uptime_seconds"],
+    }

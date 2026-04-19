@@ -88,6 +88,28 @@ async def test_metrics_endpoint_returns_snapshot():
     assert body["metrics"]["cache_hit_total"] == 1
 
 
+@pytest.mark.asyncio
+async def test_health_endpoint_returns_lightweight_process_metadata(monkeypatch):
+    monkeypatch.setattr(
+        main.metrics,
+        "get_process_metadata",
+        lambda: {
+            "started_at": "2023-11-14T22:13:20Z",
+            "generated_at": "2023-11-14T22:13:25Z",
+            "uptime_seconds": 5,
+        },
+    )
+
+    body = await main.health(_make_request(method="GET", path="/health"))
+
+    assert body == {
+        "ok": True,
+        "status": "healthy",
+        "started_at": "2023-11-14T22:13:20Z",
+        "uptime_seconds": 5,
+    }
+
+
 def test_metrics_snapshot_with_metadata_is_deterministic():
     wall_clock_values = iter([1_700_000_000.0, 1_700_000_005.0])
     monotonic_values = iter([100.0, 105.0])
@@ -142,6 +164,24 @@ def test_metrics_reset_keeps_started_at_and_uptime_baseline():
     assert snapshot["generated_at"] == "2023-11-14T22:13:25Z"
     assert snapshot["uptime_seconds"] == 5
     assert snapshot["counters"][metrics.REQUESTS_TOTAL] == 0
+
+
+def test_process_metadata_is_deterministic():
+    wall_clock_values = iter([1_700_000_000.0, 1_700_000_005.0])
+    monotonic_values = iter([100.0, 105.0])
+    registry = metrics.MetricsRegistry(
+        metrics.METRIC_NAMES,
+        time_provider=lambda: next(wall_clock_values),
+        monotonic_provider=lambda: next(monotonic_values),
+    )
+
+    metadata = registry.process_metadata()
+
+    assert metadata == {
+        "started_at": "2023-11-14T22:13:20Z",
+        "generated_at": "2023-11-14T22:13:25Z",
+        "uptime_seconds": 5,
+    }
 
 
 @pytest.mark.asyncio
