@@ -308,22 +308,27 @@ async def test_parse_form_does_not_save_audio_result_to_cache(monkeypatch):
 @pytest.mark.asyncio
 async def test_parse_api_empty_input_returns_400():
     parse_api_handler = getattr(main.parse_api, "__wrapped__", main.parse_api)
+    request = _make_request(method="GET", path="/api/parse")
+    request.state.request_id = "req-api-empty"
 
-    response = await parse_api_handler(_make_request(method="GET", path="/api/parse"), url="", force_refresh=0)
+    response = await parse_api_handler(request, url="", force_refresh=0)
 
     assert response.status_code == 400
     assert json.loads(response.body) == {
         "ok": False,
         "error": "Нужна ссылка TIDAL на track или album.",
+        "request_id": "req-api-empty",
     }
 
 
 @pytest.mark.asyncio
 async def test_parse_api_invalid_url_returns_400():
     parse_api_handler = getattr(main.parse_api, "__wrapped__", main.parse_api)
+    request = _make_request(method="GET", path="/api/parse")
+    request.state.request_id = "req-api-invalid"
 
     response = await parse_api_handler(
-        _make_request(method="GET", path="/api/parse"),
+        request,
         url="https://example.com/not-tidal",
         force_refresh=0,
     )
@@ -331,6 +336,7 @@ async def test_parse_api_invalid_url_returns_400():
     assert response.status_code == 400
     assert json.loads(response.body)["ok"] is False
     assert "Не удалось распознать ссылку TIDAL" in json.loads(response.body)["error"]
+    assert json.loads(response.body)["request_id"] == "req-api-invalid"
 
 
 @pytest.mark.asyncio
@@ -340,9 +346,11 @@ async def test_parse_api_internal_failure_returns_500(monkeypatch):
 
     monkeypatch.setattr(main, "build_result", fake_build_result)
     parse_api_handler = getattr(main.parse_api, "__wrapped__", main.parse_api)
+    request = _make_request(method="GET", path="/api/parse")
+    request.state.request_id = "req-api-500"
 
     response = await parse_api_handler(
-        _make_request(method="GET", path="/api/parse"),
+        request,
         url="https://tidal.com/browse/track/123",
         force_refresh=0,
     )
@@ -351,6 +359,7 @@ async def test_parse_api_internal_failure_returns_500(monkeypatch):
     assert json.loads(response.body) == {
         "ok": False,
         "error": "Внутренняя ошибка сервера. Попробуй позже.",
+        "request_id": "req-api-500",
     }
 
 
@@ -361,9 +370,11 @@ async def test_parse_api_unexpected_exception_returns_500(monkeypatch):
 
     monkeypatch.setattr(main, "build_result", fake_build_result)
     parse_api_handler = getattr(main.parse_api, "__wrapped__", main.parse_api)
+    request = _make_request(method="GET", path="/api/parse")
+    request.state.request_id = "req-api-unexpected"
 
     response = await parse_api_handler(
-        _make_request(method="GET", path="/api/parse"),
+        request,
         url="https://tidal.com/browse/track/123",
         force_refresh=0,
     )
@@ -372,37 +383,46 @@ async def test_parse_api_unexpected_exception_returns_500(monkeypatch):
     assert json.loads(response.body) == {
         "ok": False,
         "error": "Внутренняя ошибка сервера. Попробуй позже.",
+        "request_id": "req-api-unexpected",
     }
 
 
 @pytest.mark.asyncio
 async def test_parse_form_empty_input_returns_html_400():
     parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    request = _make_request()
+    request.state.request_id = "req-form-empty"
 
     response = await parse_form_handler(
-        _make_request(),
+        request,
         url="",
         force_refresh="0",
         audio=None,
     )
 
     assert response.status_code == 400
-    assert "Нужна ссылка TIDAL на track или album." in response.body.decode("utf-8")
+    body = response.body.decode("utf-8")
+    assert "Нужна ссылка TIDAL на track или album." in body
+    assert "Reference ID: req-form-empty" in body
 
 
 @pytest.mark.asyncio
 async def test_parse_form_invalid_url_returns_html_400():
     parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    request = _make_request()
+    request.state.request_id = "req-form-invalid"
 
     response = await parse_form_handler(
-        _make_request(),
+        request,
         url="https://example.com/not-tidal",
         force_refresh="0",
         audio=None,
     )
 
+    body = response.body.decode("utf-8")
     assert response.status_code == 400
-    assert "Не удалось распознать ссылку TIDAL" in response.body.decode("utf-8")
+    assert "Не удалось распознать ссылку TIDAL" in body
+    assert "Reference ID: req-form-invalid" in body
 
 
 @pytest.mark.asyncio
@@ -412,9 +432,11 @@ async def test_parse_form_internal_failure_returns_html_500(monkeypatch):
 
     monkeypatch.setattr(main, "build_result", fake_build_result)
     parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    request = _make_request()
+    request.state.request_id = "req-form-500"
 
     response = await parse_form_handler(
-        _make_request(),
+        request,
         url="https://tidal.com/browse/track/123",
         force_refresh="0",
         audio=None,
@@ -423,6 +445,7 @@ async def test_parse_form_internal_failure_returns_html_500(monkeypatch):
     body = response.body.decode("utf-8")
     assert response.status_code == 500
     assert "Не удалось обработать запрос. Попробуй ещё раз позже." in body
+    assert "Reference ID: req-form-500" in body
     assert "db down" not in body
 
 

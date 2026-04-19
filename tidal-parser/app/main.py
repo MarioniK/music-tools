@@ -69,9 +69,15 @@ async def request_correlation_middleware(request: Request, call_next):
 
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    request_id = getattr(request.state, "request_id", None)
+
     if request.url.path.startswith("/api/"):
         return JSONResponse(
-            {"ok": False, "error": "Слишком много запросов. Подожди немного и попробуй снова."},
+            {
+                "ok": False,
+                "error": "Слишком много запросов. Подожди немного и попробуй снова.",
+                "request_id": request_id,
+            },
             status_code=429,
         )
 
@@ -81,6 +87,7 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
             "request": request,
             "result": None,
             "error": "Слишком много запросов. Подожди немного и попробуй снова.",
+            "error_request_id": request_id,
             "form_url": request.query_params.get("url", ""),
         },
         status_code=429,
@@ -851,6 +858,7 @@ async def parse_form(
     force_refresh: str = Form(default="0"),
     audio: UploadFile = File(default=None),
 ):
+    request_id = getattr(request.state, "request_id", None)
     try:
         url = validate_user_input_url(url)
         result = await build_result(url, force_refresh=(force_refresh == "1"))
@@ -878,7 +886,13 @@ async def parse_form(
 
         return templates.TemplateResponse(
             "index.html",
-            {"request": request, "result": result, "error": None, "form_url": url},
+            {
+                "request": request,
+                "result": result,
+                "error": None,
+                "error_request_id": None,
+                "form_url": url,
+            },
         )
     except ClientInputError as e:
         logger.warning(
@@ -889,7 +903,13 @@ async def parse_form(
         )
         return templates.TemplateResponse(
             "index.html",
-            {"request": request, "result": None, "error": str(e), "form_url": url},
+            {
+                "request": request,
+                "result": None,
+                "error": str(e),
+                "error_request_id": request_id,
+                "form_url": url,
+            },
             status_code=400,
         )
     except Exception:
@@ -904,6 +924,7 @@ async def parse_form(
                 "request": request,
                 "result": None,
                 "error": "Не удалось обработать запрос. Попробуй ещё раз позже.",
+                "error_request_id": request_id,
                 "form_url": url,
             },
             status_code=500,
@@ -938,6 +959,7 @@ async def clear_cache(request: Request, url: str = Form(...)):
 @app.get("/api/parse")
 @limiter.limit("10/minute")
 async def parse_api(request: Request, url: str, force_refresh: int = 0):
+    request_id = getattr(request.state, "request_id", None)
     try:
         url = validate_user_input_url(url)
         result = await build_result(url, force_refresh=(force_refresh == 1))
@@ -949,7 +971,10 @@ async def parse_api(request: Request, url: str, force_refresh: int = 0):
             url,
             str(e),
         )
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "error": str(e), "request_id": request_id},
+            status_code=400,
+        )
     except Exception:
         logger.exception(
             "event=parse_api outcome=server_error path=%s url=%s",
@@ -957,7 +982,11 @@ async def parse_api(request: Request, url: str, force_refresh: int = 0):
             url,
         )
         return JSONResponse(
-            {"ok": False, "error": "Внутренняя ошибка сервера. Попробуй позже."},
+            {
+                "ok": False,
+                "error": "Внутренняя ошибка сервера. Попробуй позже.",
+                "request_id": request_id,
+            },
             status_code=500,
         )
 

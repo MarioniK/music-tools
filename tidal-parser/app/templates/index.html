@@ -29,6 +29,9 @@
     <div class="card error">
       <strong>Ошибка:</strong>
       <div>{{ error }}</div>
+      {% if error_request_id %}
+      <div class="note">Reference ID: {{ error_request_id }}</div>
+      {% endif %}
     </div>
     {% endif %}
 
