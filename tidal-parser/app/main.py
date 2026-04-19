@@ -1013,7 +1013,7 @@ async def parse_api(request: Request, url: str, force_refresh: int = 0):
 
 @app.get("/metrics")
 async def get_metrics():
-    return {"metrics": metrics.snapshot()}
+    return metrics.snapshot_with_metadata()
 
 
 @app.get("/health")

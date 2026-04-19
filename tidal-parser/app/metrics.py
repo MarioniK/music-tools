@@ -1,4 +1,7 @@
 import threading
+import time
+from datetime import datetime
+from datetime import timezone
 
 
 REQUESTS_TOTAL = "requests_total"
@@ -36,10 +39,15 @@ METRIC_NAMES = [
 
 
 class MetricsRegistry:
-    def __init__(self, metric_names):
+    def __init__(self, metric_names, time_provider=None, monotonic_provider=None):
         self._metric_names = list(metric_names)
         self._lock = threading.Lock()
-        self._counters = {name: 0 for name in self._metric_names}
+        self._time_provider = time_provider or time.time
+        self._monotonic_provider = monotonic_provider or time.monotonic
+        self._started_at_epoch = self._time_provider()
+        self._started_at_monotonic = self._monotonic_provider()
+        self._counters = {}
+        self.reset()
 
     def increment(self, name, value=1):
         if name not in self._counters:
@@ -52,6 +60,23 @@ class MetricsRegistry:
     def snapshot(self):
         with self._lock:
             return dict(self._counters)
+
+    def snapshot_with_metadata(self):
+        with self._lock:
+            counters = dict(self._counters)
+            generated_at_epoch = self._time_provider()
+            uptime_seconds = int(
+                max(0.0, self._monotonic_provider() - self._started_at_monotonic)
+            )
+
+        return {
+            "started_at": _format_utc_timestamp(self._started_at_epoch),
+            "generated_at": _format_utc_timestamp(generated_at_epoch),
+            "uptime_seconds": uptime_seconds,
+            "summary": _build_summary(counters),
+            "counters": counters,
+            "metrics": dict(counters),
+        }
 
     def reset(self):
         with self._lock:
@@ -67,6 +92,10 @@ def increment(name, value=1):
 
 def snapshot():
     return registry.snapshot()
+
+
+def snapshot_with_metadata():
+    return registry.snapshot_with_metadata()
 
 
 def reset():
@@ -141,3 +170,45 @@ def record_musicbrainz_outcome(outcome):
         increment_musicbrainz_not_found_total()
     elif outcome == "failure":
         increment_musicbrainz_failure_total()
+
+
+def _format_utc_timestamp(epoch_seconds):
+    return (
+        datetime.fromtimestamp(epoch_seconds, tz=timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+
+def _safe_ratio(numerator, denominator):
+    if denominator <= 0:
+        return None
+    return round(float(numerator) / float(denominator), 4)
+
+
+def _build_summary(counters):
+    parse_success_total = counters[PARSE_SUCCESS_TOTAL]
+    parse_error_total = counters[PARSE_ERROR_TOTAL]
+    completed_requests_total = parse_success_total + parse_error_total
+    cache_lookups_total = counters[CACHE_HIT_TOTAL] + counters[CACHE_MISS_TOTAL]
+
+    return {
+        "totals": {
+            "completed_requests_total": completed_requests_total,
+            "source_failure_total": (
+                counters[DISCOGS_FAILURE_TOTAL]
+                + counters[MUSICBRAINZ_FAILURE_TOTAL]
+            ),
+        },
+        "ratios": {
+            "cache_hit_ratio": _safe_ratio(
+                counters[CACHE_HIT_TOTAL],
+                cache_lookups_total,
+            ),
+            "degraded_result_ratio": _safe_ratio(
+                counters[DEGRADED_RESULT_TOTAL],
+                parse_success_total,
+            ),
+        },
+    }

@@ -79,8 +79,69 @@ async def test_metrics_endpoint_returns_snapshot():
     metrics.increment_cache_hit_total()
 
     body = await main.get_metrics()
+    assert body["started_at"]
+    assert body["generated_at"]
+    assert isinstance(body["uptime_seconds"], int)
+    assert body["counters"]["requests_total"] == 1
+    assert body["counters"]["cache_hit_total"] == 1
     assert body["metrics"]["requests_total"] == 1
     assert body["metrics"]["cache_hit_total"] == 1
+
+
+def test_metrics_snapshot_with_metadata_is_deterministic():
+    wall_clock_values = iter([1_700_000_000.0, 1_700_000_005.0])
+    monotonic_values = iter([100.0, 105.0])
+    registry = metrics.MetricsRegistry(
+        metrics.METRIC_NAMES,
+        time_provider=lambda: next(wall_clock_values),
+        monotonic_provider=lambda: next(monotonic_values),
+    )
+
+    registry.increment(metrics.REQUESTS_TOTAL)
+    registry.increment(metrics.PARSE_SUCCESS_TOTAL)
+    registry.increment(metrics.DEGRADED_RESULT_TOTAL)
+    registry.increment(metrics.CACHE_HIT_TOTAL)
+    registry.increment(metrics.CACHE_MISS_TOTAL)
+    registry.increment(metrics.DISCOGS_FAILURE_TOTAL)
+    registry.increment(metrics.MUSICBRAINZ_FAILURE_TOTAL)
+
+    snapshot = registry.snapshot_with_metadata()
+
+    assert snapshot["started_at"] == "2023-11-14T22:13:20Z"
+    assert snapshot["generated_at"] == "2023-11-14T22:13:25Z"
+    assert snapshot["uptime_seconds"] == 5
+    assert snapshot["counters"][metrics.REQUESTS_TOTAL] == 1
+    assert snapshot["metrics"][metrics.REQUESTS_TOTAL] == 1
+    assert snapshot["summary"] == {
+        "totals": {
+            "completed_requests_total": 1,
+            "source_failure_total": 2,
+        },
+        "ratios": {
+            "cache_hit_ratio": 0.5,
+            "degraded_result_ratio": 1.0,
+        },
+    }
+
+
+def test_metrics_reset_keeps_started_at_and_uptime_baseline():
+    wall_clock_values = iter([1_700_000_000.0, 1_700_000_005.0])
+    monotonic_values = iter([100.0, 105.0])
+    registry = metrics.MetricsRegistry(
+        metrics.METRIC_NAMES,
+        time_provider=lambda: next(wall_clock_values),
+        monotonic_provider=lambda: next(monotonic_values),
+    )
+
+    registry.increment(metrics.REQUESTS_TOTAL)
+    registry.reset()
+
+    snapshot = registry.snapshot_with_metadata()
+
+    assert snapshot["started_at"] == "2023-11-14T22:13:20Z"
+    assert snapshot["generated_at"] == "2023-11-14T22:13:25Z"
+    assert snapshot["uptime_seconds"] == 5
+    assert snapshot["counters"][metrics.REQUESTS_TOTAL] == 0
 
 
 @pytest.mark.asyncio
