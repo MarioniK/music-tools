@@ -18,7 +18,25 @@
     <p class="subtitle">Вставь ссылку TIDAL и, при желании, загрузи mp3-фрагмент для анализа по аудио.</p>
 
     <form method="post" class="card form-card" enctype="multipart/form-data">
-      <input type="url" name="url" placeholder="https://tidal.com/track/498894205/u" value="{{ form_url or '' }}" required />
+      <div class="url-input-wrap">
+        <input
+          id="url-input"
+          type="url"
+          name="url"
+          placeholder="https://tidal.com/track/498894205/u"
+          value="{{ form_url or '' }}"
+          required
+        />
+        <button
+          id="clear-url-button"
+          type="button"
+          class="clear-url-btn"
+          aria-label="Очистить поле ссылки"
+          hidden
+        >
+          ×
+        </button>
+      </div>
       <input type="file" name="audio" accept=".mp3,.wav,.m4a,.flac,.ogg" />
       <div class="note">После отправки браузер очищает поле файла. Если нужен повторный audio-анализ, выбери файл заново.</div>
       <input type="hidden" name="force_refresh" value="0" />
@@ -168,6 +186,30 @@
     </div>
     {% endif %}
   </div>
+
+  <script>
+    (function () {
+      const urlInput = document.getElementById("url-input");
+      const clearButton = document.getElementById("clear-url-button");
+
+      if (!urlInput || !clearButton) {
+        return;
+      }
+
+      function syncClearButton() {
+        clearButton.hidden = urlInput.value.trim() === "";
+      }
+
+      clearButton.addEventListener("click", function () {
+        urlInput.value = "";
+        syncClearButton();
+        urlInput.focus();
+      });
+
+      urlInput.addEventListener("input", syncClearButton);
+      syncClearButton();
+    })();
+  </script>
 </body>
 
 </html>
