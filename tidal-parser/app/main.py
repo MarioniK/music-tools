@@ -28,6 +28,7 @@ from app.genre_normalization import (
 )
 from app.pipeline_logging import logger, run_timed_stage, run_timed_stage_sync
 from app import settings
+from app import metrics
 from app import request_context
 from app.services.discogs import search_discogs_release_metadata
 from app.services.musicbrainz import (
@@ -121,6 +122,10 @@ init_db()
 
 class ClientInputError(ValueError):
     pass
+
+
+def _is_degraded_result(result):
+    return bool(clean_text((result or {}).get("note")))
 
 
 def build_cache_key(url):
@@ -811,7 +816,11 @@ async def build_result(url, force_refresh=False, baseline=None):
     if baseline is not None and not _is_valid_cached_payload(baseline):
         baseline = None
 
+    if force_refresh:
+        metrics.increment_force_refresh_total()
+
     if not force_refresh and cached:
+        metrics.increment_cache_hit_total()
         logger.info(
             "event=cache_lookup outcome=hit source=cache cache_key=%s from_cache=true force_refresh=%s",
             cache_key,
@@ -819,6 +828,7 @@ async def build_result(url, force_refresh=False, baseline=None):
         )
         return cached
 
+    metrics.increment_cache_miss_total()
     logger.info(
         "event=cache_lookup outcome=miss source=cache cache_key=%s from_cache=false force_refresh=%s",
         cache_key,
@@ -832,6 +842,8 @@ async def build_result(url, force_refresh=False, baseline=None):
     result["blog_output"] = build_blog_output(result)
 
     save_cached_result(result)
+    if _is_degraded_result(result):
+        metrics.increment_degraded_result_total()
     logger.info(
         "event=result_build outcome=success source=tidal_parser entity_type=%s from_cache=false force_refresh=%s final_genres_count=%d",
         result.get("entity_type"),
@@ -859,6 +871,7 @@ async def parse_form(
     audio: UploadFile = File(default=None),
 ):
     request_id = getattr(request.state, "request_id", None)
+    metrics.increment_requests_total()
     try:
         url = validate_user_input_url(url)
         result = await build_result(url, force_refresh=(force_refresh == "1"))
@@ -884,6 +897,7 @@ async def parse_form(
         elif force_refresh == "1":
             result["audio_note"] = "Обновление без кэша не повторяет аудио-анализ. Если нужен новый audio-анализ, загрузи файл заново."
 
+        metrics.increment_parse_success_total()
         return templates.TemplateResponse(
             "index.html",
             {
@@ -901,6 +915,7 @@ async def parse_form(
             url,
             str(e),
         )
+        metrics.increment_parse_error_total()
         return templates.TemplateResponse(
             "index.html",
             {
@@ -918,6 +933,7 @@ async def parse_form(
             request.url.path,
             url,
         )
+        metrics.increment_parse_error_total()
         return templates.TemplateResponse(
             "index.html",
             {
@@ -960,9 +976,11 @@ async def clear_cache(request: Request, url: str = Form(...)):
 @limiter.limit("10/minute")
 async def parse_api(request: Request, url: str, force_refresh: int = 0):
     request_id = getattr(request.state, "request_id", None)
+    metrics.increment_requests_total()
     try:
         url = validate_user_input_url(url)
         result = await build_result(url, force_refresh=(force_refresh == 1))
+        metrics.increment_parse_success_total()
         return {"ok": True, "data": result}
     except ClientInputError as e:
         logger.warning(
@@ -971,6 +989,7 @@ async def parse_api(request: Request, url: str, force_refresh: int = 0):
             url,
             str(e),
         )
+        metrics.increment_parse_error_total()
         return JSONResponse(
             {"ok": False, "error": str(e), "request_id": request_id},
             status_code=400,
@@ -981,6 +1000,7 @@ async def parse_api(request: Request, url: str, force_refresh: int = 0):
             request.url.path,
             url,
         )
+        metrics.increment_parse_error_total()
         return JSONResponse(
             {
                 "ok": False,
@@ -989,6 +1009,11 @@ async def parse_api(request: Request, url: str, force_refresh: int = 0):
             },
             status_code=500,
         )
+
+
+@app.get("/metrics")
+async def get_metrics():
+    return {"metrics": metrics.snapshot()}
 
 
 @app.get("/health")
