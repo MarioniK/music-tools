@@ -11,6 +11,7 @@ from essentia.standard import MonoLoader, TensorflowPredictMusiCNN
 
 from app.core import settings
 from app.genre_normalization import normalize_audio_prediction_genres
+from app.providers.factory import get_genre_provider
 
 
 logger = logging.getLogger("genre_classifier")
@@ -85,6 +86,16 @@ def normalize_genres(raw_genres):
     return normalize_audio_prediction_genres(raw_genres, min_prob=0.05)
 
 
+def _provider_result_to_raw_genres(provider_result):
+    return [
+        {
+            "tag": item.tag,
+            "prob": round(float(item.score), 4),
+        }
+        for item in provider_result.genres
+    ]
+
+
 def validate_upload(file_bytes: bytes, filename: str):
     if not file_bytes:
         raise RuntimeError("Файл пустой")
@@ -156,7 +167,9 @@ def process_uploaded_audio(file_bytes: bytes, filename: str):
             )
             raise
 
-        genres = run_genre_classification(wav_path)
+        provider = get_genre_provider(settings)
+        provider_result = provider.classify(str(wav_path))
+        genres = _provider_result_to_raw_genres(provider_result)
         normalized = normalize_genres(genres)
         logger.info(
             "event=file_processing_succeeded filename=%s size_bytes=%d",

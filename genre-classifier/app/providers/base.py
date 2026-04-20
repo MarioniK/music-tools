@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Protocol
+from typing import List, Optional
 
 
 @dataclass(frozen=True)
@@ -10,11 +10,11 @@ class ProviderGenreScore:
 
 @dataclass(frozen=True)
 class ProviderResult:
-    genres: list[ProviderGenreScore]
+    genres: List[ProviderGenreScore]
     provider_name: str
-    model_name: str | None = None
+    model_name: Optional[str] = None
 
 
-class GenreProvider(Protocol):
+class GenreProvider(object):
     def classify(self, audio_path: str) -> ProviderResult:
-        ...
+        raise NotImplementedError
