@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 import json
+import logging
+import socket
 from typing import List
 from urllib import error, request
 
@@ -13,6 +15,7 @@ from app.clients.llm_runtime_contract import (
 )
 
 LOCAL_HTTP_UNKNOWN_MODEL_NAME = "local-http-unknown-model"
+logger = logging.getLogger("genre_classifier")
 
 
 @dataclass(frozen=True)
@@ -30,6 +33,14 @@ class LlmInferenceResult:
 class LlmInferenceClient(object):
     def infer_genres(self, audio_path: str) -> LlmInferenceResult:
         raise NotImplementedError
+
+
+class LocalLlmRuntimeTransportError(RuntimeError):
+    pass
+
+
+class LocalLlmRuntimeHttpError(LocalLlmRuntimeTransportError):
+    pass
 
 
 class StubLlmInferenceClient(LlmInferenceClient):
@@ -69,10 +80,38 @@ class LocalHttpLlmInferenceClient(LlmInferenceClient):
         )
 
         try:
+            logger.info(
+                "event=local_llm_http_request_started endpoint=%s timeout_seconds=%s",
+                self._endpoint,
+                self._timeout_seconds,
+            )
             with request.urlopen(http_request, timeout=self._timeout_seconds) as response:
                 response_body = response.read().decode("utf-8")
-        except (error.URLError, TimeoutError) as exc:
-            raise RuntimeError("local llm runtime request failed") from exc
+        except error.HTTPError as exc:
+            logger.error(
+                "event=local_llm_http_request_failed category=http_error endpoint=%s timeout_seconds=%s status_code=%s",
+                self._endpoint,
+                self._timeout_seconds,
+                exc.code,
+            )
+            raise LocalLlmRuntimeHttpError(
+                "local llm runtime http error: status={}".format(exc.code)
+            ) from exc
+        except (TimeoutError, socket.timeout) as exc:
+            logger.error(
+                "event=local_llm_http_request_failed category=timeout endpoint=%s timeout_seconds=%s",
+                self._endpoint,
+                self._timeout_seconds,
+            )
+            raise LocalLlmRuntimeTransportError("local llm runtime request timed out") from exc
+        except error.URLError as exc:
+            logger.error(
+                "event=local_llm_http_request_failed category=transport endpoint=%s timeout_seconds=%s reason=%s",
+                self._endpoint,
+                self._timeout_seconds,
+                exc.reason,
+            )
+            raise LocalLlmRuntimeTransportError("local llm runtime transport request failed") from exc
 
         try:
             parsed = json.loads(response_body)
@@ -84,10 +123,29 @@ class LocalHttpLlmInferenceClient(LlmInferenceClient):
                 )
                 for item in runtime_response.labels
             ]
-        except (LocalLlmRuntimeValidationError, json.JSONDecodeError) as exc:
+        except json.JSONDecodeError as exc:
+            logger.error(
+                "event=local_llm_http_request_failed category=invalid_json endpoint=%s timeout_seconds=%s",
+                self._endpoint,
+                self._timeout_seconds,
+            )
+            raise LocalLlmRuntimeValidationError("invalid local llm runtime json response") from exc
+        except LocalLlmRuntimeValidationError as exc:
+            logger.error(
+                "event=local_llm_http_request_failed category=invalid_payload endpoint=%s timeout_seconds=%s",
+                self._endpoint,
+                self._timeout_seconds,
+            )
             raise LocalLlmRuntimeValidationError("invalid local llm runtime response") from exc
 
         model_name = _resolve_runtime_model_name(runtime_response.model)
+        logger.info(
+            "event=local_llm_http_request_succeeded endpoint=%s timeout_seconds=%s model_name=%s labels_count=%d",
+            self._endpoint,
+            self._timeout_seconds,
+            model_name,
+            len(genres),
+        )
 
         return LlmInferenceResult(genres=genres, model_name=model_name)
 

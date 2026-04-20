@@ -1,10 +1,13 @@
 import pytest
+from urllib import error
 
 from app.clients.llm import (
     LOCAL_HTTP_UNKNOWN_MODEL_NAME,
     LlmClientGenreScore,
     LlmInferenceResult,
     LocalHttpLlmInferenceClient,
+    LocalLlmRuntimeHttpError,
+    LocalLlmRuntimeTransportError,
     StubLlmInferenceClient,
     get_default_llm_inference_client,
 )
@@ -166,7 +169,85 @@ def test_local_http_client_uses_non_empty_model_fallback(monkeypatch, response_b
     assert result.model_name == LOCAL_HTTP_UNKNOWN_MODEL_NAME
 
 
-def test_local_http_client_rejects_invalid_response(monkeypatch):
+def test_local_http_client_maps_timeout_to_transport_error(monkeypatch):
+    monkeypatch.setattr(
+        "app.clients.llm.request.urlopen",
+        lambda http_request, timeout: (_ for _ in ()).throw(TimeoutError("deadline exceeded")),
+    )
+
+    client = LocalHttpLlmInferenceClient(
+        endpoint="http://127.0.0.1:11434/infer",
+        timeout_seconds=4.0,
+    )
+
+    with pytest.raises(LocalLlmRuntimeTransportError, match="timed out"):
+        client.infer_genres("/tmp/audio.wav")
+
+
+def test_local_http_client_maps_urlerror_to_transport_error(monkeypatch):
+    monkeypatch.setattr(
+        "app.clients.llm.request.urlopen",
+        lambda http_request, timeout: (_ for _ in ()).throw(error.URLError("connection refused")),
+    )
+
+    client = LocalHttpLlmInferenceClient(
+        endpoint="http://127.0.0.1:11434/infer",
+        timeout_seconds=4.0,
+    )
+
+    with pytest.raises(LocalLlmRuntimeTransportError, match="transport request failed"):
+        client.infer_genres("/tmp/audio.wav")
+
+
+def test_local_http_client_maps_http_error_to_http_error(monkeypatch):
+    monkeypatch.setattr(
+        "app.clients.llm.request.urlopen",
+        lambda http_request, timeout: (_ for _ in ()).throw(
+            error.HTTPError(
+                url="http://127.0.0.1:11434/infer",
+                code=503,
+                msg="Service Unavailable",
+                hdrs=None,
+                fp=None,
+            )
+        ),
+    )
+
+    client = LocalHttpLlmInferenceClient(
+        endpoint="http://127.0.0.1:11434/infer",
+        timeout_seconds=4.0,
+    )
+
+    with pytest.raises(LocalLlmRuntimeHttpError, match="status=503"):
+        client.infer_genres("/tmp/audio.wav")
+
+
+def test_local_http_client_rejects_invalid_json_response(monkeypatch):
+    class _FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"ok":true,"model":"local-llm-v1","labels":'
+
+    monkeypatch.setattr(
+        "app.clients.llm.request.urlopen",
+        lambda http_request, timeout: _FakeResponse(),
+    )
+
+    client = LocalHttpLlmInferenceClient(
+        endpoint="http://127.0.0.1:11434/infer",
+        timeout_seconds=4.0,
+    )
+
+    with pytest.raises(LocalLlmRuntimeValidationError, match="invalid local llm runtime json response"):
+        client.infer_genres("/tmp/audio.wav")
+
+
+def test_local_http_client_rejects_invalid_runtime_payload(monkeypatch):
     class _FakeResponse:
         def __enter__(self):
             return self
