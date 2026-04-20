@@ -1,5 +1,6 @@
 import pytest
 from urllib import error
+import json
 
 from app.clients.llm import (
     LOCAL_HTTP_UNKNOWN_MODEL_NAME,
@@ -11,10 +12,12 @@ from app.clients.llm import (
     StubLlmInferenceClient,
     get_default_llm_inference_client,
 )
+from app.clients.llm_prompt_builder import build_genre_inference_prompt
 from app.clients.llm_runtime_contract import (
     LocalLlmRuntimeValidationError,
     parse_local_llm_runtime_response,
 )
+from app.core import settings
 from app.providers.base import ProviderResult
 from app.providers.compat import (
     map_validated_result_to_legacy_genres,
@@ -127,10 +130,15 @@ def test_local_http_client_parses_valid_response(monkeypatch):
 
     result = client.infer_genres("/tmp/audio.wav")
 
+    request_payload = json.loads(captured["body"].decode("utf-8"))
+
     assert captured["url"] == "http://127.0.0.1:11434/infer"
     assert captured["method"] == "POST"
-    assert captured["body"] == b'{"input": {"text": "/tmp/audio.wav"}, "options": {}}'
     assert captured["timeout"] == 4.0
+    assert request_payload == {
+        "input": {"text": "/tmp/audio.wav"},
+        "options": {},
+    }
     assert isinstance(result, LlmInferenceResult)
     assert result.model_name == "local-llm-v1"
     assert [(item.tag, item.score) for item in result.genres] == [
@@ -516,3 +524,82 @@ def test_llm_provider_validated_output_preserves_existing_compatibility_shape(mo
     ]
     assert pretty_genres == legacy_genres
     assert pretty_calls == [(legacy_genres, 0.05)]
+
+
+def test_genre_inference_prompt_is_not_empty():
+    prompt = build_genre_inference_prompt("/tmp/audio.wav")
+
+    assert isinstance(prompt, str)
+    assert prompt.strip()
+
+
+def test_genre_inference_prompt_requires_json_only_output():
+    prompt = build_genre_inference_prompt("/tmp/audio.wav")
+
+    assert "OUTPUT_MODE: JSON_ONLY" in prompt
+    assert 'OUTPUT_SHAPE: {"genres":[{"tag":"string","score":0.0}]}' in prompt
+
+
+def test_genre_inference_prompt_forbids_explanations_and_markdown():
+    prompt = build_genre_inference_prompt("/tmp/audio.wav")
+
+    assert "do not return explanations, prose, markdown, code fences, or commentary" in prompt
+
+
+def test_genre_inference_prompt_includes_max_n_rule():
+    prompt = build_genre_inference_prompt("/tmp/audio.wav", max_genres=5)
+
+    assert "never return more than 5 genres" in prompt
+    assert "max_genres=5" in prompt
+
+
+def test_genre_inference_prompt_requires_empty_list_for_weak_output():
+    prompt = build_genre_inference_prompt("/tmp/audio.wav")
+
+    assert 'return {"genres":[]} if nothing reliable can be inferred' in prompt
+    assert "return fewer tags instead of inventing genres" in prompt
+
+
+def test_genre_inference_prompt_shape_is_stable_and_machine_oriented():
+    prompt = build_genre_inference_prompt(
+        "/tmp/audio.wav",
+        max_genres=4,
+        candidate_genres=["indie rock", " dream pop ", "", None],
+    )
+
+    assert prompt.startswith("PROMPT_VERSION: baseline-v1\nROLE: genre-inference-engine\nTASK:")
+    assert "CONTROLLED_VOCABULARY_HINT:" in prompt
+    assert 'candidate_genres=["indie rock", "dream pop"]' in prompt
+    assert 'audio_reference="/tmp/audio.wav"' in prompt
+
+
+def test_local_http_client_preserves_existing_runtime_input_contract(monkeypatch):
+    class _FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"ok":true,"model":"local-llm-v1","labels":[{"name":"indie rock","score":0.82}]}'
+
+    captured = {}
+
+    def fake_urlopen(http_request, timeout):
+        captured["body"] = http_request.data
+        return _FakeResponse()
+
+    monkeypatch.setattr("app.clients.llm.request.urlopen", fake_urlopen)
+
+    client = LocalHttpLlmInferenceClient(
+        endpoint="http://127.0.0.1:11434/infer",
+        timeout_seconds=4.0,
+    )
+
+    client.infer_genres("/tmp/audio.wav")
+
+    assert json.loads(captured["body"].decode("utf-8")) == {
+        "input": {"text": "/tmp/audio.wav"},
+        "options": {},
+    }
