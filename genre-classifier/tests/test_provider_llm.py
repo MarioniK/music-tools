@@ -16,6 +16,10 @@ from app.clients.llm_runtime_contract import (
     parse_local_llm_runtime_response,
 )
 from app.providers.base import ProviderResult
+from app.providers.compat import (
+    map_validated_result_to_legacy_genres,
+    map_validated_result_to_legacy_genres_pretty,
+)
 from app.providers.llm import LlmGenreProvider
 from app.providers.schema import ValidatedProviderResult
 from app.providers.validation import validate_and_normalize_provider_result
@@ -446,3 +450,69 @@ def test_llm_provider_output_passes_existing_validation_pipeline():
     assert validated_result.total_items_received == 3
     assert validated_result.total_items_kept == 3
     assert validated_result.dropped_items_count == 0
+
+
+def test_llm_provider_optional_score_path_is_filtered_by_existing_validation_pipeline():
+    class _FakeLlmClient:
+        def infer_genres(self, audio_path: str) -> LlmInferenceResult:
+            return LlmInferenceResult(
+                genres=[
+                    LlmClientGenreScore(tag="indie rock", score=0.91),
+                    LlmClientGenreScore(tag="dream pop", score=None),
+                    LlmClientGenreScore(tag="ambient", score=0.41),
+                ],
+                model_name="runtime-backed-llm",
+            )
+
+    provider = LlmGenreProvider(client=_FakeLlmClient())
+
+    provider_result = provider.classify("/tmp/audio.wav")
+    validated_result = validate_and_normalize_provider_result(provider_result)
+
+    assert isinstance(validated_result, ValidatedProviderResult)
+    assert validated_result.provider_name == "llm"
+    assert validated_result.model_name == "runtime-backed-llm"
+    assert [(item.tag, item.score) for item in validated_result.genres] == [
+        ("indie rock", 0.91),
+        ("ambient", 0.41),
+    ]
+    assert validated_result.total_items_received == 3
+    assert validated_result.total_items_kept == 2
+    assert validated_result.dropped_items_count == 1
+
+
+def test_llm_provider_validated_output_preserves_existing_compatibility_shape(monkeypatch):
+    class _FakeLlmClient:
+        def infer_genres(self, audio_path: str) -> LlmInferenceResult:
+            return LlmInferenceResult(
+                genres=[
+                    LlmClientGenreScore(tag="Indie Rock", score=0.91234),
+                    LlmClientGenreScore(tag="Dream Pop", score=0.50789),
+                ],
+                model_name="runtime-backed-llm",
+            )
+
+    pretty_calls = []
+
+    def fake_normalize_audio_prediction_genres(raw_genres, min_prob=0.05):
+        pretty_calls.append((raw_genres, min_prob))
+        return raw_genres
+
+    monkeypatch.setattr(
+        "app.providers.compat.normalize_audio_prediction_genres",
+        fake_normalize_audio_prediction_genres,
+    )
+
+    provider = LlmGenreProvider(client=_FakeLlmClient())
+
+    provider_result = provider.classify("/tmp/audio.wav")
+    validated_result = validate_and_normalize_provider_result(provider_result)
+    legacy_genres = map_validated_result_to_legacy_genres(validated_result)
+    pretty_genres = map_validated_result_to_legacy_genres_pretty(validated_result)
+
+    assert legacy_genres == [
+        {"tag": "indie rock", "prob": 0.9123},
+        {"tag": "dream pop", "prob": 0.5079},
+    ]
+    assert pretty_genres == legacy_genres
+    assert pretty_calls == [(legacy_genres, 0.05)]
