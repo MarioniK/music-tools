@@ -1,0 +1,112 @@
+{
+  "roadmap_stage": "2.9",
+  "samples": [
+    {
+      "sample_id": "curated_baseline_001",
+      "legacy_result": {
+        "provider_name": "legacy_musicnn",
+        "model_name": "legacy-offline",
+        "genres": [
+          {
+            "tag": "indie rock",
+            "score": 0.91
+          },
+          {
+            "tag": "dream pop",
+            "score": 0.74
+          }
+        ]
+      },
+      "llm_result": {
+        "provider_name": "llm",
+        "model_name": "llm-offline",
+        "genres": [
+          {
+            "tag": "indie rock",
+            "score": 0.88
+          },
+          {
+            "tag": "dream pop",
+            "score": 0.71
+          }
+        ]
+      }
+    },
+    {
+      "sample_id": "curated_golden_001",
+      "legacy_result": {
+        "provider_name": "legacy_musicnn",
+        "model_name": "legacy-offline",
+        "genres": [
+          {
+            "tag": "ambient",
+            "score": 0.67
+          },
+          {
+            "tag": "trip hop",
+            "score": 0.56
+          }
+        ]
+      },
+      "llm_result": {
+        "provider_name": "llm",
+        "model_name": "llm-offline",
+        "genres": [
+          {
+            "tag": "ambient",
+            "score": 0.31
+          }
+        ]
+      }
+    },
+    {
+      "sample_id": "curated_repeat_001",
+      "legacy_result": {
+        "provider_name": "legacy_musicnn",
+        "model_name": "legacy-offline",
+        "genres": [
+          {
+            "tag": "house",
+            "score": 0.84
+          }
+        ]
+      },
+      "llm_result": {
+        "provider_name": "llm",
+        "model_name": "llm-offline",
+        "genres": []
+      }
+    },
+    {
+      "sample_id": "curated_golden_repeat_001",
+      "legacy_result": {
+        "provider_name": "legacy_musicnn",
+        "model_name": "legacy-offline",
+        "genres": [
+          {
+            "tag": "shoegaze",
+            "score": 0.72
+          },
+          {
+            "tag": "dream pop",
+            "score": 0.64
+          }
+        ]
+      },
+      "llm_result": {
+        "provider_name": "llm",
+        "model_name": "llm-offline",
+        "genres": [
+          {
+            "tag": "drum and bass",
+            "score": 0.79
+          },
+          {
+            "tag": "breakbeat",
+            "score": 0.63
+          }
+        ]
+      }
+    }
+  ]
+}
