@@ -1,3 +1,4 @@
+from app.providers.legacy_musicnn import LegacyMusiCNNProvider
 from app.providers.stub import StubGenreProvider
 
 
@@ -8,8 +9,6 @@ def get_genre_provider(settings):
         return StubGenreProvider()
 
     if provider_name == "legacy_musicnn":
-        raise ValueError(
-            "GENRE_PROVIDER=legacy_musicnn is configured, but the legacy provider adapter is not wired through the provider factory yet"
-        )
+        return LegacyMusiCNNProvider()
 
     raise ValueError("Unknown GENRE_PROVIDER: {}".format(provider_name))
