@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 
@@ -11,5 +12,11 @@ STATIC_DIR = BASE_DIR / "static"
 
 MODEL_PB = MODELS_DIR / "msd-musicnn-1.pb"
 MODEL_JSON = MODELS_DIR / "msd-musicnn-1.json"
+DEFAULT_GENRE_PROVIDER = "legacy_musicnn"
 
 TMP_DIR.mkdir(exist_ok=True)
+
+
+def get_configured_genre_provider_name():
+    value = os.getenv("GENRE_PROVIDER", DEFAULT_GENRE_PROVIDER)
+    return (value or DEFAULT_GENRE_PROVIDER).strip() or DEFAULT_GENRE_PROVIDER
