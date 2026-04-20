@@ -50,7 +50,6 @@ def test_process_uploaded_audio_uses_provider_factory_and_preserves_result_shape
     monkeypatch.setattr(classify, "validate_upload", lambda file_bytes, filename: None)
     monkeypatch.setattr(classify, "normalize_audio_file", lambda input_path, output_path: Path(output_path).touch())
     monkeypatch.setattr(classify, "get_genre_provider", lambda settings_module: _FakeProvider())
-    monkeypatch.setattr(classify, "normalize_genres", lambda raw_genres: ["indie rock", "dream pop"])
 
     genres, normalized = classify.process_uploaded_audio(b"audio-bytes", "track.mp3")
 
@@ -61,3 +60,63 @@ def test_process_uploaded_audio_uses_provider_factory_and_preserves_result_shape
         {"tag": "dream pop", "prob": 0.5012},
     ]
     assert normalized == ["indie rock", "dream pop"]
+
+
+def test_process_uploaded_audio_survives_partially_invalid_provider_result(
+    monkeypatch,
+    tmp_path,
+):
+    class _FakeProvider:
+        def classify(self, audio_path: str) -> ProviderResult:
+            return ProviderResult(
+                genres=[
+                    ProviderGenreScore(tag=" Indie-Rock ", score=0.81234),
+                    ProviderGenreScore(tag="   ", score=0.7),
+                    ProviderGenreScore(tag="dream pop", score="oops"),
+                    "not-a-provider-item",
+                    ProviderGenreScore(tag="dream-pop", score=0.50123),
+                ],
+                provider_name="fake-provider",
+                model_name="fake-model",
+            )
+
+    monkeypatch.setattr(classify.settings, "TMP_DIR", tmp_path)
+    monkeypatch.setattr(classify, "validate_upload", lambda file_bytes, filename: None)
+    monkeypatch.setattr(classify, "normalize_audio_file", lambda input_path, output_path: Path(output_path).touch())
+    monkeypatch.setattr(classify, "get_genre_provider", lambda settings_module: _FakeProvider())
+
+    genres, normalized = classify.process_uploaded_audio(b"audio-bytes", "track.mp3")
+
+    assert genres == [
+        {"tag": "indie rock", "prob": 0.8123},
+        {"tag": "dream pop", "prob": 0.5012},
+    ]
+    assert normalized == ["indie rock", "dream pop"]
+
+
+def test_process_uploaded_audio_raises_for_fully_invalid_provider_result(
+    monkeypatch,
+    tmp_path,
+):
+    class _FakeProvider:
+        def classify(self, audio_path: str) -> ProviderResult:
+            return ProviderResult(
+                genres=[
+                    ProviderGenreScore(tag="   ", score=0.9),
+                    ProviderGenreScore(tag="indie rock", score=float("nan")),
+                    "not-a-provider-item",
+                ],
+                provider_name="fake-provider",
+                model_name="fake-model",
+            )
+
+    monkeypatch.setattr(classify.settings, "TMP_DIR", tmp_path)
+    monkeypatch.setattr(classify, "validate_upload", lambda file_bytes, filename: None)
+    monkeypatch.setattr(classify, "normalize_audio_file", lambda input_path, output_path: Path(output_path).touch())
+    monkeypatch.setattr(classify, "get_genre_provider", lambda settings_module: _FakeProvider())
+
+    try:
+        classify.process_uploaded_audio(b"audio-bytes", "track.mp3")
+        assert False, "expected RuntimeError"
+    except RuntimeError as exc:
+        assert str(exc) == "no valid provider genres"

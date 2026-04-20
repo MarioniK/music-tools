@@ -10,8 +10,12 @@ import numpy as np
 from essentia.standard import MonoLoader, TensorflowPredictMusiCNN
 
 from app.core import settings
-from app.genre_normalization import normalize_audio_prediction_genres
+from app.providers.compat import (
+    map_validated_result_to_legacy_genres,
+    map_validated_result_to_legacy_genres_pretty,
+)
 from app.providers.factory import get_genre_provider
+from app.providers.validation import validate_and_normalize_provider_result
 
 
 logger = logging.getLogger("genre_classifier")
@@ -80,20 +84,6 @@ def run_genre_classification(wav_path: Path):
 
     pairs.sort(key=lambda x: x["prob"], reverse=True)
     return pairs[:8]
-
-
-def normalize_genres(raw_genres):
-    return normalize_audio_prediction_genres(raw_genres, min_prob=0.05)
-
-
-def _provider_result_to_raw_genres(provider_result):
-    return [
-        {
-            "tag": item.tag,
-            "prob": round(float(item.score), 4),
-        }
-        for item in provider_result.genres
-    ]
 
 
 def validate_upload(file_bytes: bytes, filename: str):
@@ -169,8 +159,9 @@ def process_uploaded_audio(file_bytes: bytes, filename: str):
 
         provider = get_genre_provider(settings)
         provider_result = provider.classify(str(wav_path))
-        genres = _provider_result_to_raw_genres(provider_result)
-        normalized = normalize_genres(genres)
+        validated_result = validate_and_normalize_provider_result(provider_result)
+        genres = map_validated_result_to_legacy_genres(validated_result)
+        normalized = map_validated_result_to_legacy_genres_pretty(validated_result)
         logger.info(
             "event=file_processing_succeeded filename=%s size_bytes=%d",
             safe_filename,
