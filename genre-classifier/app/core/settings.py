@@ -12,7 +12,14 @@ STATIC_DIR = BASE_DIR / "static"
 
 MODEL_PB = MODELS_DIR / "msd-musicnn-1.pb"
 MODEL_JSON = MODELS_DIR / "msd-musicnn-1.json"
+GENRE_PROVIDER_LEGACY = "legacy_musicnn"
+GENRE_PROVIDER_LLM = "llm"
 DEFAULT_GENRE_PROVIDER = "legacy_musicnn"
+SUPPORTED_GENRE_PROVIDERS = (
+    GENRE_PROVIDER_LEGACY,
+    GENRE_PROVIDER_LLM,
+    "stub",
+)
 
 TMP_DIR.mkdir(exist_ok=True)
 

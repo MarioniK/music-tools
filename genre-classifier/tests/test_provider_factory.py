@@ -4,6 +4,7 @@ import pytest
 
 from app.providers.base import ProviderResult
 from app.providers.factory import get_genre_provider
+from app.providers.llm import LlmGenreProvider
 from app.providers.legacy_musicnn import LegacyMusiCNNProvider
 from app.providers.stub import StubGenreProvider
 
@@ -17,18 +18,38 @@ def test_factory_selects_stub_provider():
 
 
 def test_factory_rejects_unknown_provider():
-    settings = SimpleNamespace(get_configured_genre_provider_name=lambda: "unknown")
+    settings = SimpleNamespace(
+        GENRE_PROVIDER_LEGACY="legacy_musicnn",
+        GENRE_PROVIDER_LLM="llm",
+        get_configured_genre_provider_name=lambda: "unknown",
+    )
 
     with pytest.raises(ValueError, match="Unknown GENRE_PROVIDER: unknown"):
         get_genre_provider(settings)
 
 
 def test_factory_selects_legacy_musicnn_provider():
-    settings = SimpleNamespace(get_configured_genre_provider_name=lambda: "legacy_musicnn")
+    settings = SimpleNamespace(
+        GENRE_PROVIDER_LEGACY="legacy_musicnn",
+        GENRE_PROVIDER_LLM="llm",
+        get_configured_genre_provider_name=lambda: "legacy_musicnn",
+    )
 
     provider = get_genre_provider(settings)
 
     assert isinstance(provider, LegacyMusiCNNProvider)
+
+
+def test_factory_selects_llm_provider():
+    settings = SimpleNamespace(
+        GENRE_PROVIDER_LEGACY="legacy_musicnn",
+        GENRE_PROVIDER_LLM="llm",
+        get_configured_genre_provider_name=lambda: "llm",
+    )
+
+    provider = get_genre_provider(settings)
+
+    assert isinstance(provider, LlmGenreProvider)
 
 
 def test_stub_provider_returns_expected_result_shape():
