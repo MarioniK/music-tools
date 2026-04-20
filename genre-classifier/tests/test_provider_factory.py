@@ -52,6 +52,20 @@ def test_factory_selects_llm_provider():
     assert isinstance(provider, LlmGenreProvider)
 
 
+def test_factory_logs_llm_provider_selection(caplog):
+    settings = SimpleNamespace(
+        GENRE_PROVIDER_LEGACY="legacy_musicnn",
+        GENRE_PROVIDER_LLM="llm",
+        get_configured_genre_provider_name=lambda: "llm",
+    )
+
+    with caplog.at_level("INFO", logger="genre_classifier"):
+        provider = get_genre_provider(settings)
+
+    assert isinstance(provider, LlmGenreProvider)
+    assert "event=genre_provider_selected provider_name=llm provider_class=LlmGenreProvider" in caplog.text
+
+
 def test_stub_provider_returns_expected_result_shape():
     provider = StubGenreProvider()
 

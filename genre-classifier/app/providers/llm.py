@@ -1,5 +1,10 @@
+import logging
+
 from app.clients.llm import LlmInferenceClient, get_default_llm_inference_client
 from app.providers.base import GenreProvider, ProviderGenreScore, ProviderResult
+
+
+logger = logging.getLogger("genre_classifier")
 
 
 class LlmGenreProvider(GenreProvider):
@@ -7,7 +12,28 @@ class LlmGenreProvider(GenreProvider):
         self._client = client or get_default_llm_inference_client()
 
     def classify(self, audio_path: str) -> ProviderResult:
-        inference_result = self._client.infer_genres(audio_path)
+        client_name = self._client.__class__.__name__
+        logger.info(
+            "event=llm_inference_started provider_name=llm client_name=%s",
+            client_name,
+        )
+
+        try:
+            inference_result = self._client.infer_genres(audio_path)
+        except Exception as exc:
+            logger.error(
+                "event=llm_inference_failed provider_name=llm client_name=%s error=%s",
+                client_name,
+                str(exc),
+            )
+            raise
+
+        logger.info(
+            "event=llm_inference_succeeded provider_name=llm client_name=%s model_name=%s genres_count=%d",
+            client_name,
+            inference_result.model_name,
+            len(inference_result.genres),
+        )
 
         return ProviderResult(
             genres=[

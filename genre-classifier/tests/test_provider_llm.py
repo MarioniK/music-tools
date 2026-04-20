@@ -1,3 +1,5 @@
+import pytest
+
 from app.clients.llm import (
     LlmClientGenreScore,
     LlmInferenceResult,
@@ -63,6 +65,32 @@ def test_llm_provider_uses_client_boundary():
         ("leftfield", 0.88),
         ("trip hop", 0.67),
     ]
+
+
+def test_llm_provider_logs_inference_start_and_success(caplog):
+    provider = LlmGenreProvider()
+
+    with caplog.at_level("INFO", logger="genre_classifier"):
+        result = provider.classify("/tmp/audio.wav")
+
+    assert result.provider_name == "llm"
+    assert "event=llm_inference_started provider_name=llm client_name=StubLlmInferenceClient" in caplog.text
+    assert "event=llm_inference_succeeded provider_name=llm client_name=StubLlmInferenceClient model_name=llm-scaffold-v1 genres_count=3" in caplog.text
+
+
+def test_llm_provider_logs_inference_failure(caplog):
+    class _FailingLlmClient:
+        def infer_genres(self, audio_path: str) -> LlmInferenceResult:
+            raise RuntimeError("stub client failure")
+
+    provider = LlmGenreProvider(client=_FailingLlmClient())
+
+    with caplog.at_level("INFO", logger="genre_classifier"):
+        with pytest.raises(RuntimeError, match="stub client failure"):
+            provider.classify("/tmp/audio.wav")
+
+    assert "event=llm_inference_started provider_name=llm client_name=_FailingLlmClient" in caplog.text
+    assert "event=llm_inference_failed provider_name=llm client_name=_FailingLlmClient error=stub client failure" in caplog.text
 
 
 def test_llm_provider_output_passes_existing_validation_pipeline():
