@@ -545,6 +545,105 @@ def test_llm_provider_alias_heavy_output_is_canonicalized_and_deduped():
     ]
 
 
+def test_llm_provider_postprocessing_sorts_scored_items_before_downstream_validation():
+    class _FakeLlmClient:
+        def infer_genres(self, audio_path: str) -> LlmInferenceResult:
+            return LlmInferenceResult(
+                genres=[
+                    LlmClientGenreScore(tag="ambient", score=0.41),
+                    LlmClientGenreScore(tag="indie rock", score=0.91),
+                    LlmClientGenreScore(tag="dream pop", score=0.73),
+                ],
+                model_name="runtime-backed-llm",
+            )
+
+    provider = LlmGenreProvider(client=_FakeLlmClient())
+
+    provider_result = provider.classify("/tmp/audio.wav")
+
+    assert [(item.tag, item.score) for item in provider_result.genres] == [
+        ("indie rock", 0.91),
+        ("dream pop", 0.73),
+        ("ambient", 0.41),
+    ]
+
+
+def test_llm_provider_postprocessing_applies_top_n_after_alias_dedupe():
+    class _FakeLlmClient:
+        def infer_genres(self, audio_path: str) -> LlmInferenceResult:
+            return LlmInferenceResult(
+                genres=[
+                    LlmClientGenreScore(tag="dream-pop", score=0.95),
+                    LlmClientGenreScore(tag="dream pop", score=0.93),
+                    LlmClientGenreScore(tag="indie rock", score=0.92),
+                    LlmClientGenreScore(tag="leftfield", score=0.91),
+                    LlmClientGenreScore(tag="trip hop", score=0.9),
+                    LlmClientGenreScore(tag="ambient", score=0.89),
+                    LlmClientGenreScore(tag="alternative rock", score=0.88),
+                    LlmClientGenreScore(tag="shoegaze", score=0.87),
+                    LlmClientGenreScore(tag="post punk", score=0.86),
+                ],
+                model_name="runtime-backed-llm",
+            )
+
+    provider = LlmGenreProvider(client=_FakeLlmClient())
+
+    provider_result = provider.classify("/tmp/audio.wav")
+
+    assert [item.tag for item in provider_result.genres] == [
+        "dream pop",
+        "indie rock",
+        "leftfield",
+        "trip hop",
+        "ambient",
+        "alternative rock",
+        "shoegaze",
+        "post punk",
+    ]
+
+
+def test_llm_provider_postprocessing_drops_all_weak_scored_items():
+    class _FakeLlmClient:
+        def infer_genres(self, audio_path: str) -> LlmInferenceResult:
+            return LlmInferenceResult(
+                genres=[
+                    LlmClientGenreScore(tag="dream pop", score=0.39),
+                    LlmClientGenreScore(tag="ambient", score=0.2),
+                ],
+                model_name="runtime-backed-llm",
+            )
+
+    provider = LlmGenreProvider(client=_FakeLlmClient())
+
+    provider_result = provider.classify("/tmp/audio.wav")
+
+    assert provider_result.genres == []
+
+
+def test_llm_provider_postprocessing_keeps_items_without_score_in_provider_result():
+    class _FakeLlmClient:
+        def infer_genres(self, audio_path: str) -> LlmInferenceResult:
+            return LlmInferenceResult(
+                genres=[
+                    LlmClientGenreScore(tag="trip hop", score=None),
+                    LlmClientGenreScore(tag="indie rock", score=0.39),
+                    LlmClientGenreScore(tag="leftfield", score=None),
+                ],
+                model_name="runtime-backed-llm",
+            )
+
+    provider = LlmGenreProvider(client=_FakeLlmClient())
+
+    provider_result = provider.classify("/tmp/audio.wav")
+
+    assert [(item.tag, item.score) for item in provider_result.genres] == [
+        ("trip hop", None),
+        ("leftfield", None),
+    ]
+    with pytest.raises(RuntimeError, match="no valid provider genres"):
+        validate_and_normalize_provider_result(provider_result)
+
+
 def test_llm_provider_raises_when_all_runtime_labels_are_out_of_vocabulary():
     class _FakeLlmClient:
         def infer_genres(self, audio_path: str) -> LlmInferenceResult:
