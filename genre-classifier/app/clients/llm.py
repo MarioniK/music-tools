@@ -4,6 +4,15 @@ from typing import List
 from urllib import error, request
 
 from app.core import settings
+from app.clients.llm_runtime_contract import (
+    LocalLlmRuntimeRequest,
+    LocalLlmRuntimeRequestInput,
+    LocalLlmRuntimeRequestOptions,
+    LocalLlmRuntimeValidationError,
+    parse_local_llm_runtime_response,
+)
+
+LOCAL_HTTP_UNKNOWN_MODEL_NAME = "local-http-unknown-model"
 
 
 @dataclass(frozen=True)
@@ -46,7 +55,12 @@ class LocalHttpLlmInferenceClient(LlmInferenceClient):
         self._timeout_seconds = float(timeout_seconds)
 
     def infer_genres(self, audio_path: str) -> LlmInferenceResult:
-        payload = json.dumps({"audio_path": audio_path}).encode("utf-8")
+        runtime_request = LocalLlmRuntimeRequest(
+            request_id=None,
+            input=LocalLlmRuntimeRequestInput(text=audio_path),
+            options=LocalLlmRuntimeRequestOptions(),
+        )
+        payload = json.dumps(runtime_request.to_payload()).encode("utf-8")
         http_request = request.Request(
             self._endpoint,
             data=payload,
@@ -62,19 +76,29 @@ class LocalHttpLlmInferenceClient(LlmInferenceClient):
 
         try:
             parsed = json.loads(response_body)
-            model_name = str(parsed["model_name"])
-            genres_payload = parsed["genres"]
+            runtime_response = parse_local_llm_runtime_response(parsed)
             genres = [
                 LlmClientGenreScore(
-                    tag=str(item["tag"]),
-                    score=float(item["score"]),
+                    tag=item.name,
+                    score=item.score,
                 )
-                for item in genres_payload
+                for item in runtime_response.labels
             ]
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-            raise RuntimeError("invalid local llm runtime response") from exc
+        except (LocalLlmRuntimeValidationError, json.JSONDecodeError) as exc:
+            raise LocalLlmRuntimeValidationError("invalid local llm runtime response") from exc
+
+        model_name = _resolve_runtime_model_name(runtime_response.model)
 
         return LlmInferenceResult(genres=genres, model_name=model_name)
+
+
+def _resolve_runtime_model_name(model) -> str:
+    if isinstance(model, str):
+        normalized_model = model.strip()
+        if normalized_model:
+            return normalized_model
+
+    return LOCAL_HTTP_UNKNOWN_MODEL_NAME
 
 
 def get_default_llm_inference_client(settings_module=settings) -> LlmInferenceClient:

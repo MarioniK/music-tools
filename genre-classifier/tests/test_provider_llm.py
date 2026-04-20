@@ -1,11 +1,16 @@
 import pytest
 
 from app.clients.llm import (
+    LOCAL_HTTP_UNKNOWN_MODEL_NAME,
     LlmClientGenreScore,
     LlmInferenceResult,
     LocalHttpLlmInferenceClient,
     StubLlmInferenceClient,
     get_default_llm_inference_client,
+)
+from app.clients.llm_runtime_contract import (
+    LocalLlmRuntimeValidationError,
+    parse_local_llm_runtime_response,
 )
 from app.providers.base import ProviderResult
 from app.providers.llm import LlmGenreProvider
@@ -95,7 +100,7 @@ def test_local_http_client_parses_valid_response(monkeypatch):
             return False
 
         def read(self):
-            return b'{"model_name":"local-llm-v1","genres":[{"tag":"indie rock","score":0.82},{"tag":"dream pop","score":0.51}]}'
+            return b'{"ok":true,"model":"local-llm-v1","labels":[{"name":"indie rock","score":0.82},{"name":"dream pop","score":0.51}]}'
 
     captured = {}
 
@@ -117,7 +122,7 @@ def test_local_http_client_parses_valid_response(monkeypatch):
 
     assert captured["url"] == "http://127.0.0.1:11434/infer"
     assert captured["method"] == "POST"
-    assert captured["body"] == b'{"audio_path": "/tmp/audio.wav"}'
+    assert captured["body"] == b'{"input": {"text": "/tmp/audio.wav"}, "options": {}}'
     assert captured["timeout"] == 4.0
     assert isinstance(result, LlmInferenceResult)
     assert result.model_name == "local-llm-v1"
@@ -127,7 +132,15 @@ def test_local_http_client_parses_valid_response(monkeypatch):
     ]
 
 
-def test_local_http_client_rejects_invalid_response(monkeypatch):
+@pytest.mark.parametrize(
+    "response_body",
+    [
+        b'{"ok":true,"labels":[{"name":"indie rock","score":0.82}]}',
+        b'{"ok":true,"model":"","labels":[{"name":"indie rock","score":0.82}]}',
+        b'{"ok":true,"model":"   ","labels":[{"name":"indie rock","score":0.82}]}',
+    ],
+)
+def test_local_http_client_uses_non_empty_model_fallback(monkeypatch, response_body):
     class _FakeResponse:
         def __enter__(self):
             return self
@@ -136,7 +149,7 @@ def test_local_http_client_rejects_invalid_response(monkeypatch):
             return False
 
         def read(self):
-            return b'{"model_name":"local-llm-v1","genres":"not-a-list"}'
+            return response_body
 
     monkeypatch.setattr(
         "app.clients.llm.request.urlopen",
@@ -148,8 +161,95 @@ def test_local_http_client_rejects_invalid_response(monkeypatch):
         timeout_seconds=4.0,
     )
 
-    with pytest.raises(RuntimeError, match="invalid local llm runtime response"):
+    result = client.infer_genres("/tmp/audio.wav")
+
+    assert result.model_name == LOCAL_HTTP_UNKNOWN_MODEL_NAME
+
+
+def test_local_http_client_rejects_invalid_response(monkeypatch):
+    class _FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"ok":true,"model":"local-llm-v1","labels":"not-a-list"}'
+
+    monkeypatch.setattr(
+        "app.clients.llm.request.urlopen",
+        lambda http_request, timeout: _FakeResponse(),
+    )
+
+    client = LocalHttpLlmInferenceClient(
+        endpoint="http://127.0.0.1:11434/infer",
+        timeout_seconds=4.0,
+    )
+
+    with pytest.raises(LocalLlmRuntimeValidationError, match="invalid local llm runtime response"):
         client.infer_genres("/tmp/audio.wav")
+
+
+def test_runtime_response_validator_accepts_valid_payload():
+    result = parse_local_llm_runtime_response(
+        {
+            "ok": True,
+            "model": "local-llm-v1",
+            "labels": [
+                {"name": "indie rock", "score": 0.82},
+                {"name": "dream pop", "score": None},
+            ],
+            "meta": {"source": "test"},
+        }
+    )
+
+    assert result.ok is True
+    assert result.model == "local-llm-v1"
+    assert [(item.name, item.score) for item in result.labels] == [
+        ("indie rock", 0.82),
+        ("dream pop", None),
+    ]
+    assert result.meta == {"source": "test"}
+
+
+def test_runtime_response_validator_rejects_missing_labels():
+    with pytest.raises(LocalLlmRuntimeValidationError, match="labels are required"):
+        parse_local_llm_runtime_response({"ok": True, "model": "local-llm-v1"})
+
+
+def test_runtime_response_validator_rejects_empty_label_name():
+    with pytest.raises(LocalLlmRuntimeValidationError, match="name must be a non-empty string"):
+        parse_local_llm_runtime_response(
+            {
+                "ok": True,
+                "labels": [{"name": " ", "score": 0.82}],
+            }
+        )
+
+
+def test_runtime_response_validator_rejects_non_numeric_score():
+    with pytest.raises(LocalLlmRuntimeValidationError, match="score must be numeric or null"):
+        parse_local_llm_runtime_response(
+            {
+                "ok": True,
+                "labels": [{"name": "indie rock", "score": "high"}],
+            }
+        )
+
+
+def test_runtime_response_validator_allows_unknown_fields():
+    result = parse_local_llm_runtime_response(
+        {
+            "ok": True,
+            "labels": [
+                {"name": "indie rock", "score": 0.82, "extra": "kept-ignored"},
+            ],
+            "unexpected_top_level": {"safe": True},
+        }
+    )
+
+    assert [(item.name, item.score) for item in result.labels] == [("indie rock", 0.82)]
 
 
 def test_llm_provider_returns_expected_provider_result_shape():
