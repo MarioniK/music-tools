@@ -1,0 +1,32 @@
+{
+  "manifest_version": "roadmap-2.9-sample-scaffold-v1",
+  "roadmap_stage": "2.9",
+  "description": "Offline-only manifest scaffold for comparative evaluation sample metadata.",
+  "runtime_effect": "none",
+  "samples": [
+    {
+      "sample_id": "curated_baseline_001",
+      "input_ref": "fixtures/eval/placeholders/curated_baseline_001.audio",
+      "notes": "Placeholder for a straightforward baseline example.",
+      "risk_category": "stable_reference"
+    },
+    {
+      "sample_id": "curated_golden_001",
+      "input_ref": "fixtures/eval/placeholders/curated_golden_001.audio",
+      "notes": "Placeholder for a high-confidence contract and compatibility check sample.",
+      "risk_category": "contract_semantics"
+    },
+    {
+      "sample_id": "curated_repeat_001",
+      "input_ref": "fixtures/eval/placeholders/curated_repeat_001.audio",
+      "notes": "Placeholder for a repeat-run stability check sample.",
+      "risk_category": "stability_drift"
+    },
+    {
+      "sample_id": "curated_golden_repeat_001",
+      "input_ref": "fixtures/eval/placeholders/curated_golden_repeat_001.audio",
+      "notes": "Placeholder for a sample that participates in both strict regression checks and repeat-run comparisons.",
+      "risk_category": "ambiguous_boundary"
+    }
+  ]
+}

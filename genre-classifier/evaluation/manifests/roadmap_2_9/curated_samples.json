@@ -1,0 +1,12 @@
+{
+  "manifest_version": "roadmap-2.9-curated-subset-v1",
+  "roadmap_stage": "2.9",
+  "subset_name": "curated",
+  "source_manifest": "samples.master.json",
+  "sample_ids": [
+    "curated_baseline_001",
+    "curated_golden_001",
+    "curated_repeat_001",
+    "curated_golden_repeat_001"
+  ]
+}

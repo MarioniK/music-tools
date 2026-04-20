@@ -1,0 +1,10 @@
+{
+  "manifest_version": "roadmap-2.9-repeat-run-subset-v1",
+  "roadmap_stage": "2.9",
+  "subset_name": "repeat_run",
+  "source_manifest": "samples.master.json",
+  "sample_ids": [
+    "curated_repeat_001",
+    "curated_golden_repeat_001"
+  ]
+}

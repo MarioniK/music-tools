@@ -1,0 +1,10 @@
+{
+  "manifest_version": "roadmap-2.9-golden-subset-v1",
+  "roadmap_stage": "2.9",
+  "subset_name": "golden",
+  "source_manifest": "samples.master.json",
+  "sample_ids": [
+    "curated_golden_001",
+    "curated_golden_repeat_001"
+  ]
+}

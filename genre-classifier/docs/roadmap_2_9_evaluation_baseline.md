@@ -84,6 +84,14 @@ It should:
 
 The repeat-run subset exists to detect non-deterministic or unstable behavior that would make later shadow analysis unreliable.
 
+### Sample Manifest Scaffold
+
+Roadmap 2.9 sample manifests may be maintained as offline evaluation metadata under `evaluation/manifests/roadmap_2_9/`.
+
+These manifests exist only to define sample-set structure and subset membership for future evaluation work.
+They are not runtime data sources and do not affect runtime provider selection.
+Sample metadata may include placeholder input references only; real evaluation assets are not required by this scaffold stage.
+
 ## Comparison Dimensions
 
 ### Contract Validity
