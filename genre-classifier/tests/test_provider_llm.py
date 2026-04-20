@@ -489,6 +489,82 @@ def test_llm_provider_optional_score_path_is_filtered_by_existing_validation_pip
     assert validated_result.dropped_items_count == 1
 
 
+def test_llm_provider_filters_unknown_genres_before_existing_validation_pipeline():
+    class _FakeLlmClient:
+        def infer_genres(self, audio_path: str) -> LlmInferenceResult:
+            return LlmInferenceResult(
+                genres=[
+                    LlmClientGenreScore(tag="indie rock", score=0.91),
+                    LlmClientGenreScore(tag="space yacht metal", score=0.89),
+                    LlmClientGenreScore(tag="dream pop", score=0.41),
+                ],
+                model_name="runtime-backed-llm",
+            )
+
+    provider = LlmGenreProvider(client=_FakeLlmClient())
+
+    provider_result = provider.classify("/tmp/audio.wav")
+    validated_result = validate_and_normalize_provider_result(provider_result)
+
+    assert [(item.tag, item.score) for item in provider_result.genres] == [
+        ("indie rock", 0.91),
+        ("dream pop", 0.41),
+    ]
+    assert [(item.tag, item.score) for item in validated_result.genres] == [
+        ("indie rock", 0.91),
+        ("dream pop", 0.41),
+    ]
+
+
+def test_llm_provider_alias_heavy_output_is_canonicalized_and_deduped():
+    class _FakeLlmClient:
+        def infer_genres(self, audio_path: str) -> LlmInferenceResult:
+            return LlmInferenceResult(
+                genres=[
+                    LlmClientGenreScore(tag=" Dream Pop ", score=0.81),
+                    LlmClientGenreScore(tag="dream-pop", score=0.77),
+                    LlmClientGenreScore(tag="left field", score=0.65),
+                    LlmClientGenreScore(tag="leftfield", score=0.61),
+                ],
+                model_name="runtime-backed-llm",
+            )
+
+    provider = LlmGenreProvider(client=_FakeLlmClient())
+
+    provider_result = provider.classify("/tmp/audio.wav")
+    validated_result = validate_and_normalize_provider_result(provider_result)
+    legacy_genres = map_validated_result_to_legacy_genres(validated_result)
+
+    assert [(item.tag, item.score) for item in provider_result.genres] == [
+        ("dream pop", 0.81),
+        ("leftfield", 0.65),
+    ]
+    assert legacy_genres == [
+        {"tag": "dream pop", "prob": 0.81},
+        {"tag": "leftfield", "prob": 0.65},
+    ]
+
+
+def test_llm_provider_raises_when_all_runtime_labels_are_out_of_vocabulary():
+    class _FakeLlmClient:
+        def infer_genres(self, audio_path: str) -> LlmInferenceResult:
+            return LlmInferenceResult(
+                genres=[
+                    LlmClientGenreScore(tag="space yacht metal", score=0.81),
+                    LlmClientGenreScore(tag="cosmic whalewave", score=0.65),
+                ],
+                model_name="runtime-backed-llm",
+            )
+
+    provider = LlmGenreProvider(client=_FakeLlmClient())
+
+    provider_result = provider.classify("/tmp/audio.wav")
+
+    assert provider_result.genres == []
+    with pytest.raises(RuntimeError, match="no valid provider genres"):
+        validate_and_normalize_provider_result(provider_result)
+
+
 def test_llm_provider_validated_output_preserves_existing_compatibility_shape(monkeypatch):
     class _FakeLlmClient:
         def infer_genres(self, audio_path: str) -> LlmInferenceResult:

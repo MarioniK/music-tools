@@ -9,6 +9,7 @@ from app.clients.llm import (
 )
 from app.clients.llm_runtime_contract import LocalLlmRuntimeValidationError
 from app.core import settings
+from app.genres.normalization import canonicalize_genre_scores
 from app.providers.base import GenreProvider, ProviderGenreScore, ProviderResult
 
 
@@ -50,10 +51,12 @@ class LlmGenreProvider(GenreProvider):
 
 
 def _map_inference_result_to_provider_result(inference_result: LlmInferenceResult) -> ProviderResult:
+    canonical_genres = canonicalize_genre_scores(inference_result.genres)
+
     return ProviderResult(
         genres=[
             ProviderGenreScore(tag=item.tag, score=item.score)
-            for item in inference_result.genres
+            for item in canonical_genres
         ],
         provider_name="llm",
         model_name=inference_result.model_name,
