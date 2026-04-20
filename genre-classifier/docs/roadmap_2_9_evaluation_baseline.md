@@ -92,6 +92,12 @@ These manifests exist only to define sample-set structure and subset membership 
 They are not runtime data sources and do not affect runtime provider selection.
 Sample metadata may include placeholder input references only; real evaluation assets are not required by this scaffold stage.
 
+### Offline Workflow
+
+Roadmap 2.9 offline evaluation may be executed via `python -m app.evaluation.run_roadmap_2_9 --subset <subset> --input-bundle <path> --output <path>`.
+
+This workflow is offline-only, does not call real providers, and writes a JSON review artifact to the requested output path.
+
 ## Comparison Dimensions
 
 ### Contract Validity
