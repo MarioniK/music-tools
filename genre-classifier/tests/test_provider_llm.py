@@ -382,23 +382,51 @@ def test_llm_provider_logs_inference_start_and_success(caplog):
         result = provider.classify("/tmp/audio.wav")
 
     assert result.provider_name == "llm"
-    assert "event=llm_inference_started provider_name=llm client_name=StubLlmInferenceClient" in caplog.text
-    assert "event=llm_inference_succeeded provider_name=llm client_name=StubLlmInferenceClient model_name=llm-scaffold-v1 genres_count=3" in caplog.text
+    assert "event=llm_provider_started provider_name=llm client_name=StubLlmInferenceClient" in caplog.text
+    assert "event=llm_provider_succeeded provider_name=llm client_name=StubLlmInferenceClient model_name=llm-scaffold-v1 genres_count=3" in caplog.text
 
 
-def test_llm_provider_logs_inference_failure(caplog):
+def test_llm_provider_logs_transport_failure(caplog):
     class _FailingLlmClient:
         def infer_genres(self, audio_path: str) -> LlmInferenceResult:
-            raise RuntimeError("stub client failure")
+            raise LocalLlmRuntimeTransportError("connection dropped")
 
     provider = LlmGenreProvider(client=_FailingLlmClient())
 
     with caplog.at_level("INFO", logger="genre_classifier"):
-        with pytest.raises(RuntimeError, match="stub client failure"):
+        with pytest.raises(LocalLlmRuntimeTransportError, match="connection dropped"):
             provider.classify("/tmp/audio.wav")
 
-    assert "event=llm_inference_started provider_name=llm client_name=_FailingLlmClient" in caplog.text
-    assert "event=llm_inference_failed provider_name=llm client_name=_FailingLlmClient error=stub client failure" in caplog.text
+    assert "event=llm_provider_started provider_name=llm client_name=_FailingLlmClient" in caplog.text
+    assert "event=llm_provider_failed provider_name=llm client_name=_FailingLlmClient failure_category=transport_error error=connection dropped" in caplog.text
+
+
+def test_llm_provider_logs_http_failure(caplog):
+    class _FailingLlmClient:
+        def infer_genres(self, audio_path: str) -> LlmInferenceResult:
+            raise LocalLlmRuntimeHttpError("status=503")
+
+    provider = LlmGenreProvider(client=_FailingLlmClient())
+
+    with caplog.at_level("INFO", logger="genre_classifier"):
+        with pytest.raises(LocalLlmRuntimeHttpError, match="status=503"):
+            provider.classify("/tmp/audio.wav")
+
+    assert "event=llm_provider_failed provider_name=llm client_name=_FailingLlmClient failure_category=http_error error=status=503" in caplog.text
+
+
+def test_llm_provider_logs_validation_failure(caplog):
+    class _FailingLlmClient:
+        def infer_genres(self, audio_path: str) -> LlmInferenceResult:
+            raise LocalLlmRuntimeValidationError("invalid runtime payload")
+
+    provider = LlmGenreProvider(client=_FailingLlmClient())
+
+    with caplog.at_level("INFO", logger="genre_classifier"):
+        with pytest.raises(LocalLlmRuntimeValidationError, match="invalid runtime payload"):
+            provider.classify("/tmp/audio.wav")
+
+    assert "event=llm_provider_failed provider_name=llm client_name=_FailingLlmClient failure_category=validation_error error=invalid runtime payload" in caplog.text
 
 
 def test_llm_provider_output_passes_existing_validation_pipeline():
