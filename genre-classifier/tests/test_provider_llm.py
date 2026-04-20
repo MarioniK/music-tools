@@ -3,7 +3,9 @@ import pytest
 from app.clients.llm import (
     LlmClientGenreScore,
     LlmInferenceResult,
+    LocalHttpLlmInferenceClient,
     StubLlmInferenceClient,
+    get_default_llm_inference_client,
 )
 from app.providers.base import ProviderResult
 from app.providers.llm import LlmGenreProvider
@@ -23,6 +25,131 @@ def test_stub_llm_client_returns_expected_structured_result():
         ("dream pop", 0.73),
         ("ambient", 0.41),
     ]
+
+
+def test_default_llm_client_remains_stub():
+    class _Settings:
+        LLM_CLIENT_STUB = "stub"
+        LLM_CLIENT_LOCAL_HTTP = "local_http"
+
+        @staticmethod
+        def get_configured_llm_client_name():
+            return "stub"
+
+    client = get_default_llm_inference_client(settings_module=_Settings)
+
+    assert isinstance(client, StubLlmInferenceClient)
+
+
+def test_explicit_local_http_config_selects_real_client_boundary():
+    class _Settings:
+        LLM_CLIENT_STUB = "stub"
+        LLM_CLIENT_LOCAL_HTTP = "local_http"
+
+        @staticmethod
+        def get_configured_llm_client_name():
+            return "local_http"
+
+        @staticmethod
+        def get_configured_llm_local_http_endpoint():
+            return "http://127.0.0.1:11434/infer"
+
+        @staticmethod
+        def get_configured_llm_local_http_timeout_seconds():
+            return 3.5
+
+    client = get_default_llm_inference_client(settings_module=_Settings)
+
+    assert isinstance(client, LocalHttpLlmInferenceClient)
+    assert client._endpoint == "http://127.0.0.1:11434/infer"
+    assert client._timeout_seconds == 3.5
+
+
+def test_local_http_client_requires_endpoint():
+    class _Settings:
+        LLM_CLIENT_STUB = "stub"
+        LLM_CLIENT_LOCAL_HTTP = "local_http"
+
+        @staticmethod
+        def get_configured_llm_client_name():
+            return "local_http"
+
+        @staticmethod
+        def get_configured_llm_local_http_endpoint():
+            return ""
+
+        @staticmethod
+        def get_configured_llm_local_http_timeout_seconds():
+            return 5.0
+
+    with pytest.raises(ValueError, match="LLM_LOCAL_HTTP_ENDPOINT is required for local_http client"):
+        get_default_llm_inference_client(settings_module=_Settings)
+
+
+def test_local_http_client_parses_valid_response(monkeypatch):
+    class _FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"model_name":"local-llm-v1","genres":[{"tag":"indie rock","score":0.82},{"tag":"dream pop","score":0.51}]}'
+
+    captured = {}
+
+    def fake_urlopen(http_request, timeout):
+        captured["url"] = http_request.full_url
+        captured["method"] = http_request.get_method()
+        captured["body"] = http_request.data
+        captured["timeout"] = timeout
+        return _FakeResponse()
+
+    monkeypatch.setattr("app.clients.llm.request.urlopen", fake_urlopen)
+
+    client = LocalHttpLlmInferenceClient(
+        endpoint="http://127.0.0.1:11434/infer",
+        timeout_seconds=4.0,
+    )
+
+    result = client.infer_genres("/tmp/audio.wav")
+
+    assert captured["url"] == "http://127.0.0.1:11434/infer"
+    assert captured["method"] == "POST"
+    assert captured["body"] == b'{"audio_path": "/tmp/audio.wav"}'
+    assert captured["timeout"] == 4.0
+    assert isinstance(result, LlmInferenceResult)
+    assert result.model_name == "local-llm-v1"
+    assert [(item.tag, item.score) for item in result.genres] == [
+        ("indie rock", 0.82),
+        ("dream pop", 0.51),
+    ]
+
+
+def test_local_http_client_rejects_invalid_response(monkeypatch):
+    class _FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"model_name":"local-llm-v1","genres":"not-a-list"}'
+
+    monkeypatch.setattr(
+        "app.clients.llm.request.urlopen",
+        lambda http_request, timeout: _FakeResponse(),
+    )
+
+    client = LocalHttpLlmInferenceClient(
+        endpoint="http://127.0.0.1:11434/infer",
+        timeout_seconds=4.0,
+    )
+
+    with pytest.raises(RuntimeError, match="invalid local llm runtime response"):
+        client.infer_genres("/tmp/audio.wav")
 
 
 def test_llm_provider_returns_expected_provider_result_shape():

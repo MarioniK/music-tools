@@ -20,6 +20,10 @@ SUPPORTED_GENRE_PROVIDERS = (
     GENRE_PROVIDER_LLM,
     "stub",
 )
+LLM_CLIENT_STUB = "stub"
+LLM_CLIENT_LOCAL_HTTP = "local_http"
+DEFAULT_LLM_CLIENT = LLM_CLIENT_STUB
+DEFAULT_LLM_LOCAL_HTTP_TIMEOUT_SECONDS = 5.0
 
 TMP_DIR.mkdir(exist_ok=True)
 
@@ -27,3 +31,20 @@ TMP_DIR.mkdir(exist_ok=True)
 def get_configured_genre_provider_name():
     value = os.getenv("GENRE_PROVIDER", DEFAULT_GENRE_PROVIDER)
     return (value or DEFAULT_GENRE_PROVIDER).strip() or DEFAULT_GENRE_PROVIDER
+
+
+def get_configured_llm_client_name():
+    value = os.getenv("LLM_CLIENT", DEFAULT_LLM_CLIENT)
+    return (value or DEFAULT_LLM_CLIENT).strip() or DEFAULT_LLM_CLIENT
+
+
+def get_configured_llm_local_http_endpoint():
+    return (os.getenv("LLM_LOCAL_HTTP_ENDPOINT", "") or "").strip()
+
+
+def get_configured_llm_local_http_timeout_seconds():
+    value = (os.getenv("LLM_LOCAL_HTTP_TIMEOUT_SECONDS", "") or "").strip()
+    if not value:
+        return DEFAULT_LLM_LOCAL_HTTP_TIMEOUT_SECONDS
+
+    return float(value)
