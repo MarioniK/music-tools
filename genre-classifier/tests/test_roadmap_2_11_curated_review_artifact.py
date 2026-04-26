@@ -89,15 +89,46 @@ def test_roadmap_2_11_curated_review_artifact_does_not_generate_fix_candidates()
 
     artifact = build_roadmap_2_11_curated_review_artifact(evaluation_result)
 
-    assert artifact["candidate_evidence_summary"] == {
-        "automatic_candidate_generation": "disabled",
-        "candidate_count": 0,
-        "notes": [
-            "This artifact records review evidence only.",
-            "Fix candidates must be selected in evaluation/manifests/roadmap_2_11/fix_candidates_v1.json after human review.",
-        ],
-    }
+    assert artifact["candidate_evidence_summary"]["automatic_candidate_generation"] == "disabled"
+    assert artifact["candidate_evidence_summary"]["candidate_count"] == 0
     assert "candidates" not in artifact
+
+
+def test_roadmap_2_11_curated_review_artifact_preserves_empty_llm_evidence():
+    evaluation_result = run_roadmap_2_10_offline_evaluation(
+        subset_name="curated_v1",
+        comparison_input_path=FIXTURE_BUNDLE_PATH,
+    )
+
+    artifact = build_roadmap_2_11_curated_review_artifact(evaluation_result)
+
+    empty_output_item = next(
+        item
+        for item in artifact["per_item_results"]
+        if item["sample_id"] == "curated_repeat_001"
+    )
+
+    assert empty_output_item["legacy_tags"] == ["house"]
+    assert empty_output_item["llm_tags"] == []
+    assert empty_output_item["warning_cases"] == ["llm_empty_output"]
+    assert artifact["warning_rollups"]["warning_case_counts"]["llm_empty_output"] == 1
+    assert {
+        "sample_id": "curated_repeat_001",
+        "category": "ranking_stability",
+        "reasons": ["warnings"],
+        "warning_cases": ["llm_empty_output"],
+    } in artifact["review_queue"]
+    assert artifact["readiness_buckets"]["current"]["bucket"] == "not-ready"
+    assert "blocking warning cases: llm_empty_output, no_shared_tags" in artifact[
+        "readiness_buckets"
+    ]["decision_summary"]["blocking_findings"]
+    assert artifact["candidate_evidence_summary"]["empty_llm_output_sample_ids"] == [
+        "curated_repeat_001"
+    ]
+    assert artifact["candidate_evidence_summary"]["empty_llm_output_blocks_readiness"] is True
+    assert artifact["candidate_evidence_summary"]["warning_case_counts"][
+        "llm_empty_output"
+    ] == 1
 
 
 def test_roadmap_2_11_curated_review_entrypoint_writes_json_artifact(tmp_path):
@@ -149,4 +180,7 @@ def test_committed_roadmap_2_11_curated_review_artifact_has_review_shape():
     ]
     assert artifact["candidate_evidence_summary"]["automatic_candidate_generation"] == "disabled"
     assert artifact["candidate_evidence_summary"]["candidate_count"] == 0
+    assert artifact["candidate_evidence_summary"]["empty_llm_output_sample_ids"] == [
+        "curated_repeat_001"
+    ]
     assert "candidates" not in artifact

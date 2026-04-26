@@ -399,6 +399,25 @@
   "candidate_evidence_summary": {
     "automatic_candidate_generation": "disabled",
     "candidate_count": 0,
+    "warning_case_counts": {
+      "llm_empty_output": 1,
+      "llm_partial_output": 1,
+      "llm_weak_top_score": 1,
+      "no_shared_tags": 1
+    },
+    "review_queue_sample_ids": [
+      "curated_golden_001",
+      "curated_repeat_001",
+      "curated_golden_repeat_001"
+    ],
+    "blocking_findings": [
+      "blocking warning cases: llm_empty_output, no_shared_tags",
+      "review queue exceeds half of evaluated samples"
+    ],
+    "empty_llm_output_sample_ids": [
+      "curated_repeat_001"
+    ],
+    "empty_llm_output_blocks_readiness": true,
     "notes": [
       "This artifact records review evidence only.",
       "Fix candidates must be selected in evaluation/manifests/roadmap_2_11/fix_candidates_v1.json after human review."

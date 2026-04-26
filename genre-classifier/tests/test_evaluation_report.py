@@ -348,3 +348,35 @@ def test_roadmap_2_10_readiness_interpretation_marks_nonblocking_warnings_limite
         "follow_up_required": True,
         "next_step": "Resolve review queue findings before any broader migration step.",
     }
+
+
+def test_roadmap_2_10_readiness_interpretation_marks_empty_llm_output_not_ready():
+    readiness, decision_summary = build_roadmap_2_10_readiness_interpretation(
+        {
+            "evaluated_sample_count": 4,
+            "missing_sample_ids": [],
+            "warning_case_counts": {
+                "llm_empty_output": 1,
+            },
+            "review_queue": [
+                {
+                    "sample_id": "curated_repeat_001",
+                    "category": "ranking_stability",
+                    "reasons": ["warnings"],
+                    "warning_cases": ["llm_empty_output"],
+                }
+            ],
+        }
+    )
+
+    assert readiness == {
+        "bucket": "not-ready",
+        "reasons": ["blocking warning cases require review"],
+    }
+    assert decision_summary == {
+        "bucket": "not-ready",
+        "summary": "Not-ready because blocking findings must be resolved before the next roadmap step.",
+        "blocking_findings": ["blocking warning cases: llm_empty_output"],
+        "follow_up_required": True,
+        "next_step": "Resolve review queue findings before any broader migration step.",
+    }
