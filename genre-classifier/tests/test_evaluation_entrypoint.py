@@ -59,6 +59,38 @@ def test_roadmap_2_9_entrypoint_passes_subset_through_to_report(tmp_path):
     ]
 
 
+def test_roadmap_2_10_entrypoint_uses_versioned_manifest_metadata(tmp_path, capsys):
+    output_path = tmp_path / "roadmap_2_10" / "golden_v1_report.json"
+
+    report = main(
+        [
+            "--roadmap-stage",
+            "2.10",
+            "--subset",
+            "golden_v1",
+            "--input-bundle",
+            str(FIXTURE_BUNDLE_PATH),
+            "--output",
+            str(output_path),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    written_report = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert written_report == report
+    assert report["roadmap_stage"] == "2.10"
+    assert report["subset_name"] == "golden_v1"
+    assert report["manifest_metadata"] == {
+        "manifest_version": "roadmap-2.10-golden-v1",
+        "manifest_path": "evaluation/manifests/roadmap_2_10/golden_v1.json",
+        "manifest_sample_count": 2,
+    }
+    assert report["run_summary"]["evaluated_sample_count"] == 2
+    assert "subset=golden_v1" in captured.out
+    assert "evaluated_samples=2" in captured.out
+
+
 def test_roadmap_2_9_entrypoint_output_artifact_matches_stabilized_report_shape(tmp_path):
     output_path = tmp_path / "repeat_run_report.json"
 

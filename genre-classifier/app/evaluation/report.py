@@ -2,7 +2,7 @@ ROADMAP_2_9_EVALUATION_REPORT_VERSION = "roadmap-2.9-evaluation-report-v1"
 
 
 def build_roadmap_2_9_evaluation_report(evaluation_result):
-    return {
+    report = {
         "report_version": ROADMAP_2_9_EVALUATION_REPORT_VERSION,
         "roadmap_stage": evaluation_result.get("roadmap_stage"),
         "subset_name": evaluation_result.get("subset_name"),
@@ -21,3 +21,13 @@ def build_roadmap_2_9_evaluation_report(evaluation_result):
         },
         "per_sample_results": list(evaluation_result.get("per_sample_results", [])),
     }
+
+    manifest_metadata = {
+        key: evaluation_result.get(key)
+        for key in ("manifest_version", "manifest_path", "manifest_sample_count")
+        if key in evaluation_result
+    }
+    if manifest_metadata:
+        report["manifest_metadata"] = manifest_metadata
+
+    return report

@@ -3,6 +3,8 @@ from pathlib import Path
 
 from app.evaluation import (
     load_roadmap_2_9_subset_manifest,
+    load_roadmap_2_10_subset_manifest,
+    run_roadmap_2_10_offline_evaluation,
     run_roadmap_2_9_offline_evaluation,
 )
 
@@ -25,6 +27,21 @@ def test_load_roadmap_2_9_subset_manifest_reads_curated_subset():
             "curated_golden_repeat_001",
         ],
     }
+
+
+def test_load_roadmap_2_10_subset_manifest_reads_curated_v1_entries():
+    subset_manifest = load_roadmap_2_10_subset_manifest("curated_v1")
+
+    assert subset_manifest["manifest_version"] == "roadmap-2.10-curated-v1"
+    assert subset_manifest["roadmap_stage"] == "2.10"
+    assert subset_manifest["subset_name"] == "curated_v1"
+    assert subset_manifest["runtime_effect"] == "none"
+    assert [entry["sample_id"] for entry in subset_manifest["entries"]] == [
+        "curated_baseline_001",
+        "curated_golden_001",
+        "curated_repeat_001",
+        "curated_golden_repeat_001",
+    ]
 
 
 def test_run_roadmap_2_9_offline_evaluation_aggregates_curated_subset():
@@ -71,6 +88,45 @@ def test_run_roadmap_2_9_offline_evaluation_aggregates_curated_subset():
     ]
     assert result["per_sample_results"][3]["warning_cases"] == [
         "no_shared_tags",
+    ]
+
+
+def test_run_roadmap_2_10_offline_evaluation_uses_manifest_entries_for_curated_v1():
+    result = run_roadmap_2_10_offline_evaluation(
+        subset_name="curated_v1",
+        comparison_input_path=FIXTURE_BUNDLE_PATH,
+    )
+
+    assert result["roadmap_stage"] == "2.10"
+    assert result["subset_name"] == "curated_v1"
+    assert result["manifest_version"] == "roadmap-2.10-curated-v1"
+    assert result["manifest_path"] == "evaluation/manifests/roadmap_2_10/curated_v1.json"
+    assert result["source_manifest"] == "../roadmap_2_9/samples.master.json"
+    assert result["manifest_sample_count"] == 4
+    assert result["evaluated_sample_count"] == 4
+    assert result["evaluated_sample_ids"] == [
+        "curated_baseline_001",
+        "curated_golden_001",
+        "curated_repeat_001",
+        "curated_golden_repeat_001",
+    ]
+    assert result["per_sample_results"][0]["subset"] == "curated_v1"
+    assert result["per_sample_results"][0]["category"] == "clear_single_genre"
+    assert result["per_sample_results"][0]["difficulty"] == "easy"
+
+
+def test_run_roadmap_2_10_offline_evaluation_selects_golden_v1_subset():
+    result = run_roadmap_2_10_offline_evaluation(
+        subset_name="golden_v1",
+        comparison_input_path=FIXTURE_BUNDLE_PATH,
+    )
+
+    assert result["subset_name"] == "golden_v1"
+    assert result["manifest_sample_count"] == 2
+    assert result["evaluated_sample_count"] == 2
+    assert result["evaluated_sample_ids"] == [
+        "curated_golden_001",
+        "curated_golden_repeat_001",
     ]
 
 

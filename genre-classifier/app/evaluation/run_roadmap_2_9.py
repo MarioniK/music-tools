@@ -3,18 +3,31 @@ import json
 from pathlib import Path
 
 from app.evaluation.report import build_roadmap_2_9_evaluation_report
-from app.evaluation.runner import run_roadmap_2_9_offline_evaluation
+from app.evaluation.runner import (
+    ROADMAP_2_10_SUBSET_MANIFESTS,
+    run_roadmap_2_10_offline_evaluation,
+    run_roadmap_2_9_offline_evaluation,
+)
+
+
+ROADMAP_2_9_SUBSETS = ("curated", "golden", "repeat_run")
+ROADMAP_2_10_SUBSETS = tuple(ROADMAP_2_10_SUBSET_MANIFESTS)
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        description="Run offline Roadmap 2.9 evaluation and write a stabilized JSON report.",
+        description="Run offline Roadmap evaluation and write a stabilized JSON report.",
+    )
+    parser.add_argument(
+        "--roadmap-stage",
+        default="2.9",
+        choices=("2.9", "2.10"),
+        help="Offline roadmap evaluation stage to run.",
     )
     parser.add_argument(
         "--subset",
         required=True,
-        choices=("curated", "golden", "repeat_run"),
-        help="Roadmap 2.9 subset manifest to evaluate.",
+        help="Subset manifest to evaluate.",
     )
     parser.add_argument(
         "--input-bundle",
@@ -28,9 +41,11 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
 
-    evaluation_result = run_roadmap_2_9_offline_evaluation(
+    evaluation_result = run_offline_evaluation(
+        roadmap_stage=args.roadmap_stage,
         subset_name=args.subset,
         comparison_input_path=args.input_bundle,
+        parser=parser,
     )
     report = build_roadmap_2_9_evaluation_report(evaluation_result)
 
@@ -45,6 +60,27 @@ def main(argv=None):
         )
     )
     return report
+
+
+def run_offline_evaluation(roadmap_stage, subset_name, comparison_input_path, parser):
+    if roadmap_stage == "2.9":
+        if subset_name not in ROADMAP_2_9_SUBSETS:
+            parser.error(
+                "Roadmap 2.9 subset must be one of: {}".format(", ".join(ROADMAP_2_9_SUBSETS))
+            )
+        return run_roadmap_2_9_offline_evaluation(
+            subset_name=subset_name,
+            comparison_input_path=comparison_input_path,
+        )
+
+    if subset_name not in ROADMAP_2_10_SUBSETS:
+        parser.error(
+            "Roadmap 2.10 subset must be one of: {}".format(", ".join(ROADMAP_2_10_SUBSETS))
+        )
+    return run_roadmap_2_10_offline_evaluation(
+        subset_name=subset_name,
+        comparison_input_path=comparison_input_path,
+    )
 
 
 def write_json_report(path, report):
