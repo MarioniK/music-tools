@@ -28,6 +28,18 @@ REQUIRED_CANDIDATE_FIELDS = {
     "notes",
 }
 
+ALLOWED_CANDIDATE_TYPES = {
+    "alias_normalization",
+    "controlled_vocabulary",
+    "threshold_ranking",
+    "weak_output_handling",
+    "compatibility_mapping",
+    "prompt_discipline",
+}
+
+ALLOWED_CANDIDATE_STATUSES = {"proposed", "deferred", "no_fix"}
+ALLOWED_CANDIDATE_RISKS = {"low", "medium", "high"}
+
 
 def load_manifest():
     return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
@@ -54,6 +66,11 @@ def test_roadmap_2_11_fix_candidates_have_required_fields_and_unique_ids_when_pr
     for candidate in manifest["candidates"]:
         assert REQUIRED_CANDIDATE_FIELDS <= set(candidate)
         assert candidate["id"] not in seen_ids
+        assert candidate["type"] in ALLOWED_CANDIDATE_TYPES
+        assert candidate["status"] in ALLOWED_CANDIDATE_STATUSES
+        assert candidate["risk"] in ALLOWED_CANDIDATE_RISKS
+        assert isinstance(candidate["evidence"], list)
+        assert candidate["evidence"]
         seen_ids.add(candidate["id"])
 
 

@@ -137,6 +137,8 @@ python -m app.evaluation.run_roadmap_2_9 --roadmap-stage 2.10 --subset curated_v
 
 The artifact records review evidence only. It does not generate fix candidates automatically; reviewers should use it as evidence when later updating `fix_candidates_v1.json`.
 
+When present, `evaluation/artifacts/roadmap_2_11/curated_review_v1.json` is the concrete evidence source for `fix_candidates_v1.json` review decisions.
+
 ## Invariants
 
 Roadmap 2.11 must preserve these invariants:

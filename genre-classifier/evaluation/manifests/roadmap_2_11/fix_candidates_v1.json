@@ -16,12 +16,74 @@
       "evaluation/manifests/roadmap_2_10/curated_v1.json",
       "evaluation/manifests/roadmap_2_10/golden_v1.json",
       "evaluation/manifests/roadmap_2_10/repeat_run_v1.json",
+      "evaluation/artifacts/roadmap_2_11/curated_review_v1.json",
       "docs/roadmap_2_10_curated_evaluation_quality_gates.md",
       "docs/roadmap_2_10_decision_artifact_summary.md"
     ],
-    "artifact_result": "Existing Roadmap 2.10 files define offline manifest inputs and documentation-level artifact expectations, but no concrete Roadmap 2.10 run-output artifacts were found in the repository.",
-    "candidate_decision": "No evidence-backed compatibility fix candidates were found.",
-    "no_candidates_reason": "The reviewed files do not contain concrete per-sample comparison results, warning rollups, review queue outputs, readiness bucket outputs, or documented mismatch findings suitable for Roadmap 2.11 fix candidate selection."
+    "artifact_result": "Roadmap 2.11 curated review artifact evaluation/artifacts/roadmap_2_11/curated_review_v1.json contains concrete per-item comparison results, category summaries, warning rollups, review queue entries, and readiness bucket output.",
+    "candidate_decision": "Evidence-backed compatibility fix candidates were identified from the curated review artifact.",
+    "no_candidates_reason": ""
   },
-  "candidates": []
+  "candidates": [
+    {
+      "id": "weak-output-empty-results",
+      "type": "weak_output_handling",
+      "status": "proposed",
+      "risk": "high",
+      "category": "ranking_stability",
+      "finding_summary": "The curated review artifact records an empty LLM output for a ranking-stability sample, and readiness marks llm_empty_output as a blocking warning case.",
+      "evidence": [
+        "evaluation/artifacts/roadmap_2_11/curated_review_v1.json: warning_rollups.warning_case_counts.llm_empty_output = 1",
+        "evaluation/artifacts/roadmap_2_11/curated_review_v1.json: review_queue sample_id curated_repeat_001 warning_cases includes llm_empty_output",
+        "evaluation/artifacts/roadmap_2_11/curated_review_v1.json: per_item_results sample_id curated_repeat_001 has legacy_tags [house] and llm_tags []",
+        "evaluation/artifacts/roadmap_2_11/curated_review_v1.json: readiness_buckets.decision_summary.blocking_findings includes blocking warning cases: llm_empty_output, no_shared_tags"
+      ],
+      "proposed_change": "Prepare a narrow weak-output handling review for empty LLM results so safe abstention remains explicit and compatibility semantics stay intact.",
+      "why_now": "The concrete curated review artifact has a blocking empty-output warning in the review queue and readiness output.",
+      "why_safe": "The candidate is evidence-only and limited to future offline-reviewed weak-output behavior; it does not change provider routing, default provider, runtime shadowing, or the external /classify contract.",
+      "test_plan": "If implemented later, add focused tests for empty LLM outputs preserving response shape and compatibility semantics, then rerun Roadmap 2.11 artifact and manifest tests.",
+      "rollback": "Remove the manifest candidate or revert any later weak-output handling change; legacy_musicnn remains the default provider throughout.",
+      "notes": "This candidate does not approve implementation or cutover. It only records evidence for later targeted review."
+    },
+    {
+      "id": "weak-top-partial-output-threshold-review",
+      "type": "threshold_ranking",
+      "status": "deferred",
+      "risk": "medium",
+      "category": "contract_semantics",
+      "finding_summary": "The curated review artifact records a contract-semantics sample with partial LLM output and weak top score, but the pattern appears once in the current artifact.",
+      "evidence": [
+        "evaluation/artifacts/roadmap_2_11/curated_review_v1.json: warning_rollups.warning_case_counts.llm_partial_output = 1",
+        "evaluation/artifacts/roadmap_2_11/curated_review_v1.json: warning_rollups.warning_case_counts.llm_weak_top_score = 1",
+        "evaluation/artifacts/roadmap_2_11/curated_review_v1.json: review_queue sample_id curated_golden_001 warning_cases includes llm_partial_output and llm_weak_top_score",
+        "evaluation/artifacts/roadmap_2_11/curated_review_v1.json: category_summaries category contract_semantics warning_case_counts includes llm_partial_output and llm_weak_top_score"
+      ],
+      "proposed_change": "Defer threshold or ranking adjustments until additional curated evidence shows the same weak-top or partial-output pattern across more than one sample.",
+      "why_now": "The artifact makes the weak-score and partial-output warning visible, but the evidence is not yet recurring enough for a safe compatibility fix.",
+      "why_safe": "Deferred status prevents speculative tuning while preserving the finding for later evidence-backed review.",
+      "test_plan": "If later evidence justifies a fix, add focused threshold/ranking tests using concrete artifact-backed samples before changing behavior.",
+      "rollback": "Leave thresholds and ranking behavior unchanged unless a later reviewed fix is implemented; remove this deferred candidate if later artifacts classify it as accepted drift.",
+      "notes": "Single-sample evidence is insufficient for implementation. This is not a request to force LLM output to match legacy output byte-for-byte."
+    },
+    {
+      "id": "no-shared-tags-genre-boundary-review",
+      "type": "prompt_discipline",
+      "status": "deferred",
+      "risk": "medium",
+      "category": "genre_boundary",
+      "finding_summary": "The curated review artifact records one genre-boundary sample with no shared tags between legacy and LLM outputs; readiness treats no_shared_tags as blocking, but the sample is explicitly hard and ambiguous.",
+      "evidence": [
+        "evaluation/artifacts/roadmap_2_11/curated_review_v1.json: warning_rollups.warning_case_counts.no_shared_tags = 1",
+        "evaluation/artifacts/roadmap_2_11/curated_review_v1.json: review_queue sample_id curated_golden_repeat_001 warning_cases includes no_shared_tags",
+        "evaluation/artifacts/roadmap_2_11/curated_review_v1.json: per_item_results sample_id curated_golden_repeat_001 has legacy_tags [shoegaze, dream pop], llm_tags [drum and bass, breakbeat], and shared_tags []",
+        "evaluation/artifacts/roadmap_2_11/curated_review_v1.json: readiness_buckets.current.bucket = not-ready"
+      ],
+      "proposed_change": "Defer prompt-discipline or compatibility review until more genre-boundary evidence confirms a repeatable no-shared-tags pattern.",
+      "why_now": "The artifact records a blocking no-shared-tags warning, but one hard boundary sample is not enough to justify a prompt or compatibility fix.",
+      "why_safe": "Deferred status avoids subjective genre tuning and broad taxonomy changes while preserving the concrete warning for later review.",
+      "test_plan": "If later evidence repeats this pattern, add focused offline comparison tests around no-shared-tags genre-boundary samples before changing prompts or compatibility handling.",
+      "rollback": "Keep current prompt and compatibility behavior unchanged; remove this deferred candidate if later review classifies the sample as accepted drift or no-fix.",
+      "notes": "This candidate intentionally avoids treating one ambiguous genre disagreement as an implementation-ready fix."
+    }
+  ]
 }
