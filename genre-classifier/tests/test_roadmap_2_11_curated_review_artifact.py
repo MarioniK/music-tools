@@ -10,6 +10,7 @@ from app.evaluation.run_roadmap_2_9 import main
 
 
 FIXTURE_BUNDLE_PATH = Path("evaluation/fixtures/roadmap_2_9/sample_comparison_inputs.json")
+COMMITTED_ARTIFACT_PATH = Path("evaluation/artifacts/roadmap_2_11/curated_review_v1.json")
 
 
 def test_roadmap_2_11_curated_review_artifact_exposes_review_evidence_sections():
@@ -122,3 +123,30 @@ def test_roadmap_2_11_curated_review_entrypoint_writes_json_artifact(tmp_path):
     assert output_path.exists()
     assert written_artifact == artifact
     assert written_artifact["roadmap"] == "2.11"
+
+
+def test_committed_roadmap_2_11_curated_review_artifact_has_review_shape():
+    artifact = json.loads(COMMITTED_ARTIFACT_PATH.read_text(encoding="utf-8"))
+
+    assert artifact["artifact_version"] == ROADMAP_2_11_CURATED_REVIEW_ARTIFACT_VERSION
+    assert artifact["roadmap"] == "2.11"
+    assert artifact["stage"] == "curated_findings_review"
+    assert artifact["source_roadmap_stage"] == "2.10"
+    assert artifact["subset_name"] == "curated_v1"
+    assert artifact["source_manifests"]["manifest_path"] == (
+        "evaluation/manifests/roadmap_2_10/curated_v1.json"
+    )
+    assert isinstance(artifact["reviewed_items"], list)
+    assert artifact["reviewed_items"]
+    assert isinstance(artifact["per_item_results"], list)
+    assert isinstance(artifact["category_summaries"], list)
+    assert isinstance(artifact["warning_rollups"], dict)
+    assert isinstance(artifact["review_queue"], list)
+    assert artifact["readiness_buckets"]["allowed"] == [
+        "ready",
+        "limited-ready",
+        "not-ready",
+    ]
+    assert artifact["candidate_evidence_summary"]["automatic_candidate_generation"] == "disabled"
+    assert artifact["candidate_evidence_summary"]["candidate_count"] == 0
+    assert "candidates" not in artifact

@@ -1,0 +1,407 @@
+{
+  "artifact_version": "roadmap-2.11-curated-review-v1",
+  "roadmap": "2.11",
+  "stage": "curated_findings_review",
+  "source_roadmap_stage": "2.10",
+  "subset_name": "curated_v1",
+  "source_manifests": {
+    "manifest_version": "roadmap-2.10-curated-v1",
+    "manifest_path": "evaluation/manifests/roadmap_2_10/curated_v1.json",
+    "source_manifest": "../roadmap_2_9/samples.master.json",
+    "manifest_sample_count": 4
+  },
+  "reviewed_items": [
+    {
+      "sample_id": "curated_baseline_001",
+      "category": "clear_single_genre",
+      "difficulty": "easy",
+      "warning_cases": [],
+      "review_required": false
+    },
+    {
+      "sample_id": "curated_golden_001",
+      "category": "contract_semantics",
+      "difficulty": "medium",
+      "warning_cases": [
+        "llm_partial_output",
+        "llm_weak_top_score"
+      ],
+      "review_required": true
+    },
+    {
+      "sample_id": "curated_repeat_001",
+      "category": "ranking_stability",
+      "difficulty": "medium",
+      "warning_cases": [
+        "llm_empty_output"
+      ],
+      "review_required": true
+    },
+    {
+      "sample_id": "curated_golden_repeat_001",
+      "category": "genre_boundary",
+      "difficulty": "hard",
+      "warning_cases": [
+        "no_shared_tags"
+      ],
+      "review_required": true
+    }
+  ],
+  "per_item_results": [
+    {
+      "sample_id": "curated_baseline_001",
+      "subset": "curated_v1",
+      "category": "clear_single_genre",
+      "difficulty": "easy",
+      "input_ref": "fixtures/eval/placeholders/curated_baseline_001.audio",
+      "notes": "Straightforward baseline example for contract-valid output and expected tag presence.",
+      "legacy_provider_name": "legacy_musicnn",
+      "llm_provider_name": "llm",
+      "legacy_model_name": "legacy-offline",
+      "llm_model_name": "llm-offline",
+      "legacy_tags": [
+        "indie rock",
+        "dream pop"
+      ],
+      "llm_tags": [
+        "indie rock",
+        "dream pop"
+      ],
+      "shared_tags": [
+        "indie rock",
+        "dream pop"
+      ],
+      "legacy_only_tags": [],
+      "llm_only_tags": [],
+      "overlap_summary": {
+        "legacy_tag_count": 2,
+        "llm_tag_count": 2,
+        "shared_tag_count": 2,
+        "legacy_only_tag_count": 0,
+        "llm_only_tag_count": 0,
+        "overlap_ratio_vs_legacy": 1.0,
+        "overlap_ratio_vs_llm": 1.0,
+        "jaccard_similarity": 1.0
+      },
+      "ranking_drift": [
+        {
+          "tag": "indie rock",
+          "legacy_rank": 1,
+          "llm_rank": 1,
+          "rank_delta": 0,
+          "absolute_rank_delta": 0
+        },
+        {
+          "tag": "dream pop",
+          "legacy_rank": 2,
+          "llm_rank": 2,
+          "rank_delta": 0,
+          "absolute_rank_delta": 0
+        }
+      ],
+      "warning_flags": {
+        "legacy_empty_output": false,
+        "llm_empty_output": false,
+        "legacy_partial_output": false,
+        "llm_partial_output": false,
+        "llm_weak_top_score": false,
+        "no_shared_tags": false
+      },
+      "warning_cases": []
+    },
+    {
+      "sample_id": "curated_golden_001",
+      "subset": "curated_v1",
+      "category": "contract_semantics",
+      "difficulty": "medium",
+      "input_ref": "fixtures/eval/placeholders/curated_golden_001.audio",
+      "notes": "High-confidence sample for strict contract and compatibility semantics review.",
+      "legacy_provider_name": "legacy_musicnn",
+      "llm_provider_name": "llm",
+      "legacy_model_name": "legacy-offline",
+      "llm_model_name": "llm-offline",
+      "legacy_tags": [
+        "ambient",
+        "trip hop"
+      ],
+      "llm_tags": [
+        "ambient"
+      ],
+      "shared_tags": [
+        "ambient"
+      ],
+      "legacy_only_tags": [
+        "trip hop"
+      ],
+      "llm_only_tags": [],
+      "overlap_summary": {
+        "legacy_tag_count": 2,
+        "llm_tag_count": 1,
+        "shared_tag_count": 1,
+        "legacy_only_tag_count": 1,
+        "llm_only_tag_count": 0,
+        "overlap_ratio_vs_legacy": 0.5,
+        "overlap_ratio_vs_llm": 1.0,
+        "jaccard_similarity": 0.5
+      },
+      "ranking_drift": [
+        {
+          "tag": "ambient",
+          "legacy_rank": 1,
+          "llm_rank": 1,
+          "rank_delta": 0,
+          "absolute_rank_delta": 0
+        }
+      ],
+      "warning_flags": {
+        "legacy_empty_output": false,
+        "llm_empty_output": false,
+        "legacy_partial_output": false,
+        "llm_partial_output": true,
+        "llm_weak_top_score": true,
+        "no_shared_tags": false
+      },
+      "warning_cases": [
+        "llm_partial_output",
+        "llm_weak_top_score"
+      ]
+    },
+    {
+      "sample_id": "curated_repeat_001",
+      "subset": "curated_v1",
+      "category": "ranking_stability",
+      "difficulty": "medium",
+      "input_ref": "fixtures/eval/placeholders/curated_repeat_001.audio",
+      "notes": "Repeat-run stability sample for reviewing ordering drift and weak variation.",
+      "legacy_provider_name": "legacy_musicnn",
+      "llm_provider_name": "llm",
+      "legacy_model_name": "legacy-offline",
+      "llm_model_name": "llm-offline",
+      "legacy_tags": [
+        "house"
+      ],
+      "llm_tags": [],
+      "shared_tags": [],
+      "legacy_only_tags": [
+        "house"
+      ],
+      "llm_only_tags": [],
+      "overlap_summary": {
+        "legacy_tag_count": 1,
+        "llm_tag_count": 0,
+        "shared_tag_count": 0,
+        "legacy_only_tag_count": 1,
+        "llm_only_tag_count": 0,
+        "overlap_ratio_vs_legacy": 0.0,
+        "overlap_ratio_vs_llm": 0.0,
+        "jaccard_similarity": 0.0
+      },
+      "ranking_drift": [],
+      "warning_flags": {
+        "legacy_empty_output": false,
+        "llm_empty_output": true,
+        "legacy_partial_output": false,
+        "llm_partial_output": false,
+        "llm_weak_top_score": false,
+        "no_shared_tags": false
+      },
+      "warning_cases": [
+        "llm_empty_output"
+      ]
+    },
+    {
+      "sample_id": "curated_golden_repeat_001",
+      "subset": "curated_v1",
+      "category": "genre_boundary",
+      "difficulty": "hard",
+      "input_ref": "fixtures/eval/placeholders/curated_golden_repeat_001.audio",
+      "notes": "Ambiguous boundary sample included in strict regression and repeat-run review slices.",
+      "legacy_provider_name": "legacy_musicnn",
+      "llm_provider_name": "llm",
+      "legacy_model_name": "legacy-offline",
+      "llm_model_name": "llm-offline",
+      "legacy_tags": [
+        "shoegaze",
+        "dream pop"
+      ],
+      "llm_tags": [
+        "drum and bass",
+        "breakbeat"
+      ],
+      "shared_tags": [],
+      "legacy_only_tags": [
+        "shoegaze",
+        "dream pop"
+      ],
+      "llm_only_tags": [
+        "drum and bass",
+        "breakbeat"
+      ],
+      "overlap_summary": {
+        "legacy_tag_count": 2,
+        "llm_tag_count": 2,
+        "shared_tag_count": 0,
+        "legacy_only_tag_count": 2,
+        "llm_only_tag_count": 2,
+        "overlap_ratio_vs_legacy": 0.0,
+        "overlap_ratio_vs_llm": 0.0,
+        "jaccard_similarity": 0.0
+      },
+      "ranking_drift": [],
+      "warning_flags": {
+        "legacy_empty_output": false,
+        "llm_empty_output": false,
+        "legacy_partial_output": false,
+        "llm_partial_output": false,
+        "llm_weak_top_score": false,
+        "no_shared_tags": true
+      },
+      "warning_cases": [
+        "no_shared_tags"
+      ]
+    }
+  ],
+  "category_summaries": [
+    {
+      "category": "clear_single_genre",
+      "sample_count": 1,
+      "evaluated_sample_count": 1,
+      "warning_sample_count": 0,
+      "missing_sample_count": 0,
+      "warning_case_counts": {}
+    },
+    {
+      "category": "contract_semantics",
+      "sample_count": 1,
+      "evaluated_sample_count": 1,
+      "warning_sample_count": 1,
+      "missing_sample_count": 0,
+      "warning_case_counts": {
+        "llm_partial_output": 1,
+        "llm_weak_top_score": 1
+      }
+    },
+    {
+      "category": "genre_boundary",
+      "sample_count": 1,
+      "evaluated_sample_count": 1,
+      "warning_sample_count": 1,
+      "missing_sample_count": 0,
+      "warning_case_counts": {
+        "no_shared_tags": 1
+      }
+    },
+    {
+      "category": "ranking_stability",
+      "sample_count": 1,
+      "evaluated_sample_count": 1,
+      "warning_sample_count": 1,
+      "missing_sample_count": 0,
+      "warning_case_counts": {
+        "llm_empty_output": 1
+      }
+    }
+  ],
+  "warning_rollups": {
+    "warning_case_counts": {
+      "llm_empty_output": 1,
+      "llm_partial_output": 1,
+      "llm_weak_top_score": 1,
+      "no_shared_tags": 1
+    },
+    "warning_sample_ids": [
+      "curated_golden_001",
+      "curated_repeat_001",
+      "curated_golden_repeat_001"
+    ],
+    "warning_samples": [
+      {
+        "sample_id": "curated_golden_001",
+        "category": "contract_semantics",
+        "warning_cases": [
+          "llm_partial_output",
+          "llm_weak_top_score"
+        ]
+      },
+      {
+        "sample_id": "curated_repeat_001",
+        "category": "ranking_stability",
+        "warning_cases": [
+          "llm_empty_output"
+        ]
+      },
+      {
+        "sample_id": "curated_golden_repeat_001",
+        "category": "genre_boundary",
+        "warning_cases": [
+          "no_shared_tags"
+        ]
+      }
+    ]
+  },
+  "review_queue": [
+    {
+      "sample_id": "curated_golden_001",
+      "category": "contract_semantics",
+      "reasons": [
+        "warnings"
+      ],
+      "warning_cases": [
+        "llm_partial_output",
+        "llm_weak_top_score"
+      ]
+    },
+    {
+      "sample_id": "curated_repeat_001",
+      "category": "ranking_stability",
+      "reasons": [
+        "warnings"
+      ],
+      "warning_cases": [
+        "llm_empty_output"
+      ]
+    },
+    {
+      "sample_id": "curated_golden_repeat_001",
+      "category": "genre_boundary",
+      "reasons": [
+        "warnings"
+      ],
+      "warning_cases": [
+        "no_shared_tags"
+      ]
+    }
+  ],
+  "readiness_buckets": {
+    "allowed": [
+      "ready",
+      "limited-ready",
+      "not-ready"
+    ],
+    "current": {
+      "bucket": "not-ready",
+      "reasons": [
+        "blocking warning cases require review",
+        "review queue is too large for next-step confidence"
+      ]
+    },
+    "decision_summary": {
+      "bucket": "not-ready",
+      "summary": "Not-ready because blocking findings must be resolved before the next roadmap step.",
+      "blocking_findings": [
+        "blocking warning cases: llm_empty_output, no_shared_tags",
+        "review queue exceeds half of evaluated samples"
+      ],
+      "follow_up_required": true,
+      "next_step": "Resolve review queue findings before any broader migration step."
+    }
+  },
+  "candidate_evidence_summary": {
+    "automatic_candidate_generation": "disabled",
+    "candidate_count": 0,
+    "notes": [
+      "This artifact records review evidence only.",
+      "Fix candidates must be selected in evaluation/manifests/roadmap_2_11/fix_candidates_v1.json after human review."
+    ]
+  }
+}
