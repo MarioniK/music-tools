@@ -1,0 +1,26 @@
+{
+  "manifest_version": "roadmap-2.10-golden-v1",
+  "roadmap_stage": "2.10",
+  "subset_name": "golden_v1",
+  "description": "Offline-only high-confidence subset for Roadmap 2.10 strict regression review.",
+  "runtime_effect": "none",
+  "source_manifest": "../roadmap_2_9/samples.master.json",
+  "entries": [
+    {
+      "sample_id": "curated_golden_001",
+      "subset": "golden_v1",
+      "category": "contract_semantics",
+      "difficulty": "medium",
+      "notes": "High-confidence sample for strict contract and compatibility semantics review.",
+      "input_ref": "fixtures/eval/placeholders/curated_golden_001.audio"
+    },
+    {
+      "sample_id": "curated_golden_repeat_001",
+      "subset": "golden_v1",
+      "category": "genre_boundary",
+      "difficulty": "hard",
+      "notes": "Ambiguous but review-worthy sample for checking important-tag preservation.",
+      "input_ref": "fixtures/eval/placeholders/curated_golden_repeat_001.audio"
+    }
+  ]
+}

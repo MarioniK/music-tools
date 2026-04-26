@@ -1,0 +1,26 @@
+{
+  "manifest_version": "roadmap-2.10-repeat-run-v1",
+  "roadmap_stage": "2.10",
+  "subset_name": "repeat_run_v1",
+  "description": "Offline-only repeat-run subset for Roadmap 2.10 stability and drift review.",
+  "runtime_effect": "none",
+  "source_manifest": "../roadmap_2_9/samples.master.json",
+  "entries": [
+    {
+      "sample_id": "curated_repeat_001",
+      "subset": "repeat_run_v1",
+      "category": "ranking_stability",
+      "difficulty": "medium",
+      "notes": "Repeat-run stability sample for reviewing ordering drift and weak variation.",
+      "input_ref": "fixtures/eval/placeholders/curated_repeat_001.audio"
+    },
+    {
+      "sample_id": "curated_golden_repeat_001",
+      "subset": "repeat_run_v1",
+      "category": "genre_boundary",
+      "difficulty": "hard",
+      "notes": "Boundary sample used to detect unstable behavior across repeated offline runs.",
+      "input_ref": "fixtures/eval/placeholders/curated_golden_repeat_001.audio"
+    }
+  ]
+}

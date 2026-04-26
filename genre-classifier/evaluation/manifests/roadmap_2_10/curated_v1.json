@@ -1,0 +1,42 @@
+{
+  "manifest_version": "roadmap-2.10-curated-v1",
+  "roadmap_stage": "2.10",
+  "subset_name": "curated_v1",
+  "description": "Offline-only curated evaluation subset for reviewable Roadmap 2.10 quality gate runs.",
+  "runtime_effect": "none",
+  "source_manifest": "../roadmap_2_9/samples.master.json",
+  "entries": [
+    {
+      "sample_id": "curated_baseline_001",
+      "subset": "curated_v1",
+      "category": "clear_single_genre",
+      "difficulty": "easy",
+      "notes": "Straightforward baseline example for contract-valid output and expected tag presence.",
+      "input_ref": "fixtures/eval/placeholders/curated_baseline_001.audio"
+    },
+    {
+      "sample_id": "curated_golden_001",
+      "subset": "curated_v1",
+      "category": "contract_semantics",
+      "difficulty": "medium",
+      "notes": "High-confidence sample for strict contract and compatibility semantics review.",
+      "input_ref": "fixtures/eval/placeholders/curated_golden_001.audio"
+    },
+    {
+      "sample_id": "curated_repeat_001",
+      "subset": "curated_v1",
+      "category": "ranking_stability",
+      "difficulty": "medium",
+      "notes": "Repeat-run stability sample for reviewing ordering drift and weak variation.",
+      "input_ref": "fixtures/eval/placeholders/curated_repeat_001.audio"
+    },
+    {
+      "sample_id": "curated_golden_repeat_001",
+      "subset": "curated_v1",
+      "category": "genre_boundary",
+      "difficulty": "hard",
+      "notes": "Ambiguous boundary sample included in strict regression and repeat-run review slices.",
+      "input_ref": "fixtures/eval/placeholders/curated_golden_repeat_001.audio"
+    }
+  ]
+}
