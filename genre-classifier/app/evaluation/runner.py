@@ -138,12 +138,28 @@ def run_roadmap_2_10_offline_evaluation(
     missing_sample_ids = []
     samples_with_warnings = []
     warning_case_counts = {}
+    warning_samples = []
+    category_summaries = {}
+    review_queue = []
     per_sample_results = []
 
     for entry in subset_manifest.get("entries", []):
         sample_id = entry.get("sample_id")
+        category = entry.get("category")
+        category_summary = _category_summary_for(category_summaries, category)
+        category_summary["sample_count"] += 1
+
         if not sample_id or sample_id not in comparison_inputs_by_sample_id:
             missing_sample_ids.append(sample_id)
+            category_summary["missing_sample_count"] += 1
+            review_queue.append(
+                {
+                    "sample_id": sample_id,
+                    "category": category,
+                    "reasons": ["missing_sample"],
+                    "warning_cases": [],
+                }
+            )
             continue
 
         comparison_input = comparison_inputs_by_sample_id[sample_id]
@@ -155,7 +171,7 @@ def run_roadmap_2_10_offline_evaluation(
         per_sample_result = {
             "sample_id": sample_id,
             "subset": entry.get("subset"),
-            "category": entry.get("category"),
+            "category": category,
             "difficulty": entry.get("difficulty"),
             "input_ref": entry.get("input_ref"),
             "notes": entry.get("notes"),
@@ -163,13 +179,32 @@ def run_roadmap_2_10_offline_evaluation(
         }
 
         evaluated_sample_ids.append(sample_id)
+        category_summary["evaluated_sample_count"] += 1
         per_sample_results.append(per_sample_result)
 
         if comparison_summary["warning_cases"]:
             samples_with_warnings.append(sample_id)
+            warning_samples.append(
+                {
+                    "sample_id": sample_id,
+                    "category": category,
+                    "warning_cases": list(comparison_summary["warning_cases"]),
+                }
+            )
+            category_summary["warning_sample_count"] += 1
+            review_queue.append(
+                {
+                    "sample_id": sample_id,
+                    "category": category,
+                    "reasons": ["warnings"],
+                    "warning_cases": list(comparison_summary["warning_cases"]),
+                }
+            )
 
         for warning_case in comparison_summary["warning_cases"]:
             warning_case_counts[warning_case] = warning_case_counts.get(warning_case, 0) + 1
+            category_warning_counts = category_summary["warning_case_counts"]
+            category_warning_counts[warning_case] = category_warning_counts.get(warning_case, 0) + 1
 
     return {
         "roadmap_stage": subset_manifest.get("roadmap_stage"),
@@ -186,6 +221,16 @@ def run_roadmap_2_10_offline_evaluation(
             for key in sorted(warning_case_counts)
         },
         "samples_with_warnings": samples_with_warnings,
+        "category_summary": _sorted_category_summaries(category_summaries),
+        "warning_rollups": {
+            "warning_case_counts": {
+                key: warning_case_counts[key]
+                for key in sorted(warning_case_counts)
+            },
+            "warning_sample_ids": list(samples_with_warnings),
+            "warning_samples": warning_samples,
+        },
+        "review_queue": review_queue,
         "per_sample_results": per_sample_results,
     }
 
@@ -201,3 +246,28 @@ def _repo_relative_path(path):
         return str(path.resolve().relative_to(REPO_ROOT))
     except ValueError:
         return str(path)
+
+
+def _category_summary_for(category_summaries, category):
+    if category not in category_summaries:
+        category_summaries[category] = {
+            "category": category,
+            "sample_count": 0,
+            "evaluated_sample_count": 0,
+            "warning_sample_count": 0,
+            "missing_sample_count": 0,
+            "warning_case_counts": {},
+        }
+    return category_summaries[category]
+
+
+def _sorted_category_summaries(category_summaries):
+    summaries = []
+    for category in sorted(category_summaries):
+        summary = dict(category_summaries[category])
+        summary["warning_case_counts"] = {
+            key: summary["warning_case_counts"][key]
+            for key in sorted(summary["warning_case_counts"])
+        }
+        summaries.append(summary)
+    return summaries
