@@ -1,4 +1,5 @@
 ROADMAP_2_9_EVALUATION_REPORT_VERSION = "roadmap-2.9-evaluation-report-v1"
+ROADMAP_2_11_CURATED_REVIEW_ARTIFACT_VERSION = "roadmap-2.11-curated-review-v1"
 
 
 def build_roadmap_2_9_evaluation_report(evaluation_result):
@@ -41,3 +42,61 @@ def build_roadmap_2_9_evaluation_report(evaluation_result):
             report[report_key] = evaluation_result.get(report_key)
 
     return report
+
+
+def build_roadmap_2_11_curated_review_artifact(evaluation_result):
+    per_item_results = list(evaluation_result.get("per_sample_results", []))
+    review_queue = list(evaluation_result.get("review_queue", []))
+    readiness = evaluation_result.get("readiness", {})
+
+    return {
+        "artifact_version": ROADMAP_2_11_CURATED_REVIEW_ARTIFACT_VERSION,
+        "roadmap": "2.11",
+        "stage": "curated_findings_review",
+        "source_roadmap_stage": evaluation_result.get("roadmap_stage"),
+        "subset_name": evaluation_result.get("subset_name"),
+        "source_manifests": {
+            key: evaluation_result.get(key)
+            for key in (
+                "manifest_version",
+                "manifest_path",
+                "source_manifest",
+                "manifest_sample_count",
+            )
+            if key in evaluation_result
+        },
+        "reviewed_items": [
+            {
+                "sample_id": item.get("sample_id"),
+                "category": item.get("category"),
+                "difficulty": item.get("difficulty"),
+                "warning_cases": list(item.get("warning_cases", [])),
+                "review_required": bool(item.get("warning_cases")),
+            }
+            for item in per_item_results
+        ],
+        "per_item_results": per_item_results,
+        "category_summaries": list(evaluation_result.get("category_summary", [])),
+        "warning_rollups": evaluation_result.get(
+            "warning_rollups",
+            {
+                "warning_case_counts": dict(evaluation_result.get("warning_case_counts", {})),
+                "warning_sample_ids": list(evaluation_result.get("samples_with_warnings", [])),
+                "warning_samples": [],
+            },
+        ),
+        "review_queue": review_queue,
+        "readiness_buckets": {
+            "allowed": ["ready", "limited-ready", "not-ready"],
+            "current": readiness,
+            "decision_summary": evaluation_result.get("decision_summary"),
+        },
+        "candidate_evidence_summary": {
+            "automatic_candidate_generation": "disabled",
+            "candidate_count": 0,
+            "notes": [
+                "This artifact records review evidence only.",
+                "Fix candidates must be selected in evaluation/manifests/roadmap_2_11/fix_candidates_v1.json after human review.",
+            ],
+        },
+    }

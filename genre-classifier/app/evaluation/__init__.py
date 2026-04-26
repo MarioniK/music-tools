@@ -1,6 +1,8 @@
 from app.evaluation.comparison import compare_provider_results, extract_canonical_tag_sequence
 from app.evaluation.report import (
     ROADMAP_2_9_EVALUATION_REPORT_VERSION,
+    ROADMAP_2_11_CURATED_REVIEW_ARTIFACT_VERSION,
+    build_roadmap_2_11_curated_review_artifact,
     build_roadmap_2_9_evaluation_report,
 )
 from app.evaluation.runner import (
@@ -15,6 +17,8 @@ __all__ = [
     "compare_provider_results",
     "extract_canonical_tag_sequence",
     "ROADMAP_2_9_EVALUATION_REPORT_VERSION",
+    "ROADMAP_2_11_CURATED_REVIEW_ARTIFACT_VERSION",
+    "build_roadmap_2_11_curated_review_artifact",
     "build_roadmap_2_9_evaluation_report",
     "ROADMAP_2_10_SUBSET_MANIFESTS",
     "load_roadmap_2_9_subset_manifest",

@@ -2,7 +2,10 @@ import argparse
 import json
 from pathlib import Path
 
-from app.evaluation.report import build_roadmap_2_9_evaluation_report
+from app.evaluation.report import (
+    build_roadmap_2_11_curated_review_artifact,
+    build_roadmap_2_9_evaluation_report,
+)
 from app.evaluation.runner import (
     ROADMAP_2_10_SUBSET_MANIFESTS,
     run_roadmap_2_10_offline_evaluation,
@@ -39,7 +42,16 @@ def main(argv=None):
         required=True,
         help="Path where the stabilized JSON report should be written.",
     )
+    parser.add_argument(
+        "--output-kind",
+        default="evaluation_report",
+        choices=("evaluation_report", "roadmap_2_11_curated_review"),
+        help="Shape of the offline JSON artifact to write.",
+    )
     args = parser.parse_args(argv)
+
+    if args.output_kind == "roadmap_2_11_curated_review" and args.roadmap_stage != "2.10":
+        parser.error("Roadmap 2.11 curated review artifacts must be built from Roadmap 2.10 evaluation results.")
 
     evaluation_result = run_offline_evaluation(
         roadmap_stage=args.roadmap_stage,
@@ -47,15 +59,18 @@ def main(argv=None):
         comparison_input_path=args.input_bundle,
         parser=parser,
     )
-    report = build_roadmap_2_9_evaluation_report(evaluation_result)
+    if args.output_kind == "roadmap_2_11_curated_review":
+        report = build_roadmap_2_11_curated_review_artifact(evaluation_result)
+    else:
+        report = build_roadmap_2_9_evaluation_report(evaluation_result)
 
     output_path = write_json_report(args.output, report)
     print(
         "subset={subset} evaluated_samples={evaluated} missing_samples={missing} warning_samples={warnings} output={output}".format(
-            subset=report["subset_name"],
-            evaluated=report["run_summary"]["evaluated_sample_count"],
-            missing=len(report["run_summary"]["missing_sample_ids"]),
-            warnings=len(report["warning_summary"]["samples_with_warnings"]),
+            subset=evaluation_result["subset_name"],
+            evaluated=evaluation_result["evaluated_sample_count"],
+            missing=len(evaluation_result["missing_sample_ids"]),
+            warnings=len(evaluation_result["samples_with_warnings"]),
             output=output_path,
         )
     )

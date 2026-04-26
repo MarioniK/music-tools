@@ -129,6 +129,14 @@ Roadmap 2.11 fix candidates should be tracked in `evaluation/manifests/roadmap_2
 
 The manifest should stay evidence-backed and may keep `candidates` empty when the reviewed Roadmap 2.10 artifacts do not contain concrete findings suitable for a migration-safe fix candidate.
 
+Roadmap 2.11 curated review artifacts can be written with the existing offline evaluation entrypoint:
+
+```text
+python -m app.evaluation.run_roadmap_2_9 --roadmap-stage 2.10 --subset curated_v1 --input-bundle <comparison-input.json> --output-kind roadmap_2_11_curated_review --output evaluation/artifacts/roadmap_2_11/curated_review_v1.json
+```
+
+The artifact records review evidence only. It does not generate fix candidates automatically; reviewers should use it as evidence when later updating `fix_candidates_v1.json`.
+
 ## Invariants
 
 Roadmap 2.11 must preserve these invariants:
