@@ -6,6 +6,7 @@ from app.evaluation import (
     run_roadmap_2_10_offline_evaluation,
     run_roadmap_2_9_offline_evaluation,
 )
+from app.evaluation.runner import build_roadmap_2_10_readiness_interpretation
 
 
 FIXTURE_BUNDLE_PATH = Path("evaluation/fixtures/roadmap_2_9/sample_comparison_inputs.json")
@@ -207,6 +208,23 @@ def test_build_roadmap_2_10_evaluation_report_includes_review_summaries():
             "warning_cases": ["no_shared_tags"],
         },
     ]
+    assert report["readiness"] == {
+        "bucket": "not-ready",
+        "reasons": [
+            "blocking warning cases require review",
+            "review queue is too large for next-step confidence",
+        ],
+    }
+    assert report["decision_summary"] == {
+        "bucket": "not-ready",
+        "summary": "Not-ready because blocking findings must be resolved before the next roadmap step.",
+        "blocking_findings": [
+            "blocking warning cases: llm_empty_output, no_shared_tags",
+            "review queue exceeds half of evaluated samples",
+        ],
+        "follow_up_required": True,
+        "next_step": "Resolve review queue findings before any broader migration step.",
+    }
 
 
 def test_build_roadmap_2_10_evaluation_report_includes_missing_samples_in_review_queue(tmp_path):
@@ -274,3 +292,59 @@ def test_build_roadmap_2_10_evaluation_report_includes_missing_samples_in_review
             "warning_cases": ["no_shared_tags"],
         },
     ]
+
+
+def test_roadmap_2_10_readiness_interpretation_marks_clean_artifact_ready():
+    readiness, decision_summary = build_roadmap_2_10_readiness_interpretation(
+        {
+            "evaluated_sample_count": 2,
+            "missing_sample_ids": [],
+            "warning_case_counts": {},
+            "review_queue": [],
+        }
+    )
+
+    assert readiness == {
+        "bucket": "ready",
+        "reasons": ["artifacts are complete with no warnings or missing samples"],
+    }
+    assert decision_summary == {
+        "bucket": "ready",
+        "summary": "Ready for the next safe offline evaluation or migration-preparation step; not a cutover approval.",
+        "blocking_findings": [],
+        "follow_up_required": False,
+        "next_step": "Continue only with the next safe offline evaluation or migration-preparation step.",
+    }
+
+
+def test_roadmap_2_10_readiness_interpretation_marks_nonblocking_warnings_limited_ready():
+    readiness, decision_summary = build_roadmap_2_10_readiness_interpretation(
+        {
+            "evaluated_sample_count": 4,
+            "missing_sample_ids": [],
+            "warning_case_counts": {
+                "llm_partial_output": 1,
+                "llm_weak_top_score": 1,
+            },
+            "review_queue": [
+                {
+                    "sample_id": "curated_golden_001",
+                    "category": "contract_semantics",
+                    "reasons": ["warnings"],
+                    "warning_cases": ["llm_partial_output", "llm_weak_top_score"],
+                }
+            ],
+        }
+    )
+
+    assert readiness == {
+        "bucket": "limited-ready",
+        "reasons": ["non-blocking warnings require follow-up"],
+    }
+    assert decision_summary == {
+        "bucket": "limited-ready",
+        "summary": "Limited-ready because artifacts are complete but warning review is still required before broader migration planning.",
+        "blocking_findings": [],
+        "follow_up_required": True,
+        "next_step": "Resolve review queue findings before any broader migration step.",
+    }

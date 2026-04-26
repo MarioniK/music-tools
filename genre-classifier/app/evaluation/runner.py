@@ -17,6 +17,7 @@ ROADMAP_2_10_SUBSET_MANIFESTS = {
     "golden_v1": "golden_v1.json",
     "repeat_run_v1": "repeat_run_v1.json",
 }
+ROADMAP_2_10_BLOCKING_WARNING_CASES = {"llm_empty_output", "no_shared_tags"}
 
 
 def load_roadmap_2_9_subset_manifest(
@@ -206,7 +207,7 @@ def run_roadmap_2_10_offline_evaluation(
             category_warning_counts = category_summary["warning_case_counts"]
             category_warning_counts[warning_case] = category_warning_counts.get(warning_case, 0) + 1
 
-    return {
+    result = {
         "roadmap_stage": subset_manifest.get("roadmap_stage"),
         "subset_name": subset_manifest.get("subset_name"),
         "manifest_version": subset_manifest.get("manifest_version"),
@@ -233,6 +234,10 @@ def run_roadmap_2_10_offline_evaluation(
         "review_queue": review_queue,
         "per_sample_results": per_sample_results,
     }
+    readiness, decision_summary = build_roadmap_2_10_readiness_interpretation(result)
+    result["readiness"] = readiness
+    result["decision_summary"] = decision_summary
+    return result
 
 
 def _load_json_file(path):
@@ -271,3 +276,67 @@ def _sorted_category_summaries(category_summaries):
         }
         summaries.append(summary)
     return summaries
+
+
+def build_roadmap_2_10_readiness_interpretation(evaluation_result):
+    missing_sample_ids = list(evaluation_result.get("missing_sample_ids", []))
+    warning_case_counts = dict(evaluation_result.get("warning_case_counts", {}))
+    review_queue = list(evaluation_result.get("review_queue", []))
+    evaluated_sample_count = evaluation_result.get("evaluated_sample_count", 0)
+    blocking_warning_cases = [
+        warning_case
+        for warning_case in sorted(warning_case_counts)
+        if warning_case in ROADMAP_2_10_BLOCKING_WARNING_CASES
+    ]
+    review_queue_too_large = (
+        evaluated_sample_count > 0
+        and len(review_queue) > evaluated_sample_count / 2
+    )
+
+    blocking_findings = []
+    reasons = []
+
+    if missing_sample_ids:
+        blocking_findings.append("missing_samples")
+        reasons.append("missing sample inputs require review")
+
+    if blocking_warning_cases:
+        blocking_findings.append("blocking warning cases: {}".format(", ".join(blocking_warning_cases)))
+        reasons.append("blocking warning cases require review")
+
+    if review_queue_too_large:
+        blocking_findings.append("review queue exceeds half of evaluated samples")
+        reasons.append("review queue is too large for next-step confidence")
+
+    if blocking_findings:
+        bucket = "not-ready"
+    elif review_queue or warning_case_counts:
+        bucket = "limited-ready"
+        reasons.append("non-blocking warnings require follow-up")
+    else:
+        bucket = "ready"
+        reasons.append("artifacts are complete with no warnings or missing samples")
+
+    follow_up_required = bucket != "ready"
+    if bucket == "ready":
+        summary = "Ready for the next safe offline evaluation or migration-preparation step; not a cutover approval."
+    elif bucket == "limited-ready":
+        summary = "Limited-ready because artifacts are complete but warning review is still required before broader migration planning."
+    else:
+        summary = "Not-ready because blocking findings must be resolved before the next roadmap step."
+
+    return (
+        {
+            "bucket": bucket,
+            "reasons": reasons,
+        },
+        {
+            "bucket": bucket,
+            "summary": summary,
+            "blocking_findings": blocking_findings,
+            "follow_up_required": follow_up_required,
+            "next_step": "Resolve review queue findings before any broader migration step."
+            if follow_up_required
+            else "Continue only with the next safe offline evaluation or migration-preparation step.",
+        },
+    )

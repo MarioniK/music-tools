@@ -30,7 +30,13 @@ def build_roadmap_2_9_evaluation_report(evaluation_result):
     if manifest_metadata:
         report["manifest_metadata"] = manifest_metadata
 
-    for report_key in ("category_summary", "warning_rollups", "review_queue"):
+    for report_key in (
+        "category_summary",
+        "warning_rollups",
+        "review_queue",
+        "readiness",
+        "decision_summary",
+    ):
         if report_key in evaluation_result:
             report[report_key] = evaluation_result.get(report_key)
 
