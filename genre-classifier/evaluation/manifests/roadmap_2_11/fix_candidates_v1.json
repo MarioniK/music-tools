@@ -1,0 +1,15 @@
+{
+  "roadmap": "2.11",
+  "stage": "curated_findings_review",
+  "source_artifacts": [
+    "curated artifacts",
+    "golden artifacts",
+    "repeat-run artifacts",
+    "category summaries",
+    "warning rollups",
+    "review queue",
+    "readiness buckets",
+    "Roadmap 2.10 decision artifact"
+  ],
+  "candidates": []
+}
