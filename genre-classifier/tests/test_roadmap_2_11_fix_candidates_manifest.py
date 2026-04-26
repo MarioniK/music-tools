@@ -8,6 +8,7 @@ REQUIRED_TOP_LEVEL_FIELDS = {
     "roadmap",
     "stage",
     "source_artifacts",
+    "review_notes",
     "candidates",
 }
 
@@ -42,6 +43,7 @@ def test_roadmap_2_11_fix_candidates_manifest_exists_and_has_required_top_level_
     assert manifest["stage"] == "curated_findings_review"
     assert isinstance(manifest["source_artifacts"], list)
     assert manifest["source_artifacts"]
+    assert isinstance(manifest["review_notes"], dict)
     assert isinstance(manifest["candidates"], list)
 
 
@@ -53,3 +55,18 @@ def test_roadmap_2_11_fix_candidates_have_required_fields_and_unique_ids_when_pr
         assert REQUIRED_CANDIDATE_FIELDS <= set(candidate)
         assert candidate["id"] not in seen_ids
         seen_ids.add(candidate["id"])
+
+
+def test_roadmap_2_11_empty_fix_candidates_manifest_explains_absence_of_candidates():
+    manifest = load_manifest()
+
+    if manifest["candidates"]:
+        return
+
+    review_notes = manifest["review_notes"]
+
+    assert review_notes["reviewed_existing_files"]
+    assert "No evidence-backed compatibility fix candidates were found." == review_notes[
+        "candidate_decision"
+    ]
+    assert review_notes["no_candidates_reason"]

@@ -123,6 +123,12 @@ Rollback:
 
 The decision trail should be small enough to review in a pull request and specific enough to explain why the change is migration-safe.
 
+## Fix Candidates Manifest
+
+Roadmap 2.11 fix candidates should be tracked in `evaluation/manifests/roadmap_2_11/fix_candidates_v1.json`.
+
+The manifest should stay evidence-backed and may keep `candidates` empty when the reviewed Roadmap 2.10 artifacts do not contain concrete findings suitable for a migration-safe fix candidate.
+
 ## Invariants
 
 Roadmap 2.11 must preserve these invariants:
