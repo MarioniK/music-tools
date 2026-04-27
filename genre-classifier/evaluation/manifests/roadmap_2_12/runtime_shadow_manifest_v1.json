@@ -1,0 +1,19 @@
+{
+  "schema_version": "1",
+  "roadmap_stage": "2.12",
+  "stage": "runtime_shadow_canary_readiness",
+  "artifact_type": "documentation_level_manifest_stub",
+  "default_provider": "legacy_musicnn",
+  "primary_llm_shadow_candidate": "qwen2.5-7b-instruct",
+  "no_cutover": true,
+  "external_contract_unchanged": true,
+  "response_shape_unchanged": true,
+  "actual_canary_serving": false,
+  "runtime_enablement": false,
+  "notes": [
+    "This manifest is a documentation-level stub for Roadmap 2.12 design work.",
+    "It does not enable runtime shadow execution.",
+    "It does not imply that shadow execution is currently enabled.",
+    "It preserves legacy_musicnn as the default production provider."
+  ]
+}
