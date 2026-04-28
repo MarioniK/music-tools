@@ -1,6 +1,7 @@
 import sys
 import types
 import time
+import logging
 from pathlib import Path
 
 import pytest
@@ -91,7 +92,7 @@ def test_classify_response_shape_unchanged_when_shadow_disabled(monkeypatch, tmp
     _assert_classify_success_payload_shape(payload)
 
 
-def test_classify_response_shape_unchanged_when_shadow_enabled(monkeypatch, tmp_path):
+def test_classify_response_shape_unchanged_when_shadow_enabled(monkeypatch, tmp_path, caplog):
     _install_successful_audio_pipeline(monkeypatch, tmp_path)
     monkeypatch.setenv("GENRE_CLASSIFIER_SHADOW_ENABLED", "true")
     monkeypatch.setenv("GENRE_CLASSIFIER_SHADOW_SAMPLE_RATE", "1.0")
@@ -101,10 +102,12 @@ def test_classify_response_shape_unchanged_when_shadow_enabled(monkeypatch, tmp_
 
     monkeypatch.setattr(classify, "_run_shadow_provider_classification", shadow_classification)
 
-    status_code, payload = _post_classify()
+    with caplog.at_level(logging.INFO, logger="genre_classifier"):
+        status_code, payload = _post_classify()
 
     assert status_code == 200
     _assert_classify_success_payload_shape(payload)
+    assert any(hasattr(record, "shadow_payload") for record in caplog.records)
 
 
 def test_classify_shadow_observer_not_called_when_shadow_disabled(monkeypatch, tmp_path):

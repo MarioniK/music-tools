@@ -40,28 +40,54 @@ async def run_configured_shadow_observer(
     shadow_sample_rate = settings.get_configured_shadow_sample_rate()
     shadow_timeout_seconds = settings.get_configured_shadow_timeout_seconds()
     shadow_max_concurrent = settings.get_configured_shadow_max_concurrent()
+    legacy_tags_count = len(legacy_tags or [])
 
     if not shadow_enabled:
-        return _build_outcome(status="skipped_by_config")
+        return _finalize_configured_outcome(
+            _build_outcome(status="skipped_by_config"),
+            legacy_tags_count=legacy_tags_count,
+            shadow_enabled=shadow_enabled,
+            shadow_sample_rate=shadow_sample_rate,
+        )
 
     if shadow_sample_rate <= 0.0:
-        return _build_outcome(status="skipped_by_sampling")
+        return _finalize_configured_outcome(
+            _build_outcome(status="skipped_by_sampling"),
+            legacy_tags_count=legacy_tags_count,
+            shadow_enabled=shadow_enabled,
+            shadow_sample_rate=shadow_sample_rate,
+        )
 
     if shadow_sample_rate < 1.0:
         selected_random_value = random.random() if random_value is None else random_value
         if selected_random_value >= shadow_sample_rate:
-            return _build_outcome(status="skipped_by_sampling")
+            return _finalize_configured_outcome(
+                _build_outcome(status="skipped_by_sampling"),
+                legacy_tags_count=legacy_tags_count,
+                shadow_enabled=shadow_enabled,
+                shadow_sample_rate=shadow_sample_rate,
+            )
 
     if not _try_acquire_shadow_slot(shadow_max_concurrent):
         logger.debug(
             "event=shadow_execution_skipped reason=concurrency_saturated max_concurrent=%d",
             shadow_max_concurrent,
         )
-        return _build_outcome(status="skipped_by_concurrency")
+        return _finalize_configured_outcome(
+            _build_outcome(status="skipped_by_concurrency"),
+            legacy_tags_count=legacy_tags_count,
+            shadow_enabled=shadow_enabled,
+            shadow_sample_rate=shadow_sample_rate,
+        )
 
     started_at = time.monotonic()
+    _log_configured_shadow_started(
+        legacy_tags_count=legacy_tags_count,
+        shadow_enabled=shadow_enabled,
+        shadow_sample_rate=shadow_sample_rate,
+    )
     try:
-        return await asyncio.wait_for(
+        outcome = await asyncio.wait_for(
             run_shadow_observer(
                 legacy_tags=legacy_tags,
                 shadow_runner=shadow_runner,
@@ -71,16 +97,32 @@ async def run_configured_shadow_observer(
             ),
             timeout=shadow_timeout_seconds,
         )
+        return _finalize_configured_outcome(
+            outcome,
+            legacy_tags_count=legacy_tags_count,
+            shadow_enabled=shadow_enabled,
+            shadow_sample_rate=shadow_sample_rate,
+        )
     except asyncio.TimeoutError:
-        return _build_outcome(
-            status="timeout",
-            duration_ms=_elapsed_ms(started_at),
+        return _finalize_configured_outcome(
+            _build_outcome(
+                status="timeout",
+                duration_ms=_elapsed_ms(started_at),
+            ),
+            legacy_tags_count=legacy_tags_count,
+            shadow_enabled=shadow_enabled,
+            shadow_sample_rate=shadow_sample_rate,
         )
     except Exception as exc:
-        return _build_error_outcome(
-            status="observer_error",
-            exc=exc,
-            duration_ms=_elapsed_ms(started_at),
+        return _finalize_configured_outcome(
+            _build_error_outcome(
+                status="observer_error",
+                exc=exc,
+                duration_ms=_elapsed_ms(started_at),
+            ),
+            legacy_tags_count=legacy_tags_count,
+            shadow_enabled=shadow_enabled,
+            shadow_sample_rate=shadow_sample_rate,
         )
     finally:
         _release_shadow_slot()
@@ -202,6 +244,48 @@ def _safe_error_message(exc: Exception) -> str:
 
 def _elapsed_ms(started_at: float) -> float:
     return (time.monotonic() - started_at) * 1000.0
+
+
+def _finalize_configured_outcome(
+    outcome: ShadowRunOutcome,
+    *,
+    legacy_tags_count: int,
+    shadow_enabled: bool,
+    shadow_sample_rate: float,
+) -> ShadowRunOutcome:
+    try:
+        from app.services.shadow_logging import log_shadow_outcome
+
+        log_shadow_outcome(
+            logger=logger,
+            outcome=outcome,
+            legacy_tags_count=legacy_tags_count,
+            shadow_enabled=shadow_enabled,
+            shadow_sample_rate=shadow_sample_rate,
+        )
+    except Exception:
+        pass
+
+    return outcome
+
+
+def _log_configured_shadow_started(
+    *,
+    legacy_tags_count: int,
+    shadow_enabled: bool,
+    shadow_sample_rate: float,
+) -> None:
+    try:
+        from app.services.shadow_logging import log_shadow_started
+
+        log_shadow_started(
+            logger=logger,
+            legacy_tags_count=legacy_tags_count,
+            shadow_enabled=shadow_enabled,
+            shadow_sample_rate=shadow_sample_rate,
+        )
+    except Exception:
+        pass
 
 
 def _try_acquire_shadow_slot(max_concurrent: int) -> bool:
