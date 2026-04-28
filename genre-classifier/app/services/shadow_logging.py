@@ -84,7 +84,11 @@ def build_shadow_log_payload(
 
 
 def classify_shadow_event_from_outcome(outcome: ShadowRunOutcome) -> str:
-    if outcome.status in ("skipped_by_config", "skipped_by_sampling"):
+    if outcome.status in (
+        "skipped_by_config",
+        "skipped_by_sampling",
+        "skipped_by_concurrency",
+    ):
         return SHADOW_LOG_EVENT_SKIPPED
 
     if outcome.status == "success":
@@ -93,7 +97,12 @@ def classify_shadow_event_from_outcome(outcome: ShadowRunOutcome) -> str:
     if outcome.status == "timeout":
         return SHADOW_LOG_EVENT_TIMEOUT
 
-    if outcome.status in ("provider_error", "invalid_output", "comparison_error"):
+    if outcome.status in (
+        "provider_error",
+        "invalid_output",
+        "comparison_error",
+        "observer_error",
+    ):
         return SHADOW_LOG_EVENT_FAILED
 
     return SHADOW_LOG_EVENT_FAILED

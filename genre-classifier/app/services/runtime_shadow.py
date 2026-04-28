@@ -1,14 +1,22 @@
 import asyncio
+import logging
 import random
 import time
 from dataclasses import dataclass
+from threading import Lock
 from typing import Awaitable, Callable, List, Optional, Sequence
 
+from app.core import settings
 from app.services.shadow_compare import (
     ShadowComparison,
     compare_shadow_tags,
     normalize_shadow_tags,
 )
+
+
+logger = logging.getLogger("genre_classifier")
+_shadow_execution_lock = Lock()
+_active_shadow_executions = 0
 
 
 @dataclass(frozen=True)
@@ -19,6 +27,63 @@ class ShadowRunOutcome:
     duration_ms: float
     error_type: Optional[str] = None
     error_message: Optional[str] = None
+
+
+async def run_configured_shadow_observer(
+    *,
+    legacy_tags: Sequence[str],
+    shadow_runner: Callable[[], Awaitable[Sequence[str]]],
+    random_value: Optional[float] = None,
+) -> ShadowRunOutcome:
+    """Apply runtime shadow execution guards before running the observer."""
+    shadow_enabled = settings.get_configured_shadow_enabled()
+    shadow_sample_rate = settings.get_configured_shadow_sample_rate()
+    shadow_timeout_seconds = settings.get_configured_shadow_timeout_seconds()
+    shadow_max_concurrent = settings.get_configured_shadow_max_concurrent()
+
+    if not shadow_enabled:
+        return _build_outcome(status="skipped_by_config")
+
+    if shadow_sample_rate <= 0.0:
+        return _build_outcome(status="skipped_by_sampling")
+
+    if shadow_sample_rate < 1.0:
+        selected_random_value = random.random() if random_value is None else random_value
+        if selected_random_value >= shadow_sample_rate:
+            return _build_outcome(status="skipped_by_sampling")
+
+    if not _try_acquire_shadow_slot(shadow_max_concurrent):
+        logger.debug(
+            "event=shadow_execution_skipped reason=concurrency_saturated max_concurrent=%d",
+            shadow_max_concurrent,
+        )
+        return _build_outcome(status="skipped_by_concurrency")
+
+    started_at = time.monotonic()
+    try:
+        return await asyncio.wait_for(
+            run_shadow_observer(
+                legacy_tags=legacy_tags,
+                shadow_runner=shadow_runner,
+                shadow_enabled=True,
+                shadow_sample_rate=1.0,
+                shadow_timeout_seconds=shadow_timeout_seconds,
+            ),
+            timeout=shadow_timeout_seconds,
+        )
+    except asyncio.TimeoutError:
+        return _build_outcome(
+            status="timeout",
+            duration_ms=_elapsed_ms(started_at),
+        )
+    except Exception as exc:
+        return _build_error_outcome(
+            status="observer_error",
+            exc=exc,
+            duration_ms=_elapsed_ms(started_at),
+        )
+    finally:
+        _release_shadow_slot()
 
 
 async def run_shadow_observer(
@@ -137,3 +202,21 @@ def _safe_error_message(exc: Exception) -> str:
 
 def _elapsed_ms(started_at: float) -> float:
     return (time.monotonic() - started_at) * 1000.0
+
+
+def _try_acquire_shadow_slot(max_concurrent: int) -> bool:
+    global _active_shadow_executions
+
+    with _shadow_execution_lock:
+        if _active_shadow_executions >= max_concurrent:
+            return False
+
+        _active_shadow_executions += 1
+        return True
+
+
+def _release_shadow_slot():
+    global _active_shadow_executions
+
+    with _shadow_execution_lock:
+        _active_shadow_executions = max(0, _active_shadow_executions - 1)
