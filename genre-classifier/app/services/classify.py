@@ -15,7 +15,9 @@ from app.providers.compat import (
     map_validated_result_to_legacy_genres_pretty,
 )
 from app.providers.factory import get_genre_provider
+from app.providers.factory import get_genre_provider_by_name
 from app.providers.validation import validate_and_normalize_provider_result
+from app.services.runtime_shadow import run_configured_shadow_observer
 
 
 logger = logging.getLogger("genre_classifier")
@@ -167,6 +169,10 @@ def process_uploaded_audio(file_bytes: bytes, filename: str):
             safe_filename,
             file_size,
         )
+        _run_runtime_shadow_after_production_response(
+            wav_path=wav_path,
+            legacy_tags=normalized,
+        )
         return genres, normalized
     finally:
         cleanup_file(upload_path)
@@ -174,8 +180,43 @@ def process_uploaded_audio(file_bytes: bytes, filename: str):
 
 
 async def classify_upload(file_bytes: bytes, filename: str):
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
         None,
         partial(process_uploaded_audio, file_bytes, filename or ""),
     )
+
+
+def _run_runtime_shadow_after_production_response(*, wav_path: Path, legacy_tags):
+    async def shadow_runner():
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            _run_shadow_provider_classification,
+            wav_path,
+        )
+
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(
+            run_configured_shadow_observer(
+                legacy_tags=legacy_tags,
+                shadow_runner=shadow_runner,
+            )
+        )
+    except Exception as exc:
+        logger.debug(
+            "event=runtime_shadow_guard_failed error_type=%s error=%s",
+            type(exc).__name__,
+            str(exc),
+        )
+    finally:
+        loop.close()
+
+
+def _run_shadow_provider_classification(wav_path: Path):
+    shadow_provider_name = settings.get_configured_shadow_provider()
+    shadow_provider = get_genre_provider_by_name(shadow_provider_name, settings)
+    shadow_result = shadow_provider.classify(str(wav_path))
+    validated_shadow_result = validate_and_normalize_provider_result(shadow_result)
+    return [item.tag for item in validated_shadow_result.genres]

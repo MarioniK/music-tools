@@ -10,7 +10,10 @@ logger = logging.getLogger("genre_classifier")
 
 def get_genre_provider(settings):
     provider_name = settings.get_configured_genre_provider_name()
+    return get_genre_provider_by_name(provider_name, settings)
 
+
+def get_genre_provider_by_name(provider_name, settings):
     if provider_name == "stub":
         return StubGenreProvider()
 
