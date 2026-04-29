@@ -245,3 +245,22 @@ Remote fallback допускается только как optional later direct
 - `genre-classifier/tests/test_genre_normalization.py`
 - `tidal-parser/app/main.py`
 - `tidal-parser/app/settings.py`
+
+## Roadmap 2.16 — release readiness and v0.3 decision
+
+- Tag: pending `v0.3.0`
+- Commit: `e7b7a0d` — `docs/eval: add roadmap 2.16 release readiness decision`
+
+Roadmap 2.16 records the release-readiness decision after v0.2.15 for `genre-classifier`.
+
+Decision summary:
+
+- v0.3.0 should be positioned as a migration milestone release, not an LLM production cutover;
+- default provider remains `legacy_musicnn`;
+- production response remains legacy-only;
+- external `/classify` contract and response shape were not changed;
+- canary rollout, default-provider switch, and production cutover are explicitly out of scope;
+- `invalid_output` live evidence gap is non-blocking for the v0.3.0 milestone, but blocking before canary or cutover approval;
+- no actual canary and no default-provider switch approval are non-blocking for v0.3.0, but blocking for production LLM adoption;
+- Python/runtime technical debt is moved to post-v0.3 technical debt and is not mixed into the release decision;
+- `tidal-parser` was not changed.
