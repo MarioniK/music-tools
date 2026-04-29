@@ -32,6 +32,25 @@ from app.providers.base import ProviderGenreScore, ProviderResult
 from app.services import classify
 
 
+def test_get_current_event_loop_prefers_running_loop(monkeypatch):
+    sentinel = object()
+    fallback = object()
+
+    monkeypatch.setattr(classify.asyncio, "get_running_loop", lambda: sentinel)
+    monkeypatch.setattr(classify.asyncio, "get_event_loop", lambda: fallback)
+
+    assert classify._get_current_event_loop() is sentinel
+
+
+def test_get_current_event_loop_falls_back_for_python_36(monkeypatch):
+    sentinel = object()
+
+    monkeypatch.delattr(classify.asyncio, "get_running_loop", raising=False)
+    monkeypatch.setattr(classify.asyncio, "get_event_loop", lambda: sentinel)
+
+    assert classify._get_current_event_loop() is sentinel
+
+
 @pytest.fixture(autouse=True)
 def reset_shadow_runtime_env(monkeypatch):
     monkeypatch.delenv("GENRE_CLASSIFIER_SHADOW_ENABLED", raising=False)

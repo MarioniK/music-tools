@@ -23,6 +23,14 @@ from app.services.runtime_shadow import run_configured_shadow_observer
 logger = logging.getLogger("genre_classifier")
 
 
+def _get_current_event_loop():
+    get_running_loop = getattr(asyncio, "get_running_loop", None)
+    if get_running_loop is not None:
+        return get_running_loop()
+
+    return asyncio.get_event_loop()
+
+
 def normalize_audio_file(input_path: Path, output_path: Path):
     cmd = [
         "ffmpeg",
@@ -180,7 +188,7 @@ def process_uploaded_audio(file_bytes: bytes, filename: str):
 
 
 async def classify_upload(file_bytes: bytes, filename: str):
-    loop = asyncio.get_running_loop()
+    loop = _get_current_event_loop()
     return await loop.run_in_executor(
         None,
         partial(process_uploaded_audio, file_bytes, filename or ""),
@@ -189,7 +197,7 @@ async def classify_upload(file_bytes: bytes, filename: str):
 
 def _run_runtime_shadow_after_production_response(*, wav_path: Path, legacy_tags):
     async def shadow_runner():
-        loop = asyncio.get_running_loop()
+        loop = _get_current_event_loop()
         return await loop.run_in_executor(
             None,
             _run_shadow_provider_classification,
