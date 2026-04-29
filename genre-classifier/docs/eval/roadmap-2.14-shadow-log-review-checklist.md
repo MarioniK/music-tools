@@ -67,6 +67,37 @@ Extended shadow review:
 docker compose logs --tail=1000 | grep -E "shadow|runtime_shadow|shadow_execution"
 ```
 
+## Runtime Event And Status Mapping
+
+Runtime event names to search for:
+
+- `genre_classifier.shadow.skipped`;
+- `genre_classifier.shadow.started`;
+- `genre_classifier.shadow.completed`;
+- `genre_classifier.shadow.failed`;
+- `genre_classifier.shadow.timeout`;
+- `genre_classifier.shadow.comparison_recorded`;
+- `genre_classifier.shadow.artifact_write_failed`.
+
+Conceptual review outcome to runtime status mapping:
+
+- `completed` -> event `genre_classifier.shadow.completed`, status `success`;
+- `skipped_sample_rate` -> event `genre_classifier.shadow.skipped`, status `skipped_by_sampling`;
+- `skipped_concurrency_limit` -> event `genre_classifier.shadow.skipped`, status `skipped_by_concurrency`;
+- `skipped_by_config` -> event `genre_classifier.shadow.skipped`, status `skipped_by_config`;
+- `timeout` -> event `genre_classifier.shadow.timeout`, status `timeout`;
+- `provider_error` -> event `genre_classifier.shadow.failed`, status `provider_error`;
+- `invalid_output` -> event `genre_classifier.shadow.failed`, status `invalid_output`;
+- `comparison_error` -> event `genre_classifier.shadow.failed`, status `comparison_error`;
+- `observer_error` -> event `genre_classifier.shadow.failed`, status `observer_error`.
+
+Notes:
+
+- checklist outcome names are review terminology;
+- runtime logs should be interpreted using actual event/status pairs;
+- `success` is the runtime status corresponding to the `completed` review outcome;
+- `skipped_by_sampling` covers both sample rate `0` and random sampling exclusion.
+
 ## Outcomes To Count
 
 Count each observed outcome and classify its meaning.
@@ -74,21 +105,21 @@ Count each observed outcome and classify its meaning.
 ### `completed`
 
 - [ ] Count:
-- Expected meaning: shadow execution finished and comparison signals were logged.
+- Expected meaning: shadow execution finished with runtime status `success` and comparison signals were logged.
 - Normal/warning/blocking: normal at expected sample rate; warning if comparison payload is missing or unusable; blocking if `completed` includes invalid shadow output.
 - Fields to look for: `event`, `request_id` or trace key, `provider`, `outcome`, `duration_ms`, `legacy_genres_count`, `shadow_genres_count`, `overlap_count`, `overlap_ratio`.
 
 ### `skipped_sample_rate`
 
 - [ ] Count:
-- Expected meaning: shadow execution was skipped by sampling policy.
+- Expected meaning: shadow execution was skipped by sampling policy with runtime status `skipped_by_sampling`.
 - Normal/warning/blocking: normal when sample rate excludes the request or is `0`; warning if too noisy; blocking only if skip behavior contradicts configured sample rate.
 - Fields to look for: `event`, `request_id` or trace key, `outcome`, `skip_reason`, configured sample rate if available.
 
 ### `skipped_concurrency_limit`
 
 - [ ] Count:
-- Expected meaning: shadow execution was skipped because the concurrency limit was already reached.
+- Expected meaning: shadow execution was skipped because the concurrency limit was already reached with runtime status `skipped_by_concurrency`.
 - Normal/warning/blocking: normal under expected saturation tests; warning if frequent in ordinary traffic; blocking if slots appear leaked or requests queue instead of skipping.
 - Fields to look for: `event`, `request_id` or trace key, `outcome`, `skip_reason`, `concurrency_limit`.
 
