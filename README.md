@@ -49,6 +49,14 @@
 - корректное разделение допустимой деградации результата и фатальных ошибок;
 - генерация `blog_output` из финального результата.
 
+## Статус релиза v0.3.0
+
+`v0.3.0` завершает Roadmap 2 как LLM migration foundation для `genre-classifier`.
+
+`legacy_musicnn` остаётся default provider. `/classify` API и response shape не менялись. Production responses остаются legacy-only. Canary rollout, production cutover и default-provider switch не входят в `v0.3.0`.
+
+Детали: [docs/releases/v0.3.0.md](docs/releases/v0.3.0.md) и [genre-classifier/docs/eval/roadmap-2.16-release-readiness-and-v0.3-decision.md](genre-classifier/docs/eval/roadmap-2.16-release-readiness-and-v0.3-decision.md).
+
 ## Краткая схема работы
 
 - `tidal-parser` — точка входа для UI и API;
@@ -133,6 +141,7 @@ http://localhost:8011
 
 - Архитектура: [docs/architecture.md](docs/architecture.md)
 - Release notes: [docs/releases/v0.2.0.md](docs/releases/v0.2.0.md)
+- Release notes v0.3.0: [docs/releases/v0.3.0.md](docs/releases/v0.3.0.md)
 
 ## Лицензия
 
