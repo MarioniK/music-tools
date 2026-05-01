@@ -1,0 +1,5 @@
+base_url=http://127.0.0.1:8421
+fixture_path=app/tmp/upload.mp3
+label=upload
+repeat_count=10
+captured_at_utc=2026-05-01T23:42:42Z

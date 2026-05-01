@@ -1,0 +1,2 @@
+CONTAINER ID   NAME                                    CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O       PIDS
+49ecf5998b3b   genre-classifier-roadmap-3.5-baseline   0.11%     680.4MiB / 4GiB     16.61%    82.3MB / 44.5kB   979MB / 835MB   139

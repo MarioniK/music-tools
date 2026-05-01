@@ -1,0 +1,5 @@
+base_url=http://127.0.0.1:8421
+fixture_path=/tmp/roadmap-3.5-fixtures/unsupported.txt
+label=unsupported
+repeat_count=0
+captured_at_utc=2026-05-01T23:42:42Z

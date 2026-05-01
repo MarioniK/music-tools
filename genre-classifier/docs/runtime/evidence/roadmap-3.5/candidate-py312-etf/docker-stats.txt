@@ -1,0 +1,2 @@
+CONTAINER ID   NAME                                     CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O       PIDS
+c5bbfe02fad5   genre-classifier-roadmap-3.5-py312-etf   0.11%     461.6MiB / 4GiB     11.27%    82.3MB / 46.3kB   714MB / 678MB   9
