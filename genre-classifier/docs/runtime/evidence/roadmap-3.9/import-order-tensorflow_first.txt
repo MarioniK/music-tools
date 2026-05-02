@@ -1,0 +1,21 @@
+scenario: tensorflow_first
+runtime.identity
+  python: 3.12.13
+  executable: /usr/local/bin/python
+  platform: Linux-7.0.0-3-pve-x86_64-with-glibc2.36
+  tensorflow: 2.21.0
+  essentia-tensorflow: 2.1b6.dev1389
+  numpy: 2.4.4
+  protobuf: 7.34.1
+  h5py: 3.14.0
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1777762311.852534       1 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1777762311.888982       1 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1777762313.501189       1 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+module.tensorflow
+  version: 2.21.0
+  file: /usr/local/lib/python3.12/site-packages/tensorflow/__init__.py
+scenario.ok
+exit_code=0

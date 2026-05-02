@@ -92,6 +92,18 @@ docker run --rm music-tools-genre-classifier-roadmap-3.8:py312-etf \
   python -c "import essentia, essentia.standard as es; print(hasattr(es, 'MonoLoader')); print(hasattr(es, 'TensorflowPredictMusiCNN')); import app.main; import app.services.classify"
 ```
 
+## Known import-order limitation
+
+The app-first / Essentia-first path is currently the supported path for this non-production candidate.
+
+TensorFlow-first import order currently fails with duplicate `Bitcast` op registration:
+
+```text
+RegisterAlreadyLocked(op_data_factory) is OK (ALREADY_EXISTS: Op with name Bitcast)
+```
+
+This candidate must not be used for production switch planning unless Roadmap 3.9 evidence either accepts app-first / Essentia-first import order as an explicit runtime invariant or resolves the TensorFlow-first failure.
+
 ## Known risks
 
 - Roadmap 3.6 found a TensorFlow-first import-order crash: importing `tensorflow` before `essentia` or the app failed with duplicate op registration for `Bitcast`.
