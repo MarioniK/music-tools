@@ -1,0 +1,60 @@
+REQUEST:1
+{"ok":true,"message":"Аудио проанализировано","genres":[{"tag":"electronic","prob":0.3894},{"tag":"indie","prob":0.3884},{"tag":"rock","prob":0.1951},{"tag":"indie rock","prob":0.1836},{"tag":"alternative","prob":0.1557},{"tag":"electro","prob":0.1237},{"tag":"pop","prob":0.1012},{"tag":"electronica","prob":0.0754}],"genres_pretty":["indie rock","alternative rock","electronic","indie","rock","alternative","electro","pop"]}
+HTTP_STATUS:200
+TIME_TOTAL:10.109535
+
+---
+REQUEST:2
+{"ok":true,"message":"Аудио проанализировано","genres":[{"tag":"electronic","prob":0.3894},{"tag":"indie","prob":0.3884},{"tag":"rock","prob":0.1951},{"tag":"indie rock","prob":0.1836},{"tag":"alternative","prob":0.1557},{"tag":"electro","prob":0.1237},{"tag":"pop","prob":0.1012},{"tag":"electronica","prob":0.0754}],"genres_pretty":["indie rock","alternative rock","electronic","indie","rock","alternative","electro","pop"]}
+HTTP_STATUS:200
+TIME_TOTAL:9.679126
+
+---
+REQUEST:3
+{"ok":true,"message":"Аудио проанализировано","genres":[{"tag":"electronic","prob":0.3894},{"tag":"indie","prob":0.3884},{"tag":"rock","prob":0.1951},{"tag":"indie rock","prob":0.1836},{"tag":"alternative","prob":0.1557},{"tag":"electro","prob":0.1237},{"tag":"pop","prob":0.1012},{"tag":"electronica","prob":0.0754}],"genres_pretty":["indie rock","alternative rock","electronic","indie","rock","alternative","electro","pop"]}
+HTTP_STATUS:200
+TIME_TOTAL:9.559848
+
+---
+REQUEST:4
+{"ok":true,"message":"Аудио проанализировано","genres":[{"tag":"electronic","prob":0.3894},{"tag":"indie","prob":0.3884},{"tag":"rock","prob":0.1951},{"tag":"indie rock","prob":0.1836},{"tag":"alternative","prob":0.1557},{"tag":"electro","prob":0.1237},{"tag":"pop","prob":0.1012},{"tag":"electronica","prob":0.0754}],"genres_pretty":["indie rock","alternative rock","electronic","indie","rock","alternative","electro","pop"]}
+HTTP_STATUS:200
+TIME_TOTAL:9.775265
+
+---
+REQUEST:5
+{"ok":true,"message":"Аудио проанализировано","genres":[{"tag":"electronic","prob":0.3894},{"tag":"indie","prob":0.3884},{"tag":"rock","prob":0.1951},{"tag":"indie rock","prob":0.1836},{"tag":"alternative","prob":0.1557},{"tag":"electro","prob":0.1237},{"tag":"pop","prob":0.1012},{"tag":"electronica","prob":0.0754}],"genres_pretty":["indie rock","alternative rock","electronic","indie","rock","alternative","electro","pop"]}
+HTTP_STATUS:200
+TIME_TOTAL:9.410514
+
+---
+REQUEST:6
+{"ok":true,"message":"Аудио проанализировано","genres":[{"tag":"electronic","prob":0.3894},{"tag":"indie","prob":0.3884},{"tag":"rock","prob":0.1951},{"tag":"indie rock","prob":0.1836},{"tag":"alternative","prob":0.1557},{"tag":"electro","prob":0.1237},{"tag":"pop","prob":0.1012},{"tag":"electronica","prob":0.0754}],"genres_pretty":["indie rock","alternative rock","electronic","indie","rock","alternative","electro","pop"]}
+HTTP_STATUS:200
+TIME_TOTAL:9.647461
+
+---
+REQUEST:7
+{"ok":true,"message":"Аудио проанализировано","genres":[{"tag":"electronic","prob":0.3894},{"tag":"indie","prob":0.3884},{"tag":"rock","prob":0.1951},{"tag":"indie rock","prob":0.1836},{"tag":"alternative","prob":0.1557},{"tag":"electro","prob":0.1237},{"tag":"pop","prob":0.1012},{"tag":"electronica","prob":0.0754}],"genres_pretty":["indie rock","alternative rock","electronic","indie","rock","alternative","electro","pop"]}
+HTTP_STATUS:200
+TIME_TOTAL:9.455964
+
+---
+REQUEST:8
+{"ok":true,"message":"Аудио проанализировано","genres":[{"tag":"electronic","prob":0.3894},{"tag":"indie","prob":0.3884},{"tag":"rock","prob":0.1951},{"tag":"indie rock","prob":0.1836},{"tag":"alternative","prob":0.1557},{"tag":"electro","prob":0.1237},{"tag":"pop","prob":0.1012},{"tag":"electronica","prob":0.0754}],"genres_pretty":["indie rock","alternative rock","electronic","indie","rock","alternative","electro","pop"]}
+HTTP_STATUS:200
+TIME_TOTAL:11.666863
+
+---
+REQUEST:9
+{"ok":true,"message":"Аудио проанализировано","genres":[{"tag":"electronic","prob":0.3894},{"tag":"indie","prob":0.3884},{"tag":"rock","prob":0.1951},{"tag":"indie rock","prob":0.1836},{"tag":"alternative","prob":0.1557},{"tag":"electro","prob":0.1237},{"tag":"pop","prob":0.1012},{"tag":"electronica","prob":0.0754}],"genres_pretty":["indie rock","alternative rock","electronic","indie","rock","alternative","electro","pop"]}
+HTTP_STATUS:200
+TIME_TOTAL:9.587002
+
+---
+REQUEST:10
+{"ok":true,"message":"Аудио проанализировано","genres":[{"tag":"electronic","prob":0.3894},{"tag":"indie","prob":0.3884},{"tag":"rock","prob":0.1951},{"tag":"indie rock","prob":0.1836},{"tag":"alternative","prob":0.1557},{"tag":"electro","prob":0.1237},{"tag":"pop","prob":0.1012},{"tag":"electronica","prob":0.0754}],"genres_pretty":["indie rock","alternative rock","electronic","indie","rock","alternative","electro","pop"]}
+HTTP_STATUS:200
+TIME_TOTAL:9.830343
+
+---

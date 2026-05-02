@@ -1,0 +1,2 @@
+REPOSITORY                     TAG                                     DIGEST    IMAGE ID       CREATED          SIZE
+music-tools/genre-classifier   py312-essentia-tensorflow-roadmap-3.8   <none>    a8eaa7fa4b48   42 seconds ago   3.42GB

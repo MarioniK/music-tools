@@ -1,0 +1,94 @@
+2026-04-29 22:08:21.296757: I tensorflow/core/platform/cpu_feature_guard.cc:142] Your CPU supports instructions that this TensorFlow binary was not compiled to use: AVX2 FMA
+2026-04-29 22:08:21.310715: I tensorflow/core/platform/profile_utils/cpu_utils.cc:94] CPU Frequency: 2599990000 Hz
+2026-04-29 22:08:21.312146: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0x412adc60 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
+2026-04-29 22:08:21.312157: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecutor device (0): Host, Default Version
+2026-04-29 22:08:21.314438: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory
+2026-04-29 22:08:21.314663: E tensorflow/stream_executor/cuda/cuda_driver.cc:318] failed call to cuInit: UNKNOWN ERROR (303)
+2026-04-29 22:08:21.314678: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (650bc34762a7): /proc/driver/nvidia/version does not exist
+INFO:     Started server process [1]
+2026-04-29 22:08:21,354 INFO uvicorn.error Started server process [1]
+INFO:     Waiting for application startup.
+2026-04-29 22:08:21,354 INFO uvicorn.error Waiting for application startup.
+INFO:     Application startup complete.
+2026-04-29 22:08:21,355 INFO uvicorn.error Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+2026-04-29 22:08:21,355 INFO uvicorn.error Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+INFO:     172.25.0.1:52940 - "GET /health HTTP/1.1" 200 OK
+2026-04-29 22:10:04,972 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-04-29 22:10:11,598 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-04-29 22:10:11,600 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:33992 - "POST /classify HTTP/1.1" 200 OK
+2026-04-29 22:11:09,620 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-04-29 22:11:15,874 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-04-29 22:11:15,875 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:56914 - "POST /classify HTTP/1.1" 200 OK
+INFO:     Shutting down
+2026-04-29 22:13:46,822 INFO uvicorn.error Shutting down
+INFO:     Waiting for application shutdown.
+2026-04-29 22:13:46,923 INFO uvicorn.error Waiting for application shutdown.
+INFO:     Application shutdown complete.
+2026-04-29 22:13:46,923 INFO uvicorn.error Application shutdown complete.
+INFO:     Finished server process [1]
+2026-04-29 22:13:46,923 INFO uvicorn.error Finished server process [1]
+2026-04-29 22:37:08.122532: I tensorflow/core/platform/cpu_feature_guard.cc:142] Your CPU supports instructions that this TensorFlow binary was not compiled to use: AVX2 FMA
+2026-04-29 22:37:08.126548: I tensorflow/core/platform/profile_utils/cpu_utils.cc:94] CPU Frequency: 2599990000 Hz
+2026-04-29 22:37:08.126983: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0x36098c60 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
+2026-04-29 22:37:08.127012: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecutor device (0): Host, Default Version
+2026-04-29 22:37:08.128091: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory
+2026-04-29 22:37:08.128102: E tensorflow/stream_executor/cuda/cuda_driver.cc:318] failed call to cuInit: UNKNOWN ERROR (303)
+2026-04-29 22:37:08.128113: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (650bc34762a7): /proc/driver/nvidia/version does not exist
+INFO:     Started server process [1]
+2026-04-29 22:37:08,175 INFO uvicorn.error Started server process [1]
+INFO:     Waiting for application startup.
+2026-04-29 22:37:08,175 INFO uvicorn.error Waiting for application startup.
+INFO:     Application startup complete.
+2026-04-29 22:37:08,175 INFO uvicorn.error Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+2026-04-29 22:37:08,175 INFO uvicorn.error Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+INFO:     172.25.0.1:47422 - "GET /health HTTP/1.1" 200 OK
+2026-04-29 22:37:35,202 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-04-29 22:37:41,564 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-04-29 22:37:41,566 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:48154 - "POST /classify HTTP/1.1" 200 OK
+INFO:     172.25.0.1:48988 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.0.1.64:55659 - "GET /apple-touch-icon-precomposed.png HTTP/1.1" 404 Not Found
+INFO:     10.0.1.64:55660 - "GET /apple-touch-icon.png HTTP/1.1" 404 Not Found
+INFO:     10.0.1.64:55661 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     10.0.1.64:55658 - "GET /classify-form HTTP/1.1" 405 Method Not Allowed
+INFO:     172.25.0.1:39226 - "GET /health HTTP/1.1" 200 OK
+2026-05-01 20:21:20,381 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-05-01 20:21:27,093 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-01 20:21:27,097 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:43112 - "POST /classify HTTP/1.1" 200 OK
+INFO:     10.0.1.64:50331 - "GET /apple-touch-icon-precomposed.png HTTP/1.1" 404 Not Found
+INFO:     10.0.1.64:50327 - "GET /classify-form HTTP/1.1" 405 Method Not Allowed
+INFO:     10.0.1.64:50334 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     10.0.1.64:50333 - "GET /apple-touch-icon.png HTTP/1.1" 404 Not Found
+INFO:     Shutting down
+2026-05-02 19:28:36,780 INFO uvicorn.error Shutting down
+INFO:     Waiting for application shutdown.
+2026-05-02 19:28:36,910 INFO uvicorn.error Waiting for application shutdown.
+INFO:     Application shutdown complete.
+2026-05-02 19:28:36,920 INFO uvicorn.error Application shutdown complete.
+INFO:     Finished server process [1]
+2026-05-02 19:28:36,925 INFO uvicorn.error Finished server process [1]
+2026-05-02 19:30:20.758363: I tensorflow/core/platform/cpu_feature_guard.cc:142] Your CPU supports instructions that this TensorFlow binary was not compiled to use: AVX2 FMA
+2026-05-02 19:30:20.787533: I tensorflow/core/platform/profile_utils/cpu_utils.cc:94] CPU Frequency: 2599990000 Hz
+2026-05-02 19:30:20.790835: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0x3a4ebef0 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
+2026-05-02 19:30:20.791189: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecutor device (0): Host, Default Version
+2026-05-02 19:30:20.797808: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory
+2026-05-02 19:30:20.798025: E tensorflow/stream_executor/cuda/cuda_driver.cc:318] failed call to cuInit: UNKNOWN ERROR (303)
+2026-05-02 19:30:20.798942: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (650bc34762a7): /proc/driver/nvidia/version does not exist
+INFO:     Started server process [1]
+2026-05-02 19:30:20,948 INFO uvicorn.error Started server process [1]
+INFO:     Waiting for application startup.
+2026-05-02 19:30:20,956 INFO uvicorn.error Waiting for application startup.
+INFO:     Application startup complete.
+2026-05-02 19:30:20,957 INFO uvicorn.error Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+2026-05-02 19:30:20,957 INFO uvicorn.error Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+2026-05-02 22:10:10,228 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+INFO:     172.25.0.1:39848 - "GET /health HTTP/1.1" 200 OK
+2026-05-02 22:10:21,040 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 22:10:21,047 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:39846 - "POST /classify HTTP/1.1" 200 OK

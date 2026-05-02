@@ -1,0 +1,12 @@
+--- docs/runtime/evidence/roadmap-3.8/requirements.runtime.sorted.txt	2026-05-03 01:15:00.512114615 +0300
++++ docs/runtime/evidence/roadmap-3.8/candidate-pip-freeze.sorted.txt	2026-05-03 01:15:00.513114613 +0300
+@@ -14,7 +14,7 @@
+ h11==0.16.0
+ h5py==3.14.0
+ idna==3.13
+-jinja2==3.0.3
++Jinja2==3.0.3
+ keras==3.14.0
+ libclang==18.1.1
+ markdown-it-py==4.0.0
+DIFF_EXIT:1

@@ -1,0 +1,120 @@
+Name: essentia-tensorflow
+Version: 2.1b6.dev1389
+Summary: Library for audio and music analysis, description and synthesis, with TensorFlow support
+Home-page: http://essentia.upf.edu
+Author: Dmitry Bogdanov
+Author-email: dmitry.bogdanov@upf.edu
+License-Expression: AGPL-3.0-only
+Location: /usr/local/lib/python3.12/site-packages
+Requires: numpy, pyyaml, six
+Required-by: 
+---
+Name: tensorflow
+Version: 2.21.0
+Summary: TensorFlow is an open source machine learning framework for everyone.
+Home-page: https://www.tensorflow.org/
+Author: Google Inc.
+Author-email: packages@tensorflow.org
+License: Apache 2.0
+Location: /usr/local/lib/python3.12/site-packages
+Requires: absl-py, astunparse, flatbuffers, gast, google_pasta, grpcio, h5py, keras, libclang, ml_dtypes, numpy, opt_einsum, packaging, protobuf, requests, setuptools, six, termcolor, typing_extensions, wrapt
+Required-by: 
+---
+Name: numpy
+Version: 2.4.4
+Summary: Fundamental package for array computing in Python
+Home-page: https://numpy.org
+Author: Travis E. Oliphant et al.
+Author-email: 
+License-Expression: BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0
+Location: /usr/local/lib/python3.12/site-packages
+Requires: 
+Required-by: essentia-tensorflow, h5py, keras, ml_dtypes, tensorflow
+---
+Name: protobuf
+Version: 7.34.1
+Summary: 
+Home-page: https://developers.google.com/protocol-buffers/
+Author: protobuf@googlegroups.com
+Author-email: protobuf@googlegroups.com
+License: 3-Clause BSD License
+Location: /usr/local/lib/python3.12/site-packages
+Requires: 
+Required-by: tensorflow
+---
+Name: h5py
+Version: 3.14.0
+Summary: Read and write HDF5 files from Python
+Home-page: https://www.h5py.org/
+Author: 
+Author-email: Andrew Collette <andrew.collette@gmail.com>
+License-Expression: BSD-3-Clause
+Location: /usr/local/lib/python3.12/site-packages
+Requires: numpy
+Required-by: keras, tensorflow
+---
+Name: fastapi
+Version: 0.83.0
+Summary: FastAPI framework, high performance, easy to learn, fast to code, ready for production
+Home-page: https://github.com/tiangolo/fastapi
+Author: Sebastián Ramírez
+Author-email: tiangolo@gmail.com
+License: 
+Location: /usr/local/lib/python3.12/site-packages
+Requires: pydantic, starlette
+Required-by: 
+---
+Name: pydantic
+Version: 1.10.26
+Summary: Data validation and settings management using python type hints
+Home-page: https://github.com/pydantic/pydantic
+Author: 
+Author-email: Samuel Colvin <s@muelcolvin.com>
+License: MIT
+Location: /usr/local/lib/python3.12/site-packages
+Requires: typing-extensions
+Required-by: fastapi
+---
+Name: uvicorn
+Version: 0.16.0
+Summary: The lightning-fast ASGI server.
+Home-page: https://www.uvicorn.org/
+Author: Tom Christie
+Author-email: tom@tomchristie.com
+License: BSD
+Location: /usr/local/lib/python3.12/site-packages
+Requires: asgiref, click, h11
+Required-by: 
+---
+Name: starlette
+Version: 0.19.1
+Summary: The little ASGI library that shines.
+Home-page: https://github.com/encode/starlette
+Author: Tom Christie
+Author-email: tom@tomchristie.com
+License: BSD
+Location: /usr/local/lib/python3.12/site-packages
+Requires: anyio
+Required-by: fastapi
+---
+Name: python-multipart
+Version: 0.0.5
+Summary: A streaming multipart parser for Python
+Home-page: http://github.com/andrew-d/python-multipart
+Author: Andrew Dunham
+Author-email: 
+License: Apache
+Location: /usr/local/lib/python3.12/site-packages
+Requires: six
+Required-by: 
+---
+Name: Jinja2
+Version: 3.0.3
+Summary: A very fast and expressive template engine.
+Home-page: https://palletsprojects.com/p/jinja/
+Author: Armin Ronacher
+Author-email: armin.ronacher@active-4.com
+License: BSD-3-Clause
+Location: /usr/local/lib/python3.12/site-packages
+Requires: MarkupSafe
+Required-by: 

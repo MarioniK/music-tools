@@ -1,0 +1,5 @@
+commit 608e55ab4f242b916933e38e5bb0abc6215a7323 (HEAD -> roadmap-3.8-runtime-candidate-finalization-readiness, tag: v0.3.7, origin/main, main)
+Author: MarioniK <karanevich@gmail.com>
+Date:   Sun May 3 00:37:22 2026 +0300
+
+    docs/runtime: add roadmap 3.7 runtime candidate hardening evidence

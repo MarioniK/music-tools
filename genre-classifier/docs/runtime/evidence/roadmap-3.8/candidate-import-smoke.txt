@@ -1,0 +1,21 @@
+2026-05-02 22:05:28.967355: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory
+2026-05-02 22:05:28.967372: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+essentia 2.1-beta6-dev
+[   INFO   ] MusicExtractorSVM: no classifier models were configured by default
+2026-05-02 22:05:29.849413: I tensorflow/core/platform/cpu_feature_guard.cc:142] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  SSE3 SSE4.1 SSE4.2 AVX AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-05-02 22:05:29.850380: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory
+2026-05-02 22:05:29.850941: W tensorflow/stream_executor/cuda/cuda_driver.cc:326] failed call to cuInit: UNKNOWN ERROR (303)
+2026-05-02 22:05:29.851336: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (6242c633a425): /proc/driver/nvidia/version does not exist
+MonoLoader True
+TensorflowPredictMusiCNN True
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1777759530.723303       7 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1777759530.783590       7 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1777759532.760163       7 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+tensorflow 2.21.0
+app.main ok
+app.services.classify ok
+EXIT_CODE:0

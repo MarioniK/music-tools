@@ -1,0 +1,101 @@
+2026-05-02 22:06:10.220467: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory
+2026-05-02 22:06:10.220553: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+[   INFO   ] MusicExtractorSVM: no classifier models were configured by default
+2026-05-02 22:06:10.679092: I tensorflow/core/platform/cpu_feature_guard.cc:142] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  SSE3 SSE4.1 SSE4.2 AVX AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-05-02 22:06:10.679288: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory
+2026-05-02 22:06:10.679381: W tensorflow/stream_executor/cuda/cuda_driver.cc:326] failed call to cuInit: UNKNOWN ERROR (303)
+2026-05-02 22:06:10.679422: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (615762ada967): /proc/driver/nvidia/version does not exist
+INFO:     Started server process [1]
+2026-05-02 22:06:11,126 INFO uvicorn.error Started server process [1]
+INFO:     Waiting for application startup.
+2026-05-02 22:06:11,126 INFO uvicorn.error Waiting for application startup.
+INFO:     Application startup complete.
+2026-05-02 22:06:11,126 INFO uvicorn.error Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+2026-05-02 22:06:11,126 INFO uvicorn.error Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+2026-05-02 22:07:06,756 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 22:07:07.479452: I tensorflow/core/platform/profile_utils/cpu_utils.cc:114] CPU Frequency: 2599990000 Hz
+2026-05-02 22:07:08.950247: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 576187392 exceeds 10% of free system memory.
+2026-05-02 22:07:14.409964: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 522169824 exceeds 10% of free system memory.
+2026-05-02 22:07:16,971 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+INFO:     172.17.0.1:60870 - "GET /health HTTP/1.1" 200 OK
+2026-05-02 22:07:17,047 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:60862 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 22:07:25,556 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 22:07:28.428956: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 576187392 exceeds 10% of free system memory.
+2026-05-02 22:07:32.468973: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 522169824 exceeds 10% of free system memory.
+2026-05-02 22:07:35,594 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 22:07:35,594 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:52232 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 22:07:35,653 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 22:07:37.981301: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 576187392 exceeds 10% of free system memory.
+2026-05-02 22:07:45,282 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 22:07:45,283 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:51840 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 22:07:45,337 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 22:07:54,850 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 22:07:54,851 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:51856 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 22:07:54,904 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 22:08:04,633 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 22:08:04,633 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:56778 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 22:08:04,691 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 22:08:14,050 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 22:08:14,050 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:55402 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 22:08:14,123 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 22:08:23,707 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 22:08:23,708 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:36864 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 22:08:23,762 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 22:08:33,173 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 22:08:33,173 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:54626 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 22:08:33,230 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 22:08:44,845 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 22:08:44,846 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:49150 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 22:08:44,911 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 22:08:54,441 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 22:08:54,441 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:51528 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 22:08:54,502 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 22:09:04,282 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 22:09:04,282 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:35068 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 22:09:14,775 INFO genre_classifier event=file_processing_started filename=empty.mp3 size_bytes=0
+2026-05-02 22:09:14,775 WARNING genre_classifier event=validation_error filename=empty.mp3 size_bytes=0 error=Файл пустой
+INFO:     172.17.0.1:44214 - "POST /classify HTTP/1.1" 400 Bad Request
+2026-05-02 22:09:14,783 INFO genre_classifier event=file_processing_started filename=fake.mp3 size_bytes=11
+2026-05-02 22:09:14,851 ERROR genre_classifier event=ffmpeg_error filename=fake.mp3 size_bytes=11 error=ffmpeg не смог обработать файл:
+ffmpeg version 5.1.8-0+deb12u1 Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 12 (Debian 12.2.0-14+deb12u1)
+  configuration: --prefix=/usr --extra-version=0+deb12u1 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --enable-gnutls --enable-ladspa --enable-libaom --enable-libass --enable-libbluray --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libjack --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-libpulse --enable-librabbitmq --enable-librist --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-libzmq --enable-libzvbi --enable-lv2 --enable-omx --enable-openal --enable-opencl --enable-opengl --enable-sdl2 --disable-sndio --enable-libjxl --enable-pocketsphinx --enable-librsvg --enable-libmfx --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-libx264 --enable-libplacebo --enable-librav1e --enable-shared
+  libavutil      57. 28.100 / 57. 28.100
+  libavcodec     59. 37.100 / 59. 37.100
+  libavformat    59. 27.100 / 59. 27.100
+  libavdevice    59.  7.100 / 59.  7.100
+  libavfilter     8. 44.100 /  8. 44.100
+  libswscale      6.  7.100 /  6.  7.100
+  libswresample   4.  7.100 /  4.  7.100
+  libpostproc    56.  6.100 / 56.  6.100
+[mp3 @ 0x55ad7f77c880] Format mp3 detected only with low score of 1, misdetection possible!
+[mp3 @ 0x55ad7f77c880] Failed to read frame size: Could not seek to 1034.
+/app/app/tmp/tmpjrimh0kt.mp3: Invalid argument
+INFO:     172.17.0.1:44222 - "POST /classify HTTP/1.1" 400 Bad Request
+2026-05-02 22:09:14,861 INFO genre_classifier event=file_processing_started filename=unsupported.txt size_bytes=11
+2026-05-02 22:09:14,861 WARNING genre_classifier event=validation_error filename=unsupported.txt size_bytes=11 error=Неподдерживаемый формат файла
+INFO:     172.17.0.1:44236 - "POST /classify HTTP/1.1" 400 Bad Request
