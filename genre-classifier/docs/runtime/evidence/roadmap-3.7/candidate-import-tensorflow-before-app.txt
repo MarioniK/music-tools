@@ -1,0 +1,11 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1777756810.108233       1 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+I0000 00:00:1777756810.144217       1 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1777756811.982847       1 cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+tensorflow first 2.21.0
+2026-05-02 21:20:12.386994: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory
+2026-05-02 21:20:12.387011: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+F0000 00:00:1777756812.414552       1 op.cc:57] Check failed: (::tsl::TfCheckOkDeprecationMarker(), RegisterAlreadyLocked(op_data_factory)) is OK (ALREADY_EXISTS: Op with name Bitcast) 
+EXIT_CODE:1

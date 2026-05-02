@@ -1,0 +1,4 @@
+{"ok":true,"message":"Аудио проанализировано","genres":[{"tag":"electronic","prob":0.3894},{"tag":"indie","prob":0.3884},{"tag":"rock","prob":0.195},{"tag":"indie rock","prob":0.1836},{"tag":"alternative","prob":0.1556},{"tag":"electro","prob":0.1237},{"tag":"pop","prob":0.1012},{"tag":"electronica","prob":0.0754}],"genres_pretty":["indie rock","alternative rock","electronic","indie","rock","alternative","electro","pop"]}
+HTTP_STATUS:200
+TIME_TOTAL:10.564639
+EXIT_CODE:0

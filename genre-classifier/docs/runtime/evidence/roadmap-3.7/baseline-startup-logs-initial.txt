@@ -1,0 +1,15 @@
+2026-05-02 21:20:51.792609: I tensorflow/core/platform/cpu_feature_guard.cc:142] Your CPU supports instructions that this TensorFlow binary was not compiled to use: AVX2 FMA
+2026-05-02 21:20:51.808404: I tensorflow/core/platform/profile_utils/cpu_utils.cc:94] CPU Frequency: 2599990000 Hz
+2026-05-02 21:20:51.810172: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0x1ff6eef0 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
+2026-05-02 21:20:51.810186: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecutor device (0): Host, Default Version
+2026-05-02 21:20:51.813137: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory
+2026-05-02 21:20:51.813340: E tensorflow/stream_executor/cuda/cuda_driver.cc:318] failed call to cuInit: UNKNOWN ERROR (303)
+2026-05-02 21:20:51.813359: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (40afe2a9964b): /proc/driver/nvidia/version does not exist
+INFO:     Started server process [1]
+2026-05-02 21:20:51,879 INFO uvicorn.error Started server process [1]
+INFO:     Waiting for application startup.
+2026-05-02 21:20:51,880 INFO uvicorn.error Waiting for application startup.
+INFO:     Application startup complete.
+2026-05-02 21:20:51,880 INFO uvicorn.error Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+2026-05-02 21:20:51,881 INFO uvicorn.error Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)

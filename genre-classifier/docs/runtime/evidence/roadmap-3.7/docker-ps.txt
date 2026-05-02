@@ -1,0 +1,2 @@
+genre-classifier-roadmap-3.7-candidate Up 4 minutes 0.0.0.0:8521->8021/tcp, [::]:8521->8021/tcp
+genre-classifier-roadmap-3.7-baseline Up 4 minutes 0.0.0.0:8621->8021/tcp, [::]:8621->8021/tcp

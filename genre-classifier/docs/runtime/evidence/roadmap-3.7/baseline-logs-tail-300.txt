@@ -1,0 +1,84 @@
+2026-05-02 21:20:51.792609: I tensorflow/core/platform/cpu_feature_guard.cc:142] Your CPU supports instructions that this TensorFlow binary was not compiled to use: AVX2 FMA
+2026-05-02 21:20:51.808404: I tensorflow/core/platform/profile_utils/cpu_utils.cc:94] CPU Frequency: 2599990000 Hz
+2026-05-02 21:20:51.810172: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0x1ff6eef0 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
+2026-05-02 21:20:51.810186: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecutor device (0): Host, Default Version
+2026-05-02 21:20:51.813137: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory
+2026-05-02 21:20:51.813340: E tensorflow/stream_executor/cuda/cuda_driver.cc:318] failed call to cuInit: UNKNOWN ERROR (303)
+2026-05-02 21:20:51.813359: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (40afe2a9964b): /proc/driver/nvidia/version does not exist
+INFO:     Started server process [1]
+2026-05-02 21:20:51,879 INFO uvicorn.error Started server process [1]
+INFO:     Waiting for application startup.
+2026-05-02 21:20:51,880 INFO uvicorn.error Waiting for application startup.
+INFO:     Application startup complete.
+2026-05-02 21:20:51,880 INFO uvicorn.error Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+2026-05-02 21:20:51,881 INFO uvicorn.error Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+INFO:     172.17.0.1:59658 - "GET /health HTTP/1.1" 200 OK
+2026-05-02 21:21:19,072 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:21:29,575 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:21:29,579 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:59662 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 21:21:29,646 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:21:39,526 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:21:39,526 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:57880 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 21:21:39,590 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:21:49,537 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:21:49,538 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:47820 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 21:21:49,604 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:21:59,664 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:21:59,665 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:46472 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 21:21:59,732 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:22:09,718 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:22:09,718 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:58958 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 21:22:09,783 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:22:19,601 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:22:19,602 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:34138 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 21:22:19,663 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:22:32,425 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:22:32,425 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:58002 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 21:22:32,489 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:22:42,303 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:22:42,304 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:58220 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 21:22:42,366 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:22:52,218 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:22:52,218 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:33726 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 21:22:52,288 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:23:02,317 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:23:02,318 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:49198 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 21:23:02,379 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:23:12,167 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 21:23:12,167 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.17.0.1:34032 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 21:23:12,177 INFO genre_classifier event=file_processing_started filename=empty.mp3 size_bytes=0
+2026-05-02 21:23:12,177 WARNING genre_classifier event=validation_error filename=empty.mp3 size_bytes=0 error=Файл пустой
+INFO:     172.17.0.1:39086 - "POST /classify HTTP/1.1" 400 Bad Request
+2026-05-02 21:23:12,185 INFO genre_classifier event=file_processing_started filename=fake.mp3 size_bytes=24
+2026-05-02 21:23:12,242 ERROR genre_classifier event=ffmpeg_error filename=fake.mp3 size_bytes=24 error=ffmpeg не смог обработать файл:
+ffmpeg version 3.4.11-0ubuntu0.1 Copyright (c) 2000-2022 the FFmpeg developers
+  built with gcc 7 (Ubuntu 7.5.0-3ubuntu1~18.04)
+  configuration: --prefix=/usr --extra-version=0ubuntu0.1 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --enable-gpl --disable-stripping --enable-avresample --enable-avisynth --enable-gnutls --enable-ladspa --enable-libass --enable-libbluray --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libgme --enable-libgsm --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-libpulse --enable-librubberband --enable-librsvg --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libssh --enable-libtheora --enable-libtwolame --enable-libvorbis --enable-libvpx --enable-libwavpack --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzmq --enable-libzvbi --enable-omx --enable-openal --enable-opengl --enable-sdl2 --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-libopencv --enable-libx264 --enable-shared
+  libavutil      55. 78.100 / 55. 78.100
+  libavcodec     57.107.100 / 57.107.100
+  libavformat    57. 83.100 / 57. 83.100
+  libavdevice    57. 10.100 / 57. 10.100
+  libavfilter     6.107.100 /  6.107.100
+  libavresample   3.  7.  0 /  3.  7.  0
+  libswscale      4.  8.100 /  4.  8.100
+  libswresample   2.  9.100 /  2.  9.100
+  libpostproc    54.  7.100 / 54.  7.100
+[mp3 @ 0x5e39e4693900] Format mp3 detected only with low score of 1, misdetection possible!
+[mp3 @ 0x5e39e4693900] Failed to read frame size: Could not seek to 1047.
+/app/app/tmp/tmpmtf14x4v.mp3: Invalid argument
+INFO:     172.17.0.1:39096 - "POST /classify HTTP/1.1" 400 Bad Request
+2026-05-02 21:23:12,252 INFO genre_classifier event=file_processing_started filename=unsupported.txt size_bytes=30
+2026-05-02 21:23:12,252 WARNING genre_classifier event=validation_error filename=unsupported.txt size_bytes=30 error=Неподдерживаемый формат файла
+INFO:     172.17.0.1:39100 - "POST /classify HTTP/1.1" 400 Bad Request
