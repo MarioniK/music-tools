@@ -1,0 +1,3 @@
+CONTAINER ID   NAME                              CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O       PIDS
+33f730c83bd1   genre-classifier-rm36-baseline    0.11%     628.2MiB / 4GiB     15.34%    82.3MB / 44.9kB   928MB / 320MB   139
+8f044a239ee1   genre-classifier-rm36-candidate   0.09%     387.8MiB / 4GiB     9.47%     82.3MB / 44.8kB   792MB / 619MB   9

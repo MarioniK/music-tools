@@ -1,0 +1,69 @@
+[
+    {
+        "Id": "sha256:174f0310d73fdf896beb753d58981e5465238a0060b89a56fa062556cc620d45",
+        "RepoTags": [
+            "music-tools-genre-classifier-roadmap-3.6:py312-etf"
+        ],
+        "RepoDigests": [],
+        "Comment": "buildkit.dockerfile.v0",
+        "Created": "2026-05-02T03:42:40.729613455+03:00",
+        "Config": {
+            "ExposedPorts": {
+                "8021/tcp": {}
+            },
+            "Env": [
+                "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "LANG=C.UTF-8",
+                "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+                "PYTHON_VERSION=3.12.13",
+                "PYTHON_SHA256=c08bc65a81971c1dd5783182826503369466c7e67374d1646519adf05207b684",
+                "PYTHONDONTWRITEBYTECODE=1",
+                "PYTHONUNBUFFERED=1"
+            ],
+            "Cmd": [
+                "uvicorn",
+                "app.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8021"
+            ],
+            "WorkingDir": "/app",
+            "Labels": {
+                "org.opencontainers.image.description": "Non-production reproducible candidate for Python 3.12 + essentia-tensorflow validation",
+                "org.opencontainers.image.stage": "runtime-candidate",
+                "org.opencontainers.image.title": "genre-classifier Roadmap 3.6 Python 3.12 essentia-tensorflow runtime candidate"
+            },
+            "ArgsEscaped": true
+        },
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 3424017264,
+        "GraphDriver": {
+            "Data": {
+                "LowerDir": "/var/lib/docker/overlay2/rqopfyot2dinyjaw7hnms40zo/diff:/var/lib/docker/overlay2/rw551h1p5dqe0rtfj4accjq1d/diff:/var/lib/docker/overlay2/uvjimt5cc0zr4fr9cdm1z2uzg/diff:/var/lib/docker/overlay2/l69kmsc7kgdvtnfzrbktk50ck/diff:/var/lib/docker/overlay2/0e40304a24bc1836eedc1d32ea7ee59e77906607bd246033a17e4806e4f857e3/diff:/var/lib/docker/overlay2/3aaad02f110f326317d355c7029facd8b80243c146f8580a79a7e93f6466d716/diff:/var/lib/docker/overlay2/9b49b3428b509def155f0f53366f16e948ad494605aeb5ab953c2f33c6946043/diff:/var/lib/docker/overlay2/759e1ac4a2b46bc9c64aeea685555ca57530d13a6fd4166675aaf8f390431a96/diff",
+                "MergedDir": "/var/lib/docker/overlay2/of5wrc7ztw5guevnfl6oj6enz/merged",
+                "UpperDir": "/var/lib/docker/overlay2/of5wrc7ztw5guevnfl6oj6enz/diff",
+                "WorkDir": "/var/lib/docker/overlay2/of5wrc7ztw5guevnfl6oj6enz/work"
+            },
+            "Name": "overlay2"
+        },
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:0da811fd3ed46c38cea69079fa395a3d715dbdbdd5c8177107c450bf6332bbfa",
+                "sha256:6f5bdf92cfd1e08df7c25d717eac6df387e2646e34c9b18b2849711a92b1665e",
+                "sha256:bc4ceec75ea6bfd47f7da4e886d32000608e85904789e3141680500088edebff",
+                "sha256:fbc0dbe03084d2ba6852f1ab5aeaec97983e3c42d2650d9e7130fc86eb018faa",
+                "sha256:37a8cbe9ca593e64f1363a8645faec4d236d8edde7f65f594c07f908ffb8e371",
+                "sha256:b63693464b1bb1ff0233677258e7e7d7f41251fb6ad69f82bc4b62102801a2d4",
+                "sha256:1f9b7bc277b6f9bd583f945e19349397bb7d4b4a9294f6cb40b0e47aa7f3ec29",
+                "sha256:924d5e88e029b6e9d38d3ae0fc241e3ab8936e771d79c7affd793b22123ad67b",
+                "sha256:de495a8a800beb2c9d1a9deef759d4d13023503a7f15c64839af42a358727e13"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2026-05-02T03:42:56.444645442+03:00"
+        }
+    }
+]
