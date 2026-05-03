@@ -72,6 +72,10 @@ def assert_smoke_metadata_shape(value):
     assert value["metadata"]["baseline_provider"] == "legacy_musicnn"
     assert isinstance(value["metadata"]["onnxruntime_available"], bool)
     assert isinstance(value["metadata"]["provenance_approved"], bool)
+    assert isinstance(value["metadata"]["label_mapping_approved"], bool)
+    assert "label_mapping_path" in value["metadata"]
+    assert "label_mapping_model_id" in value["metadata"]
+    assert "label_mapping_label_count" in value["metadata"]
     assert isinstance(value["metadata"]["model_loaded"], bool)
     assert isinstance(value["metadata"]["inference_attempted"], bool)
     assert isinstance(value["metadata"]["inference_succeeded"], bool)
@@ -79,6 +83,8 @@ def assert_smoke_metadata_shape(value):
     assert isinstance(value["metadata"]["input_shapes"], list)
     assert isinstance(value["metadata"]["output_names"], list)
     assert isinstance(value["metadata"]["output_shapes"], list)
+    assert "raw_score_count" in value["metadata"]
+    assert isinstance(value["metadata"]["mapped_genre_count"], int)
     assert isinstance(value["metadata"]["warnings"], list)
     assert value["runtime"]["package"] == "onnxruntime"
     assert value["runtime"]["detection_method"] == 'importlib.util.find_spec("onnxruntime")'
@@ -118,6 +124,145 @@ def write_approved_provenance(path, model_path):
     }
     path.write_text(json.dumps(payload), encoding="utf-8")
     return payload
+
+
+def write_label_mapping(
+    path,
+    *,
+    model_id="local_smoke_test_model",
+    approval_status="approved_for_offline_evaluation",
+    labels=None,
+):
+    if labels is None:
+        labels = [
+            {
+                "raw_label": "rock",
+                "raw_index": 0,
+                "mapped_genre": "rock",
+                "mapped_confidence": "direct",
+                "mapping_decision": "mapped",
+                "mapping_notes": "test-only direct mapping",
+            },
+            {
+                "raw_label": "hip hop",
+                "raw_index": 1,
+                "mapped_genre": "rap",
+                "mapped_confidence": "review_required",
+                "mapping_decision": "alias_mapped",
+                "mapping_notes": "test-only alias mapping",
+            },
+            {
+                "raw_label": "speech",
+                "raw_index": 2,
+                "mapped_genre": "",
+                "mapped_confidence": "not_applicable",
+                "mapping_decision": "ignored_non_genre",
+                "mapping_notes": "test-only non-genre label",
+            },
+            {
+                "raw_label": "unknown_tag",
+                "raw_index": 3,
+                "mapped_genre": "",
+                "mapped_confidence": "none",
+                "mapping_decision": "unmapped",
+                "mapping_notes": "test-only unmapped label",
+            },
+            {
+                "raw_label": "alternative",
+                "raw_index": 4,
+                "mapped_genre": "",
+                "mapped_confidence": "rejected",
+                "mapping_decision": "rejected_ambiguous",
+                "mapping_notes": "test-only ambiguous label",
+            },
+            {
+                "raw_label": "electronic",
+                "raw_index": 5,
+                "mapped_genre": "electronic",
+                "mapped_confidence": "direct",
+                "mapping_decision": "mapped",
+                "mapping_notes": "test-only direct mapping",
+            },
+        ]
+    payload = {
+        "schema_version": "0.1",
+        "mapping_id": "test_mapping",
+        "model_id": model_id,
+        "model_family": "test_audio_genre_classifier",
+        "label_source": "test-only",
+        "label_source_url": "test-only",
+        "label_count": len(labels),
+        "mapping_status": "test-only",
+        "labels": labels,
+        "controlled_vocabulary_version": "test-only",
+        "unmapped_labels": [],
+        "warnings": [],
+        "approval_status": approval_status,
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return payload
+
+
+def build_mocked_smoke_output(monkeypatch, tmp_path, raw_outputs, *, label_mapping_payload=None):
+    spike_script = load_spike_script()
+    model_path = tmp_path / "model.onnx"
+    model_path.write_bytes(b"fake local model")
+    provenance_path = tmp_path / "provenance.json"
+    write_approved_provenance(provenance_path, model_path)
+    mapping_path = tmp_path / "mapping.json"
+    if label_mapping_payload is None:
+        write_label_mapping(mapping_path)
+    else:
+        mapping_path.write_text(json.dumps(label_mapping_payload), encoding="utf-8")
+
+    args = spike_script.build_parser().parse_args(
+        [
+            "--mode",
+            "smoke",
+            "--model-path",
+            str(model_path),
+            "--provenance-path",
+            str(provenance_path),
+            "--label-mapping-path",
+            str(mapping_path),
+        ]
+    )
+
+    class FakeValue:
+        def __init__(self, name, shape, value_type="tensor(float)"):
+            self.name = name
+            self.shape = shape
+            self.type = value_type
+
+    class FakeSession:
+        def __init__(self, path):
+            self.path = path
+
+        def get_inputs(self):
+            return [FakeValue("audio_input", [1, 2])]
+
+        def get_outputs(self):
+            return [FakeValue("genre_scores", [1, 6])]
+
+        def run(self, output_names, inputs):
+            assert output_names is None
+            assert "audio_input" in inputs
+            return raw_outputs
+
+    fake_runtime = types.SimpleNamespace(InferenceSession=FakeSession)
+    monkeypatch.setattr(
+        spike_script.importlib.util,
+        "find_spec",
+        lambda name: object() if name == "onnxruntime" else None,
+    )
+    monkeypatch.setattr(
+        spike_script.importlib,
+        "import_module",
+        lambda name: fake_runtime if name == "onnxruntime" else importlib.import_module(name),
+    )
+    monkeypatch.setattr(spike_script, "_safe_dummy_input", lambda shape, input_type: object())
+
+    return spike_script.build_smoke_output(args)
 
 
 def test_dry_run_without_args_succeeds_without_heavy_dependencies():
@@ -355,6 +500,136 @@ def test_smoke_missing_onnxruntime_returns_controlled_skip(monkeypatch, tmp_path
     assert value["metadata"]["onnxruntime_available"] is False
     assert value["metadata"]["model_loaded"] is False
     assert "onnxruntime_missing" in warning_categories(value)
+
+
+def test_label_mapping_path_is_optional_for_smoke(monkeypatch, tmp_path):
+    spike_script = load_spike_script()
+    model_path = tmp_path / "model.onnx"
+    model_path.write_bytes(b"fake local model")
+    provenance_path = tmp_path / "provenance.json"
+    write_approved_provenance(provenance_path, model_path)
+    args = spike_script.build_parser().parse_args(
+        [
+            "--mode",
+            "smoke",
+            "--model-path",
+            str(model_path),
+            "--provenance-path",
+            str(provenance_path),
+        ]
+    )
+    monkeypatch.setattr(spike_script.importlib.util, "find_spec", lambda name: None)
+
+    value = spike_script.build_smoke_output(args)
+
+    assert value["genres"] == []
+    assert value["genres_pretty"] == []
+    assert value["metadata"]["label_mapping_path"] is None
+    assert value["metadata"]["label_mapping_approved"] is False
+    assert "label_mapping_missing" in warning_categories(value)
+
+
+def test_not_approved_mapping_does_not_produce_genres(monkeypatch, tmp_path):
+    mapping_payload = write_label_mapping(
+        tmp_path / "not-approved-source.json",
+        approval_status="not_approved",
+    )
+
+    value = build_mocked_smoke_output(
+        monkeypatch,
+        tmp_path,
+        [[0.91, 0.82, 0.7, 0.6, 0.5, 0.41]],
+        label_mapping_payload=mapping_payload,
+    )
+
+    assert value["ok"] is True
+    assert value["genres"] == []
+    assert value["genres_pretty"] == []
+    assert value["metadata"]["label_mapping_approved"] is False
+    assert value["metadata"]["raw_score_count"] == 6
+    assert "label_mapping_not_approved" in warning_categories(value)
+
+
+def test_approved_mapping_can_produce_genres_from_static_test_only_raw_scores(
+    monkeypatch, tmp_path
+):
+    value = build_mocked_smoke_output(
+        monkeypatch,
+        tmp_path,
+        [[0.91, 0.82, 0.7, 0.6, 0.5, 0.41]],
+    )
+
+    assert value["ok"] is True
+    assert_classify_compatible_shape(value)
+    assert value["genres"] == [
+        {"tag": "rock", "prob": 0.91},
+        {"tag": "rap", "prob": 0.82},
+        {"tag": "electronic", "prob": 0.41},
+    ]
+    assert value["genres_pretty"] == ["Rock", "Rap", "Electronic"]
+    assert value["metadata"]["label_mapping_approved"] is True
+    assert value["metadata"]["raw_score_count"] == 6
+    assert value["metadata"]["mapped_genre_count"] == 3
+
+
+def test_only_mapped_and_alias_mapped_entries_produce_genres(monkeypatch, tmp_path):
+    value = build_mocked_smoke_output(
+        monkeypatch,
+        tmp_path,
+        [[0.91, 0.82, 0.7, 0.6, 0.5, 0.41]],
+    )
+
+    assert [item["tag"] for item in value["genres"]] == ["rock", "rap", "electronic"]
+    assert "speech" not in value["genres_pretty"]
+    assert "unknown_tag" not in [item["tag"] for item in value["genres"]]
+    assert "alternative" not in [item["tag"] for item in value["genres"]]
+
+
+def test_model_id_mismatch_blocks_genre_mapping(monkeypatch, tmp_path):
+    mapping_payload = write_label_mapping(
+        tmp_path / "mismatch-source.json",
+        model_id="different_model",
+    )
+
+    value = build_mocked_smoke_output(
+        monkeypatch,
+        tmp_path,
+        [[0.91, 0.82, 0.7, 0.6, 0.5, 0.41]],
+        label_mapping_payload=mapping_payload,
+    )
+
+    assert value["genres"] == []
+    assert value["metadata"]["label_mapping_approved"] is False
+    assert "label_mapping_model_id_mismatch" in warning_categories(value)
+
+
+def test_raw_score_count_mismatch_blocks_genre_mapping(monkeypatch, tmp_path):
+    value = build_mocked_smoke_output(
+        monkeypatch,
+        tmp_path,
+        [[0.91, 0.82]],
+    )
+
+    assert value["genres"] == []
+    assert value["genres_pretty"] == []
+    assert value["metadata"]["label_mapping_approved"] is True
+    assert value["metadata"]["raw_score_count"] == 2
+    assert "raw_score_label_count_mismatch" in warning_categories(value)
+
+
+def test_missing_raw_scores_do_not_create_fake_probabilities(monkeypatch, tmp_path):
+    class FakeOutput:
+        shape = [1, 6]
+
+    value = build_mocked_smoke_output(monkeypatch, tmp_path, [FakeOutput()])
+
+    assert value["ok"] is True
+    assert value["genres"] == []
+    assert value["genres_pretty"] == []
+    assert value["metadata"]["raw_output_shape"] == [1, 6]
+    assert value["metadata"]["raw_score_count"] is None
+    assert value["metadata"]["mapped_genre_count"] == 0
+    assert "raw_scores_missing" in warning_categories(value)
 
 
 def test_smoke_output_path_refuses_overwrite(tmp_path):

@@ -57,6 +57,15 @@ REQUIRED_PROVENANCE_FIELDS = (
 
 APPROVED_LOCAL_SMOKE_STATUSES = {"approved", "offline_proof_candidate"}
 PLACEHOLDER_HASH_MARKERS = ("placeholder", "not_valid", "example")
+LABEL_MAPPING_APPROVAL_STATUS = "approved_for_offline_evaluation"
+LABEL_MAPPING_DECISIONS = {
+    "mapped",
+    "alias_mapped",
+    "ignored_non_genre",
+    "unmapped",
+    "rejected_ambiguous",
+}
+GENRE_OUTPUT_DECISIONS = {"mapped", "alias_mapped"}
 
 
 def _utc_now_iso() -> str:
@@ -235,8 +244,14 @@ def _empty_smoke_metadata(args: argparse.Namespace) -> dict[str, Any]:
         "provenance_path": (
             str(args.provenance_path) if args.provenance_path is not None else None
         ),
+        "label_mapping_path": (
+            str(args.label_mapping_path) if args.label_mapping_path is not None else None
+        ),
         "onnxruntime_available": False,
         "provenance_approved": False,
+        "label_mapping_approved": False,
+        "label_mapping_model_id": None,
+        "label_mapping_label_count": None,
         "model_loaded": False,
         "inference_attempted": False,
         "inference_succeeded": False,
@@ -245,6 +260,8 @@ def _empty_smoke_metadata(args: argparse.Namespace) -> dict[str, Any]:
         "output_names": [],
         "output_shapes": [],
         "raw_output_shape": None,
+        "raw_score_count": None,
+        "mapped_genre_count": 0,
         "latency_ms": None,
         "warnings": [],
     }
@@ -256,15 +273,17 @@ def _build_smoke_payload(
     ok: bool,
     message: str,
     metadata: dict[str, Any],
+    genres: list[dict[str, float | str]] | None = None,
     started: str,
     finished: str,
     duration_ms: float,
 ) -> dict[str, Any]:
+    output_genres = genres or []
     return {
         "ok": ok,
         "message": message,
-        "genres": [],
-        "genres_pretty": [],
+        "genres": output_genres,
+        "genres_pretty": [_pretty_genre(str(item["tag"])) for item in output_genres],
         "metadata": metadata,
         "spike": {
             "roadmap": "4.10",
@@ -321,6 +340,170 @@ def _load_provenance(path: Path | None, warnings: list[dict[str, str]]) -> dict[
         )
         return None
     return value
+
+
+def _load_label_mapping(path: Path | None, warnings: list[dict[str, str]]) -> dict[str, Any] | None:
+    if path is None:
+        warnings.append(
+            _warning(
+                "label_mapping_missing",
+                "No --label-mapping-path was provided; mapped genres will not be produced.",
+            )
+        )
+        return None
+    if not path.exists() or not path.is_file():
+        warnings.append(
+            _warning("label_mapping_unreadable", "The label mapping path is missing or not a file.")
+        )
+        return None
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        warnings.append(
+            _warning("label_mapping_unreadable", f"The label mapping JSON could not be read: {exc}")
+        )
+        return None
+    if not isinstance(value, dict):
+        warnings.append(
+            _warning("label_mapping_invalid", "The label mapping JSON must be an object.")
+        )
+        return None
+    return value
+
+
+def _validate_label_mapping(
+    label_mapping: dict[str, Any] | None,
+    provenance: dict[str, Any] | None,
+    metadata: dict[str, Any],
+    warnings: list[dict[str, str]],
+) -> bool:
+    if label_mapping is None:
+        return False
+
+    required_fields = (
+        "model_id",
+        "approval_status",
+        "label_count",
+        "labels",
+    )
+    missing_fields = [field for field in required_fields if field not in label_mapping]
+    if missing_fields:
+        warnings.append(
+            _warning(
+                "label_mapping_invalid",
+                "Label mapping is missing required fields: " + ", ".join(missing_fields),
+            )
+        )
+        return False
+
+    model_id = label_mapping.get("model_id")
+    metadata["label_mapping_model_id"] = model_id if isinstance(model_id, str) else None
+    if not isinstance(model_id, str) or not model_id.strip():
+        warnings.append(_warning("label_mapping_invalid", "Label mapping model_id must be present."))
+        return False
+
+    approval_status = str(label_mapping.get("approval_status", "")).strip()
+    if approval_status != LABEL_MAPPING_APPROVAL_STATUS:
+        warnings.append(
+            _warning(
+                "label_mapping_not_approved",
+                "Label mapping approval_status is not approved_for_offline_evaluation.",
+            )
+        )
+        return False
+
+    provenance_model_id = None if provenance is None else provenance.get("model_id")
+    if model_id != provenance_model_id:
+        warnings.append(
+            _warning(
+                "label_mapping_model_id_mismatch",
+                "Label mapping model_id does not match provenance model_id.",
+            )
+        )
+        return False
+
+    label_count = label_mapping.get("label_count")
+    if not isinstance(label_count, int) or isinstance(label_count, bool) or label_count < 0:
+        warnings.append(
+            _warning("label_mapping_invalid", "Label mapping label_count must be a non-negative integer.")
+        )
+        return False
+    metadata["label_mapping_label_count"] = label_count
+
+    labels = label_mapping.get("labels")
+    if not isinstance(labels, list) or len(labels) != label_count:
+        warnings.append(
+            _warning("label_mapping_invalid", "Label mapping labels must be a list matching label_count.")
+        )
+        return False
+
+    raw_indexes: set[int] = set()
+    for index, item in enumerate(labels):
+        if not isinstance(item, dict):
+            warnings.append(
+                _warning("label_mapping_invalid", f"Label mapping labels[{index}] must be an object.")
+            )
+            return False
+
+        missing_label_fields = [
+            field
+            for field in ("raw_index", "raw_label", "mapping_decision")
+            if field not in item
+        ]
+        if missing_label_fields:
+            warnings.append(
+                _warning(
+                    "label_mapping_invalid",
+                    f"Label mapping labels[{index}] is missing fields: "
+                    + ", ".join(missing_label_fields),
+                )
+            )
+            return False
+
+        raw_index = item.get("raw_index")
+        if not isinstance(raw_index, int) or isinstance(raw_index, bool) or raw_index < 0:
+            warnings.append(
+                _warning("label_mapping_invalid", f"Label mapping labels[{index}].raw_index is invalid.")
+            )
+            return False
+        if raw_index in raw_indexes:
+            warnings.append(
+                _warning("label_mapping_invalid", "Label mapping raw_index values must be unique.")
+            )
+            return False
+        raw_indexes.add(raw_index)
+
+        raw_label = item.get("raw_label")
+        if not isinstance(raw_label, str) or not raw_label.strip():
+            warnings.append(
+                _warning("label_mapping_invalid", f"Label mapping labels[{index}].raw_label is invalid.")
+            )
+            return False
+
+        decision = item.get("mapping_decision")
+        if decision not in LABEL_MAPPING_DECISIONS:
+            warnings.append(
+                _warning(
+                    "label_mapping_invalid",
+                    f"Label mapping labels[{index}].mapping_decision is not allowed.",
+                )
+            )
+            return False
+
+        mapped_genre = item.get("mapped_genre")
+        if decision in GENRE_OUTPUT_DECISIONS and (
+            not isinstance(mapped_genre, str) or not mapped_genre.strip()
+        ):
+            warnings.append(
+                _warning(
+                    "label_mapping_invalid",
+                    f"Label mapping labels[{index}].mapped_genre is required for mapped decisions.",
+                )
+            )
+            return False
+
+    metadata["label_mapping_approved"] = True
+    return True
 
 
 def _validate_provenance_for_smoke(
@@ -412,6 +595,94 @@ def _metadata_from_io(values: Any) -> tuple[list[str], list[Any], list[str]]:
     return names, shapes, types
 
 
+def _pretty_genre(tag: str) -> str:
+    return " ".join(part.capitalize() for part in tag.replace("_", " ").split())
+
+
+def _flatten_numeric_scores(value: Any) -> list[float] | None:
+    tolist = getattr(value, "tolist", None)
+    if callable(tolist):
+        try:
+            value = tolist()
+        except Exception:
+            return None
+
+    scores: list[float] = []
+
+    def visit(item: Any) -> bool:
+        if isinstance(item, bool):
+            return False
+        if isinstance(item, (int, float)):
+            scores.append(float(item))
+            return True
+        if isinstance(item, (list, tuple)):
+            for child in item:
+                if not visit(child):
+                    return False
+            return True
+        return False
+
+    if not visit(value):
+        return None
+    return scores
+
+
+def _extract_raw_scores(raw_outputs: Any) -> list[float] | None:
+    if not raw_outputs or not isinstance(raw_outputs, (list, tuple)):
+        return None
+    return _flatten_numeric_scores(raw_outputs[0])
+
+
+def _mapped_genres_from_scores(
+    raw_scores: list[float] | None,
+    label_mapping: dict[str, Any] | None,
+    metadata: dict[str, Any],
+    warnings: list[dict[str, str]],
+) -> list[dict[str, float | str]]:
+    if raw_scores is None:
+        warnings.append(
+            _warning(
+                "raw_scores_missing",
+                "Raw output scores are unavailable; mapped genres will not be produced.",
+            )
+        )
+        return []
+
+    metadata["raw_score_count"] = len(raw_scores)
+    if label_mapping is None or not metadata["label_mapping_approved"]:
+        return []
+
+    label_count = metadata["label_mapping_label_count"]
+    if len(raw_scores) != label_count:
+        warnings.append(
+            _warning(
+                "raw_score_label_count_mismatch",
+                "Raw output score count does not match label mapping label_count.",
+            )
+        )
+        return []
+
+    genres: list[dict[str, float | str]] = []
+    for item in label_mapping["labels"]:
+        if item["mapping_decision"] not in GENRE_OUTPUT_DECISIONS:
+            continue
+
+        raw_index = item["raw_index"]
+        if raw_index >= len(raw_scores):
+            warnings.append(
+                _warning(
+                    "raw_score_label_count_mismatch",
+                    "A mapped raw_index is outside the raw output score range.",
+                )
+            )
+            return []
+
+        genres.append({"tag": item["mapped_genre"].strip(), "prob": raw_scores[raw_index]})
+
+    metadata["mapped_genre_count"] = len(genres)
+    return genres
+
+
 def _safe_dummy_input(input_shape: Any, input_type: str) -> Any | None:
     if not isinstance(input_shape, list) or not input_shape:
         return None
@@ -442,6 +713,8 @@ def build_smoke_output(args: argparse.Namespace) -> dict[str, Any]:
     provenance = _load_provenance(args.provenance_path, warnings)
     provenance_approved = _validate_provenance_for_smoke(provenance, warnings)
     metadata["provenance_approved"] = provenance_approved
+    label_mapping = _load_label_mapping(args.label_mapping_path, warnings)
+    _validate_label_mapping(label_mapping, provenance, metadata, warnings)
     if not provenance_approved:
         warnings.append(
             _warning(
@@ -568,7 +841,10 @@ def build_smoke_output(args: argparse.Namespace) -> dict[str, Any]:
             )
         warnings.append(_warning("dummy_input_unavailable", "Safe dummy input could not be built."))
         warnings.append(
-            _warning("label_mapping_missing", "No approved label mapping is available.")
+            _warning(
+                "raw_scores_missing",
+                "Raw output scores are unavailable; mapped genres will not be produced.",
+            )
         )
         warnings.append(
             _warning(
@@ -587,6 +863,7 @@ def build_smoke_output(args: argparse.Namespace) -> dict[str, Any]:
             duration_ms=round((time.perf_counter() - started_counter) * 1000, 3),
         )
 
+    mapped_genres: list[dict[str, float | str]] = []
     try:
         inference_started = time.perf_counter()
         metadata["inference_attempted"] = True
@@ -595,12 +872,15 @@ def build_smoke_output(args: argparse.Namespace) -> dict[str, Any]:
         metadata["inference_succeeded"] = True
         if raw_outputs:
             metadata["raw_output_shape"] = _shape_from_runtime_value(raw_outputs[0])
+            mapped_genres = _mapped_genres_from_scores(
+                _extract_raw_scores(raw_outputs), label_mapping, metadata, warnings
+            )
         else:
             warnings.append(_warning("raw_output_unavailable", "Inference returned no outputs."))
+            _mapped_genres_from_scores(None, label_mapping, metadata, warnings)
     except Exception as exc:  # pragma: no cover - exercised with mocks in tests
         warnings.append(_warning("inference_failed", f"Dummy ONNX inference failed: {exc}"))
 
-    warnings.append(_warning("label_mapping_missing", "No approved label mapping is available."))
     warnings.append(
         _warning(
             "not_production_classification",
@@ -613,6 +893,7 @@ def build_smoke_output(args: argparse.Namespace) -> dict[str, Any]:
         ok=metadata["inference_succeeded"],
         message=SMOKE_METADATA_ONLY_MESSAGE,
         metadata=metadata,
+        genres=mapped_genres,
         started=started,
         finished=finished,
         duration_ms=round((time.perf_counter() - started_counter) * 1000, 3),
@@ -657,6 +938,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--provenance-path",
         type=Path,
         help="Approved local provenance JSON path required for smoke mode.",
+    )
+    parser.add_argument(
+        "--label-mapping-path",
+        type=Path,
+        help=(
+            "Optional approved label mapping JSON path for offline-only smoke candidate "
+            "genre generation."
+        ),
     )
     parser.add_argument(
         "--model-name",
