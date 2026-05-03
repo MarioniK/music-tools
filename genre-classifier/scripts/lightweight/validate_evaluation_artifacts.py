@@ -32,6 +32,10 @@ MODEL_PROVENANCE_FILES = (
     Path("model-provenance/example-onnx-model-provenance.json"),
 )
 
+LABEL_MAPPING_FILES = (
+    Path("label-mapping/example-onnx-label-mapping.json"),
+)
+
 REQUIRED_MODEL_PROVENANCE_FIELDS = (
     "schema_version",
     "model_id",
@@ -83,6 +87,58 @@ PRODUCTION_APPROVED_STATUSES = {
     "approved_for_inference",
     "production_approved",
     "production-approved",
+}
+
+REQUIRED_LABEL_MAPPING_FIELDS = (
+    "schema_version",
+    "mapping_id",
+    "model_id",
+    "model_family",
+    "label_source",
+    "label_source_url",
+    "label_count",
+    "mapping_status",
+    "labels",
+    "controlled_vocabulary_version",
+    "unmapped_labels",
+    "warnings",
+    "approval_status",
+)
+
+LABEL_MAPPING_STRING_FIELDS = (
+    "schema_version",
+    "mapping_id",
+    "model_id",
+    "model_family",
+    "label_source",
+    "label_source_url",
+    "mapping_status",
+    "controlled_vocabulary_version",
+    "approval_status",
+)
+
+REQUIRED_LABEL_MAPPING_LABEL_FIELDS = (
+    "raw_label",
+    "raw_index",
+    "mapped_genre",
+    "mapped_confidence",
+    "mapping_decision",
+    "mapping_notes",
+)
+
+LABEL_MAPPING_DECISIONS = {
+    "mapped",
+    "alias_mapped",
+    "ignored_non_genre",
+    "unmapped",
+    "rejected_ambiguous",
+}
+
+LABEL_MAPPING_APPROVAL_STATUSES = {
+    "not_approved",
+    "approved_for_offline_evaluation",
+    "rejected",
+    "deprecated",
 }
 
 MANIFEST_MARKERS = (
@@ -155,6 +211,7 @@ class ValidationSummary(NamedTuple):
     json_outputs_checked: int
     fixture_results_checked: int
     model_provenance_checked: int = 0
+    label_mapping_checked: int = 0
 
 
 class GenreOverlapSummary(NamedTuple):
@@ -333,6 +390,79 @@ def _validate_model_provenance(path: Path) -> None:
         raise ValidationError(f"{path}.approval_status must not be production-approved")
 
 
+def _validate_label_mapping(path: Path) -> None:
+    data = _load_json(path)
+
+    for field in REQUIRED_LABEL_MAPPING_FIELDS:
+        if field not in data:
+            raise ValidationError(f"{path} is missing required label mapping field: {field}")
+
+    for field in LABEL_MAPPING_STRING_FIELDS:
+        value = data[field]
+        if not isinstance(value, str) or not value.strip():
+            raise ValidationError(f"{path}.{field} must be a non-empty string")
+
+    label_count = data["label_count"]
+    if not isinstance(label_count, int) or isinstance(label_count, bool) or label_count < 0:
+        raise ValidationError(f"{path}.label_count must be a non-negative integer")
+
+    labels = data["labels"]
+    if not isinstance(labels, list) or not labels:
+        raise ValidationError(f"{path}.labels must be a non-empty list")
+    if len(labels) != label_count:
+        raise ValidationError(f"{path}.label_count must match labels length")
+
+    for field in ("unmapped_labels", "warnings"):
+        if not isinstance(data[field], list):
+            raise ValidationError(f"{path}.{field} must be a list")
+
+    _validate_warnings(data, str(path))
+
+    approval_status = data["approval_status"].strip()
+    if approval_status not in LABEL_MAPPING_APPROVAL_STATUSES:
+        raise ValidationError(f"{path}.approval_status is not a documented label mapping status")
+
+    raw_indexes: set[int] = set()
+    seen_decisions: set[str] = set()
+    for index, item in enumerate(labels):
+        item_context = f"{path}.labels[{index}]"
+        if not isinstance(item, dict):
+            raise ValidationError(f"{item_context} must be an object")
+
+        for field in REQUIRED_LABEL_MAPPING_LABEL_FIELDS:
+            if field not in item:
+                raise ValidationError(f"{item_context} is missing required field: {field}")
+
+        raw_label = item["raw_label"]
+        if not isinstance(raw_label, str) or not raw_label.strip():
+            raise ValidationError(f"{item_context}.raw_label must be a non-empty string")
+
+        raw_index = item["raw_index"]
+        if not isinstance(raw_index, int) or isinstance(raw_index, bool) or raw_index < 0:
+            raise ValidationError(f"{item_context}.raw_index must be a non-negative integer")
+        if raw_index in raw_indexes:
+            raise ValidationError(f"{item_context}.raw_index must be unique")
+        raw_indexes.add(raw_index)
+
+        for field in ("mapped_genre", "mapped_confidence", "mapping_notes"):
+            if not isinstance(item[field], str):
+                raise ValidationError(f"{item_context}.{field} must be a string")
+
+        decision = item["mapping_decision"]
+        if decision not in LABEL_MAPPING_DECISIONS:
+            raise ValidationError(f"{item_context}.mapping_decision is not allowed: {decision!r}")
+        seen_decisions.add(decision)
+
+        if decision in {"mapped", "alias_mapped"} and not item["mapped_genre"].strip():
+            raise ValidationError(f"{item_context}.mapped_genre must be non-empty for mapped decisions")
+        if decision in {"ignored_non_genre", "unmapped", "rejected_ambiguous"} and item["mapped_genre"].strip():
+            raise ValidationError(f"{item_context}.mapped_genre must be empty for non-mapped decisions")
+
+    missing_decisions = LABEL_MAPPING_DECISIONS - seen_decisions
+    if missing_decisions:
+        raise ValidationError(f"{path}.labels does not demonstrate decisions: {sorted(missing_decisions)}")
+
+
 def _extract_genre_tags(value: dict[str, Any]) -> set[str]:
     fixture_results = value.get("fixture_results")
     if isinstance(fixture_results, list):
@@ -402,11 +532,17 @@ def validate_all(root: Path) -> ValidationSummary:
         _validate_model_provenance(evaluation_root / relative_path)
         model_provenance_count += 1
 
+    label_mapping_count = 0
+    for relative_path in LABEL_MAPPING_FILES:
+        _validate_label_mapping(evaluation_root / relative_path)
+        label_mapping_count += 1
+
     return ValidationSummary(
         files_checked=len(REQUIRED_FILES),
         json_outputs_checked=len(OUTPUT_FILES),
         fixture_results_checked=fixture_result_count,
         model_provenance_checked=model_provenance_count,
+        label_mapping_checked=label_mapping_count,
     )
 
 
@@ -436,7 +572,8 @@ def main(argv: list[str] | None = None) -> int:
         f"files={summary.files_checked}, "
         f"json_outputs={summary.json_outputs_checked}, "
         f"fixture_results={summary.fixture_results_checked}, "
-        f"model_provenance={summary.model_provenance_checked}"
+        f"model_provenance={summary.model_provenance_checked}, "
+        f"label_mapping={summary.label_mapping_checked}"
     )
     return 0
 

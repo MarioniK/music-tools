@@ -1,0 +1,72 @@
+{
+  "schema_version": "0.1",
+  "mapping_id": "example_onnx_label_mapping_not_approved",
+  "model_id": "example_onnx_model_provenance_only",
+  "model_family": "example_audio_genre_classifier",
+  "label_source": "example-only: fabricated label list for documentation shape validation",
+  "label_source_url": "example-only: not a real model label source",
+  "label_count": 6,
+  "mapping_status": "example_only",
+  "labels": [
+    {
+      "raw_label": "rock",
+      "raw_index": 0,
+      "mapped_genre": "rock",
+      "mapped_confidence": "direct",
+      "mapping_decision": "mapped",
+      "mapping_notes": "Example direct mapping only; not tied to a real model output."
+    },
+    {
+      "raw_label": "hip hop",
+      "raw_index": 1,
+      "mapped_genre": "rap",
+      "mapped_confidence": "review_required",
+      "mapping_decision": "alias_mapped",
+      "mapping_notes": "Example alias mapping only; controlled vocabulary target is illustrative."
+    },
+    {
+      "raw_label": "speech",
+      "raw_index": 2,
+      "mapped_genre": "",
+      "mapped_confidence": "not_applicable",
+      "mapping_decision": "ignored_non_genre",
+      "mapping_notes": "Demonstrates a non-genre model label that must not become candidate genre output."
+    },
+    {
+      "raw_label": "unknown_tag",
+      "raw_index": 3,
+      "mapped_genre": "",
+      "mapped_confidence": "none",
+      "mapping_decision": "unmapped",
+      "mapping_notes": "Demonstrates a label with no approved controlled-vocabulary mapping."
+    },
+    {
+      "raw_label": "alternative",
+      "raw_index": 4,
+      "mapped_genre": "",
+      "mapped_confidence": "rejected",
+      "mapping_decision": "rejected_ambiguous",
+      "mapping_notes": "Demonstrates an ambiguous label that should not be forced into a genre."
+    },
+    {
+      "raw_label": "electronic",
+      "raw_index": 5,
+      "mapped_genre": "electronic",
+      "mapped_confidence": "direct",
+      "mapping_decision": "mapped",
+      "mapping_notes": "Example direct mapping only; not approved for production or default inference."
+    }
+  ],
+  "controlled_vocabulary_version": "example-only",
+  "unmapped_labels": [
+    "unknown_tag",
+    "alternative"
+  ],
+  "warnings": [
+    "example-only label mapping artifact; not approved for production",
+    "not tied to a real model file, label source, output shape, or ONNX Runtime session",
+    "must not be used by production code",
+    "approval_status is not_approved and must not enable inference interpretation by default"
+  ],
+  "approval_status": "not_approved"
+}

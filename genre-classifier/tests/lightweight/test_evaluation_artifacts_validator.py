@@ -23,6 +23,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.json_outputs_checked == 2
     assert summary.fixture_results_checked == 16
     assert summary.model_provenance_checked == 1
+    assert summary.label_mapping_checked == 1
 
 
 def test_report_required_sections_are_validated(tmp_path):
@@ -99,6 +100,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "json_outputs=2" in captured.out
     assert "fixture_results=16" in captured.out
     assert "model_provenance=1" in captured.out
+    assert "label_mapping=1" in captured.out
     assert captured.err == ""
 
 
@@ -147,3 +149,44 @@ def test_model_provenance_rejects_production_approved_status(tmp_path):
         assert "production-approved" in str(exc)
     else:
         raise AssertionError("production-approved provenance should fail validation")
+
+
+def test_label_mapping_sample_is_validated():
+    validator = load_validator()
+    mapping_path = SERVICE_ROOT / "docs/lightweight/evaluation/label-mapping/example-onnx-label-mapping.json"
+
+    validator._validate_label_mapping(mapping_path)
+
+
+def test_label_mapping_requires_label_count_to_match_labels(tmp_path):
+    validator = load_validator()
+    source_path = SERVICE_ROOT / "docs/lightweight/evaluation/label-mapping/example-onnx-label-mapping.json"
+    data = validator._load_json(source_path)
+    data["label_count"] = data["label_count"] + 1
+
+    mapping_path = tmp_path / "label-mapping.json"
+    mapping_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_label_mapping(mapping_path)
+    except validator.ValidationError as exc:
+        assert "label_count" in str(exc)
+    else:
+        raise AssertionError("label mapping with mismatched label_count should fail validation")
+
+
+def test_label_mapping_rejects_unknown_decision(tmp_path):
+    validator = load_validator()
+    source_path = SERVICE_ROOT / "docs/lightweight/evaluation/label-mapping/example-onnx-label-mapping.json"
+    data = validator._load_json(source_path)
+    data["labels"][0]["mapping_decision"] = "made_up"
+
+    mapping_path = tmp_path / "label-mapping.json"
+    mapping_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_label_mapping(mapping_path)
+    except validator.ValidationError as exc:
+        assert "mapping_decision" in str(exc)
+    else:
+        raise AssertionError("label mapping with unknown decision should fail validation")
