@@ -1,0 +1,27 @@
+pattern=Bitcast
+
+pattern=RegisterAlreadyLocked
+
+pattern=import-order
+
+pattern=Traceback
+
+pattern=model load
+
+pattern=Error
+
+pattern=ERROR
+7:2026-05-02 23:43:21.579779: W tensorflow/stream_executor/cuda/cuda_driver.cc:326] failed call to cuInit: UNKNOWN ERROR (303)
+83:2026-05-02 23:50:35,084 ERROR genre_classifier event=ffmpeg_error filename=fake.mp3 size_bytes=10 error=ffmpeg не смог обработать файл:
+164:2026-05-03 00:24:10,823 ERROR genre_classifier event=ffmpeg_error filename=fake.mp3 size_bytes=11 error=ffmpeg не смог обработать файл:
+
+pattern=ffmpeg
+83:2026-05-02 23:50:35,084 ERROR genre_classifier event=ffmpeg_error filename=fake.mp3 size_bytes=10 error=ffmpeg не смог обработать файл:
+84:ffmpeg version 5.1.8-0+deb12u1 Copyright (c) 2000-2025 the FFmpeg developers
+164:2026-05-03 00:24:10,823 ERROR genre_classifier event=ffmpeg_error filename=fake.mp3 size_bytes=11 error=ffmpeg не смог обработать файл:
+165:ffmpeg version 5.1.8-0+deb12u1 Copyright (c) 2000-2025 the FFmpeg developers
+
+pattern=Invalid data found
+
+pattern=Failed to load
+

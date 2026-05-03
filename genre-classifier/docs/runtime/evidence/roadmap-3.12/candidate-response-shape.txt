@@ -1,0 +1,8 @@
+path=docs/runtime/evidence/roadmap-3.12/candidate/upload.classify.body.json
+keys=ok,message,genres,genres_pretty
+expected_keys=ok,message,genres,genres_pretty
+matches_expected=True
+ok_type=bool
+message_type=str
+genres_type=list
+genres_pretty_type=list

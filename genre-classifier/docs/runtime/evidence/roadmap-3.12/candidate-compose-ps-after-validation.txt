@@ -1,0 +1,2 @@
+NAME               IMAGE                               COMMAND                  SERVICE            CREATED          STATUS          PORTS
+genre-classifier   genre-classifier-genre-classifier   "uvicorn app.main:ap…"   genre-classifier   42 minutes ago   Up 42 minutes   0.0.0.0:8021->8021/tcp, :::8021->8021/tcp

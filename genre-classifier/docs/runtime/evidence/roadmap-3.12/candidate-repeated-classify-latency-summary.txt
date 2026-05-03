@@ -1,0 +1,6 @@
+repeat_total=10
+repeat_http_200=10
+latency_count=10
+latency_min_seconds=9.509416
+latency_max_seconds=10.992559
+latency_avg_seconds=9.948980

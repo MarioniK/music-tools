@@ -1,0 +1,7 @@
+DEFAULT_GENRE_PROVIDER=legacy_musicnn
+configured=legacy_musicnn
+DEFAULT_SHADOW_ENABLED=False
+shadow_enabled=False
+shadow_provider=llm
+shadow_sample_rate=0.0
+shadow_artifacts_enabled=False

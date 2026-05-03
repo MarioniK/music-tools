@@ -1,0 +1,12 @@
+python=3.12.13
+executable=/usr/local/bin/python
+tensorflow=2.21.0
+essentia_tensorflow=2.1b6.dev1389
+essentia=2.1-beta6-dev
+numpy=2.4.4
+protobuf=7.34.1
+h5py=3.14.0
+fastapi=0.83.0
+pydantic=1.10.26
+uvicorn=0.16.0
+starlette=0.19.1

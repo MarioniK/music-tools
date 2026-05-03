@@ -1,0 +1,80 @@
+2026-05-02 23:43:21.144397: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory
+2026-05-02 23:43:21.144426: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+[   INFO   ] MusicExtractorSVM: no classifier models were configured by default
+2026-05-02 23:43:21.579530: I tensorflow/core/platform/cpu_feature_guard.cc:142] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  SSE3 SSE4.1 SSE4.2 AVX AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-05-02 23:43:21.579743: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory
+2026-05-02 23:43:21.579779: W tensorflow/stream_executor/cuda/cuda_driver.cc:326] failed call to cuInit: UNKNOWN ERROR (303)
+2026-05-02 23:43:21.579817: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (1bdda4da740d): /proc/driver/nvidia/version does not exist
+INFO:     Started server process [1]
+2026-05-02 23:43:22,119 INFO uvicorn.error Started server process [1]
+INFO:     Waiting for application startup.
+2026-05-02 23:43:22,120 INFO uvicorn.error Waiting for application startup.
+INFO:     Application startup complete.
+2026-05-02 23:43:22,120 INFO uvicorn.error Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+2026-05-02 23:43:22,120 INFO uvicorn.error Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+2026-05-02 23:46:16,459 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 23:46:17.206942: I tensorflow/core/platform/profile_utils/cpu_utils.cc:114] CPU Frequency: 2599990000 Hz
+2026-05-02 23:46:17.268741: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 234381312 exceeds 10% of free system memory.
+2026-05-02 23:46:17.273740: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 292976640 exceeds 10% of free system memory.
+2026-05-02 23:46:18.118430: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 234381312 exceeds 10% of free system memory.
+2026-05-02 23:46:19.542488: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 576187392 exceeds 10% of free system memory.
+2026-05-02 23:46:19.553625: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 234381312 exceeds 10% of free system memory.
+2026-05-02 23:46:26,839 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+INFO:     172.25.0.1:49688 - "GET /health HTTP/1.1" 200 OK
+2026-05-02 23:46:26,866 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:49682 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 23:48:38,722 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 23:48:51,533 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 23:48:51,539 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:60844 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 23:48:51,657 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 23:49:01,423 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 23:49:01,423 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:51656 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 23:49:01,477 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 23:49:11,087 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 23:49:11,088 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:48446 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 23:49:11,143 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 23:49:21,253 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 23:49:21,253 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:46296 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 23:49:21,320 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 23:49:30,889 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 23:49:30,889 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:50016 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 23:49:30,943 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 23:49:41,140 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 23:49:41,140 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:36488 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 23:49:41,192 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 23:49:52,500 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 23:49:52,501 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:48664 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 23:49:52,585 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 23:50:02,381 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 23:50:02,382 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:38684 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 23:50:02,440 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 23:50:12,343 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 23:50:12,343 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:36544 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 23:50:12,402 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+[   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+2026-05-02 23:50:22,283 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+2026-05-02 23:50:22,284 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+INFO:     172.25.0.1:39172 - "POST /classify HTTP/1.1" 200 OK
+2026-05-02 23:50:35,008 INFO genre_classifier event=file_processing_started filename=empty.mp3 size_bytes=0
+2026-05-02 23:50:35,008 WARNING genre_classifier event=validation_error filename=empty.mp3 size_bytes=0 error=Файл пустой

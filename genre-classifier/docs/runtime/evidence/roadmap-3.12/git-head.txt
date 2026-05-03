@@ -1,0 +1,5 @@
+commit 0b7066d4ba27a45271d13e793a4d8718be963bab (HEAD -> roadmap-3.12-post-switch-production-runtime-stabilization, tag: v0.3.11, origin/main, main)
+Author: MarioniK <karanevich@gmail.com>
+Date:   Sun May 3 03:08:27 2026 +0300
+
+    genre-classifier: switch production runtime to py312 essentia tensorflow
