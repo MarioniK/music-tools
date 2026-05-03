@@ -1,0 +1,5 @@
+commit c3547672bfa498f3ca705882a121048a050a2532 (HEAD -> roadmap-3.11-controlled-production-runtime-switch, tag: v0.3.10, origin/main, main)
+Author: MarioniK <karanevich@gmail.com>
+Date:   Sun May 3 02:25:59 2026 +0300
+
+    docs/runtime: add roadmap 3.10 controlled switch planning

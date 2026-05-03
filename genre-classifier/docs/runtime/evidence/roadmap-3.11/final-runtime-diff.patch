@@ -1,0 +1,82 @@
+diff --git a/genre-classifier/Dockerfile b/genre-classifier/Dockerfile
+index cf0458d..e902744 100644
+--- a/genre-classifier/Dockerfile
++++ b/genre-classifier/Dockerfile
+@@ -1,18 +1,21 @@
+-FROM mtgupf/essentia-tensorflow:latest
++ARG PYTHON_BASE_IMAGE=python:3.12.13-slim-bookworm@sha256:58525e1a8dada8e72d6f8a11a0ddff8d981fd888549108db52455d577f927f77
++FROM ${PYTHON_BASE_IMAGE}
+ 
+ ENV PYTHONDONTWRITEBYTECODE=1
+ ENV PYTHONUNBUFFERED=1
+ 
+ WORKDIR /app
+ 
+-RUN apt-get update && apt-get install -y \
++RUN apt-get update && apt-get install -y --no-install-recommends \
++    ca-certificates \
+     ffmpeg \
++    libgomp1 \
++    libsndfile1 \
+     && rm -rf /var/lib/apt/lists/*
+ 
+ COPY requirements.txt /app/requirements.txt
+ 
+-RUN python3 -m pip install --upgrade pip setuptools wheel
+-RUN pip install --no-cache-dir -r /app/requirements.txt
++RUN python -m pip install --no-cache-dir --requirement /app/requirements.txt
+ 
+ COPY app /app/app
+ 
+diff --git a/genre-classifier/requirements.txt b/genre-classifier/requirements.txt
+index a25ba99..ac1b7fb 100644
+--- a/genre-classifier/requirements.txt
++++ b/genre-classifier/requirements.txt
+@@ -1,5 +1,45 @@
++absl-py==2.4.0
++anyio==4.13.0
++asgiref==3.11.1
++astunparse==1.6.3
++certifi==2026.4.22
++charset-normalizer==3.4.7
++click==8.3.3
++tensorflow==2.21.0
++essentia-tensorflow==2.1b6.dev1389
++flatbuffers==25.12.19
++gast==0.7.0
++google-pasta==0.2.0
++grpcio==1.80.0
++h11==0.16.0
++numpy==2.4.4
++protobuf==7.34.1
++h5py==3.14.0
++idna==3.13
+ fastapi==0.83.0
++pydantic==1.10.26
+ uvicorn==0.16.0
++starlette==0.19.1
+ python-multipart==0.0.5
+ jinja2==3.0.3
+-numpy==1.19.5
+\ No newline at end of file
++keras==3.14.0
++libclang==18.1.1
++markdown-it-py==4.0.0
++MarkupSafe==3.0.3
++mdurl==0.1.2
++ml_dtypes==0.5.4
++namex==0.1.0
++opt_einsum==3.4.0
++optree==0.19.0
++packaging==26.2
++Pygments==2.20.0
++PyYAML==6.0.3
++requests==2.33.1
++rich==15.0.0
++setuptools==82.0.1
++six==1.17.0
++termcolor==3.3.0
++typing_extensions==4.15.0
++urllib3==2.6.3
++wheel==0.47.0
++wrapt==2.1.2

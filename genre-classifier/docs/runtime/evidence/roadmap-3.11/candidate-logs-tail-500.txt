@@ -1,0 +1,101 @@
+genre-classifier  | 2026-05-02 23:43:21.144397: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory
+genre-classifier  | 2026-05-02 23:43:21.144426: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+genre-classifier  | [   INFO   ] MusicExtractorSVM: no classifier models were configured by default
+genre-classifier  | 2026-05-02 23:43:21.579530: I tensorflow/core/platform/cpu_feature_guard.cc:142] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  SSE3 SSE4.1 SSE4.2 AVX AVX2 FMA
+genre-classifier  | To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+genre-classifier  | 2026-05-02 23:43:21.579743: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory
+genre-classifier  | 2026-05-02 23:43:21.579779: W tensorflow/stream_executor/cuda/cuda_driver.cc:326] failed call to cuInit: UNKNOWN ERROR (303)
+genre-classifier  | 2026-05-02 23:43:21.579817: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (1bdda4da740d): /proc/driver/nvidia/version does not exist
+genre-classifier  | INFO:     Started server process [1]
+genre-classifier  | 2026-05-02 23:43:22,119 INFO uvicorn.error Started server process [1]
+genre-classifier  | INFO:     Waiting for application startup.
+genre-classifier  | 2026-05-02 23:43:22,120 INFO uvicorn.error Waiting for application startup.
+genre-classifier  | INFO:     Application startup complete.
+genre-classifier  | 2026-05-02 23:43:22,120 INFO uvicorn.error Application startup complete.
+genre-classifier  | INFO:     Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+genre-classifier  | 2026-05-02 23:43:22,120 INFO uvicorn.error Uvicorn running on http://0.0.0.0:8021 (Press CTRL+C to quit)
+genre-classifier  | 2026-05-02 23:46:16,459 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+genre-classifier  | [   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+genre-classifier  | 2026-05-02 23:46:17.206942: I tensorflow/core/platform/profile_utils/cpu_utils.cc:114] CPU Frequency: 2599990000 Hz
+genre-classifier  | 2026-05-02 23:46:17.268741: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 234381312 exceeds 10% of free system memory.
+genre-classifier  | 2026-05-02 23:46:17.273740: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 292976640 exceeds 10% of free system memory.
+genre-classifier  | 2026-05-02 23:46:18.118430: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 234381312 exceeds 10% of free system memory.
+genre-classifier  | 2026-05-02 23:46:19.542488: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 576187392 exceeds 10% of free system memory.
+genre-classifier  | 2026-05-02 23:46:19.553625: W tensorflow/core/framework/cpu_allocator_impl.cc:80] Allocation of 234381312 exceeds 10% of free system memory.
+genre-classifier  | 2026-05-02 23:46:26,839 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+genre-classifier  | INFO:     172.25.0.1:49688 - "GET /health HTTP/1.1" 200 OK
+genre-classifier  | 2026-05-02 23:46:26,866 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+genre-classifier  | INFO:     172.25.0.1:49682 - "POST /classify HTTP/1.1" 200 OK
+genre-classifier  | 2026-05-02 23:48:38,722 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+genre-classifier  | [   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+genre-classifier  | 2026-05-02 23:48:51,533 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+genre-classifier  | 2026-05-02 23:48:51,539 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+genre-classifier  | INFO:     172.25.0.1:60844 - "POST /classify HTTP/1.1" 200 OK
+genre-classifier  | 2026-05-02 23:48:51,657 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+genre-classifier  | [   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+genre-classifier  | 2026-05-02 23:49:01,423 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+genre-classifier  | 2026-05-02 23:49:01,423 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+genre-classifier  | INFO:     172.25.0.1:51656 - "POST /classify HTTP/1.1" 200 OK
+genre-classifier  | 2026-05-02 23:49:01,477 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+genre-classifier  | [   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+genre-classifier  | 2026-05-02 23:49:11,087 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+genre-classifier  | 2026-05-02 23:49:11,088 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+genre-classifier  | INFO:     172.25.0.1:48446 - "POST /classify HTTP/1.1" 200 OK
+genre-classifier  | 2026-05-02 23:49:11,143 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+genre-classifier  | [   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+genre-classifier  | 2026-05-02 23:49:21,253 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+genre-classifier  | 2026-05-02 23:49:21,253 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+genre-classifier  | INFO:     172.25.0.1:46296 - "POST /classify HTTP/1.1" 200 OK
+genre-classifier  | 2026-05-02 23:49:21,320 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+genre-classifier  | [   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+genre-classifier  | 2026-05-02 23:49:30,889 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+genre-classifier  | 2026-05-02 23:49:30,889 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+genre-classifier  | INFO:     172.25.0.1:50016 - "POST /classify HTTP/1.1" 200 OK
+genre-classifier  | 2026-05-02 23:49:30,943 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+genre-classifier  | [   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+genre-classifier  | 2026-05-02 23:49:41,140 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+genre-classifier  | 2026-05-02 23:49:41,140 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+genre-classifier  | INFO:     172.25.0.1:36488 - "POST /classify HTTP/1.1" 200 OK
+genre-classifier  | 2026-05-02 23:49:41,192 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+genre-classifier  | [   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+genre-classifier  | 2026-05-02 23:49:52,500 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+genre-classifier  | 2026-05-02 23:49:52,501 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+genre-classifier  | INFO:     172.25.0.1:48664 - "POST /classify HTTP/1.1" 200 OK
+genre-classifier  | 2026-05-02 23:49:52,585 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+genre-classifier  | [   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+genre-classifier  | 2026-05-02 23:50:02,381 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+genre-classifier  | 2026-05-02 23:50:02,382 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+genre-classifier  | INFO:     172.25.0.1:38684 - "POST /classify HTTP/1.1" 200 OK
+genre-classifier  | 2026-05-02 23:50:02,440 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+genre-classifier  | [   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+genre-classifier  | 2026-05-02 23:50:12,343 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+genre-classifier  | 2026-05-02 23:50:12,343 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+genre-classifier  | INFO:     172.25.0.1:36544 - "POST /classify HTTP/1.1" 200 OK
+genre-classifier  | 2026-05-02 23:50:12,402 INFO genre_classifier event=file_processing_started filename=upload.mp3 size_bytes=7470185
+genre-classifier  | [   INFO   ] TensorflowPredict: Successfully loaded graph file: `/app/app/models/msd-musicnn-1.pb`
+genre-classifier  | 2026-05-02 23:50:22,283 INFO genre_classifier event=file_processing_succeeded filename=upload.mp3 size_bytes=7470185
+genre-classifier  | 2026-05-02 23:50:22,284 INFO genre_classifier event=genre_classifier.shadow.skipped status=skipped_by_config
+genre-classifier  | INFO:     172.25.0.1:39172 - "POST /classify HTTP/1.1" 200 OK
+genre-classifier  | 2026-05-02 23:50:35,008 INFO genre_classifier event=file_processing_started filename=empty.mp3 size_bytes=0
+genre-classifier  | 2026-05-02 23:50:35,008 WARNING genre_classifier event=validation_error filename=empty.mp3 size_bytes=0 error=Файл пустой
+genre-classifier  | INFO:     172.25.0.1:50456 - "POST /classify HTTP/1.1" 400 Bad Request
+genre-classifier  | 2026-05-02 23:50:35,017 INFO genre_classifier event=file_processing_started filename=fake.mp3 size_bytes=10
+genre-classifier  | 2026-05-02 23:50:35,084 ERROR genre_classifier event=ffmpeg_error filename=fake.mp3 size_bytes=10 error=ffmpeg не смог обработать файл:
+genre-classifier  | ffmpeg version 5.1.8-0+deb12u1 Copyright (c) 2000-2025 the FFmpeg developers
+genre-classifier  |   built with gcc 12 (Debian 12.2.0-14+deb12u1)
+genre-classifier  |   configuration: --prefix=/usr --extra-version=0+deb12u1 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --enable-gnutls --enable-ladspa --enable-libaom --enable-libass --enable-libbluray --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libjack --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-libpulse --enable-librabbitmq --enable-librist --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-libzmq --enable-libzvbi --enable-lv2 --enable-omx --enable-openal --enable-opencl --enable-opengl --enable-sdl2 --disable-sndio --enable-libjxl --enable-pocketsphinx --enable-librsvg --enable-libmfx --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-libx264 --enable-libplacebo --enable-librav1e --enable-shared
+genre-classifier  |   libavutil      57. 28.100 / 57. 28.100
+genre-classifier  |   libavcodec     59. 37.100 / 59. 37.100
+genre-classifier  |   libavformat    59. 27.100 / 59. 27.100
+genre-classifier  |   libavdevice    59.  7.100 / 59.  7.100
+genre-classifier  |   libavfilter     8. 44.100 /  8. 44.100
+genre-classifier  |   libswscale      6.  7.100 /  6.  7.100
+genre-classifier  |   libswresample   4.  7.100 /  4.  7.100
+genre-classifier  |   libpostproc    56.  6.100 / 56.  6.100
+genre-classifier  | [mp3 @ 0x55af9d3a5880] Format mp3 detected only with low score of 1, misdetection possible!
+genre-classifier  | [mp3 @ 0x55af9d3a5880] Failed to read frame size: Could not seek to 1033.
+genre-classifier  | /app/app/tmp/tmpe5b2mgmn.mp3: Invalid argument
+genre-classifier  | INFO:     172.25.0.1:50466 - "POST /classify HTTP/1.1" 400 Bad Request
+genre-classifier  | 2026-05-02 23:50:35,099 INFO genre_classifier event=file_processing_started filename=unsupported.txt size_bytes=17
+genre-classifier  | 2026-05-02 23:50:35,099 WARNING genre_classifier event=validation_error filename=unsupported.txt size_bytes=17 error=Неподдерживаемый формат файла
+genre-classifier  | INFO:     172.25.0.1:50476 - "POST /classify HTTP/1.1" 400 Bad Request

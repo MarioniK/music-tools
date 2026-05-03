@@ -1,0 +1,4 @@
+keys=ok,message,genres,genres_pretty
+ok=True
+genres_count=8
+genres_pretty_count=8

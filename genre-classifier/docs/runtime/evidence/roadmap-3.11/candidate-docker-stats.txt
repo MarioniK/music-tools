@@ -1,0 +1,2 @@
+CONTAINER ID   NAME               CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O        PIDS
+1bdda4da740d   genre-classifier   0.09%     306MiB / 4GiB       7.47%     82.3MB / 42.9kB   1.72GB / 702MB   9
