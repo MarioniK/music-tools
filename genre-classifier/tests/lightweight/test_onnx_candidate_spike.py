@@ -30,28 +30,62 @@ def assert_classify_compatible_shape(value):
         assert isinstance(item["prob"], (int, float))
 
 
-def test_dry_run_command_succeeds_without_heavy_dependencies():
+def run_spike(*args):
     result = subprocess.run(
-        [sys.executable, str(SCRIPT_PATH), "--dry-run"],
+        [sys.executable, str(SCRIPT_PATH), *args],
         cwd=SERVICE_ROOT,
         check=True,
         capture_output=True,
         text=True,
     )
-
-    assert "dry-run only" in result.stdout
-    assert "no ONNX Runtime loaded" in result.stdout
-    assert "no model loaded" in result.stdout
-    assert "no audio processed" in result.stdout
-    assert "no inference executed" in result.stdout
     assert result.stderr == ""
+    return json.loads(result.stdout)
+
+
+def assert_spike_metadata_shape(value):
+    assert value["spike"]["roadmap"] == "4.8"
+    assert value["spike"]["variant"] == "B"
+    assert value["spike"]["mode"] == "dry_run"
+    assert value["spike"]["inference_executed"] is False
+    assert value["spike"]["audio_processed"] is False
+    assert value["runtime"]["package"] == "onnxruntime"
+    assert isinstance(value["runtime"]["available"], bool)
+    assert value["runtime"]["imported"] is False
+    assert value["runtime"]["detection_method"] == 'importlib.util.find_spec("onnxruntime")'
+    assert isinstance(value["resource_latency_metadata"]["started_at_utc"], str)
+    assert isinstance(value["resource_latency_metadata"]["finished_at_utc"], str)
+    assert isinstance(value["resource_latency_metadata"]["duration_ms"], (int, float))
+    assert isinstance(value["resource_latency_metadata"]["python_version"], str)
+    assert isinstance(value["resource_latency_metadata"]["platform"], str)
+    assert isinstance(value["warnings"], list)
+
+
+def warning_categories(value):
+    return {warning["category"] for warning in value["warnings"]}
+
+
+def test_dry_run_without_args_succeeds_without_heavy_dependencies():
+    value = run_spike()
+
+    assert_classify_compatible_shape(value)
+    assert_spike_metadata_shape(value)
+    assert value["spike"]["status"] == "dry_run_metadata_only"
+    assert "no runtime loaded" in value["message"]
+    assert "no model loaded for inference" in value["message"]
+    assert "no audio processed" in value["message"]
+    assert "no inference executed" in value["message"]
+    assert value["model"]["path_provided"] is False
+    assert value["model"]["size_bytes"] is None
+    assert {"model_path_missing", "license_unknown", "model_provenance_unknown"} <= (
+        warning_categories(value)
+    )
 
 
 def test_write_output_creates_valid_classify_compatible_json(tmp_path):
     output_path = tmp_path / "nested/output.json"
 
     subprocess.run(
-        [sys.executable, str(SCRIPT_PATH), "--dry-run", "--write-output", str(output_path)],
+        [sys.executable, str(SCRIPT_PATH), "--write-output", str(output_path)],
         cwd=SERVICE_ROOT,
         check=True,
         capture_output=True,
@@ -60,15 +94,20 @@ def test_write_output_creates_valid_classify_compatible_json(tmp_path):
 
     value = json.loads(output_path.read_text(encoding="utf-8"))
     assert_classify_compatible_shape(value)
-    assert value == {
-        "ok": True,
-        "message": (
-            "dry-run only; no ONNX Runtime loaded; no model loaded; "
-            "no audio processed; no inference executed"
-        ),
-        "genres": [{"tag": "electronic", "prob": 0.0}],
-        "genres_pretty": ["Electronic"],
-    }
+    assert_spike_metadata_shape(value)
+    assert value["genres"] == [{"tag": "electronic", "prob": 0.0}]
+    assert value["genres_pretty"] == ["Electronic"]
+
+
+def test_output_alias_creates_structured_json(tmp_path):
+    output_path = tmp_path / "artifact.json"
+
+    value = run_spike("--output", str(output_path))
+
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert written == value
+    assert_classify_compatible_shape(written)
+    assert_spike_metadata_shape(written)
 
 
 def test_script_builds_classify_compatible_payload():
@@ -77,6 +116,95 @@ def test_script_builds_classify_compatible_payload():
     value = spike_script.build_dry_run_output()
 
     assert_classify_compatible_shape(value)
+    assert_spike_metadata_shape(value)
+
+
+def test_runtime_detection_does_not_require_runtime_import():
+    spike_script = load_spike_script()
+
+    value = spike_script.detect_onnxruntime()
+
+    assert value["package"] == "onnxruntime"
+    assert isinstance(value["available"], bool)
+    assert value["imported"] is False
+    assert value["detection_method"] == 'importlib.util.find_spec("onnxruntime")'
+
+
+def test_missing_model_path_produces_controlled_status_and_warning(tmp_path):
+    missing_path = tmp_path / "missing.onnx"
+
+    value = run_spike("--model-path", str(missing_path))
+
+    assert value["spike"]["status"] == "skipped_model_path_not_found"
+    assert value["model"]["path_provided"] is True
+    assert value["model"]["exists"] is False
+    assert value["model"]["is_file"] is False
+    assert value["model"]["suffix"] == ".onnx"
+    assert value["model"]["size_bytes"] is None
+    assert "model_path_not_found" in warning_categories(value)
+    assert "model_suffix_not_onnx" not in warning_categories(value)
+
+
+def test_no_model_path_keeps_metadata_only_dry_run_mode():
+    value = run_spike("--dry-run")
+
+    assert value["spike"]["status"] == "dry_run_metadata_only"
+    assert value["model"] == {
+        "path_provided": False,
+        "path": None,
+        "exists": None,
+        "is_file": None,
+        "suffix": None,
+        "suffix_expected": ".onnx",
+        "size_bytes": None,
+    }
+    assert value["resource_latency_metadata"]["model_size_bytes"] is None
+
+
+def test_temporary_fake_onnx_file_can_be_inspected_without_real_runtime(tmp_path):
+    model_path = tmp_path / "fake.onnx"
+    model_path.write_bytes(b"not a real model")
+
+    value = run_spike("--model-path", str(model_path))
+
+    assert value["spike"]["status"] == "local_model_inspected_no_inference"
+    assert value["model"]["path_provided"] is True
+    assert value["model"]["path"] == str(model_path)
+    assert value["model"]["exists"] is True
+    assert value["model"]["is_file"] is True
+    assert value["model"]["suffix"] == ".onnx"
+    assert value["model"]["size_bytes"] == len(b"not a real model")
+    assert value["resource_latency_metadata"]["model_size_bytes"] == len(b"not a real model")
+    assert value["spike"]["inference_executed"] is False
+    assert "model_suffix_not_onnx" not in warning_categories(value)
+
+
+def test_model_provenance_fields_are_recorded():
+    value = run_spike(
+        "--model-name",
+        "example-audio-onnx",
+        "--model-source-url",
+        "https://example.invalid/model",
+        "--license",
+        "Example-License",
+        "--license-url",
+        "https://example.invalid/license",
+        "--checksum-sha256",
+        "0" * 64,
+        "--provenance-status",
+        "recorded",
+    )
+
+    assert value["provenance"] == {
+        "model_name": "example-audio-onnx",
+        "model_source_url": "https://example.invalid/model",
+        "license": "Example-License",
+        "license_url": "https://example.invalid/license",
+        "checksum_sha256": "0" * 64,
+        "provenance_status": "recorded",
+    }
+    assert "license_unknown" not in warning_categories(value)
+    assert "model_provenance_unknown" not in warning_categories(value)
 
 
 def test_script_source_does_not_import_heavy_runtime_modules():
