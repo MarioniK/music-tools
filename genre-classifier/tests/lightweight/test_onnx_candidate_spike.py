@@ -1,7 +1,9 @@
 import importlib.util
+import hashlib
 import json
 import subprocess
 import sys
+import types
 from pathlib import Path
 
 
@@ -60,8 +62,62 @@ def assert_spike_metadata_shape(value):
     assert isinstance(value["warnings"], list)
 
 
+def assert_smoke_metadata_shape(value):
+    assert value["spike"]["roadmap"] == "4.10"
+    assert value["spike"]["variant"] == "local_smoke"
+    assert value["spike"]["mode"] == "smoke"
+    assert value["metadata"]["mode"] == "smoke"
+    assert value["metadata"]["candidate_provider"] == "onnx_local_smoke"
+    assert value["metadata"]["provider"] == "onnx_local_smoke"
+    assert value["metadata"]["baseline_provider"] == "legacy_musicnn"
+    assert isinstance(value["metadata"]["onnxruntime_available"], bool)
+    assert isinstance(value["metadata"]["provenance_approved"], bool)
+    assert isinstance(value["metadata"]["model_loaded"], bool)
+    assert isinstance(value["metadata"]["inference_attempted"], bool)
+    assert isinstance(value["metadata"]["inference_succeeded"], bool)
+    assert isinstance(value["metadata"]["input_names"], list)
+    assert isinstance(value["metadata"]["input_shapes"], list)
+    assert isinstance(value["metadata"]["output_names"], list)
+    assert isinstance(value["metadata"]["output_shapes"], list)
+    assert isinstance(value["metadata"]["warnings"], list)
+    assert value["runtime"]["package"] == "onnxruntime"
+    assert value["runtime"]["detection_method"] == 'importlib.util.find_spec("onnxruntime")'
+
+
 def warning_categories(value):
     return {warning["category"] for warning in value["warnings"]}
+
+
+def write_approved_provenance(path, model_path):
+    digest = hashlib.sha256(model_path.read_bytes()).hexdigest()
+    payload = {
+        "schema_version": "0.1",
+        "model_id": "local_smoke_test_model",
+        "model_name": "Local Smoke Test Model",
+        "model_family": "test_audio_genre_classifier",
+        "model_format": "onnx",
+        "source_url": "local-only:test",
+        "source_repository": "local-only:test",
+        "license": "Test-Only",
+        "license_url": "local-only:test",
+        "model_version": "test",
+        "model_hash_sha256": digest,
+        "model_file_name": model_path.name,
+        "model_file_size_bytes": model_path.stat().st_size,
+        "input_names": ["audio_input"],
+        "input_shapes": [[1, 2]],
+        "output_names": ["genre_scores"],
+        "output_shapes": [[1, 2]],
+        "label_source": "missing",
+        "label_count": 0,
+        "label_mapping_strategy": "missing",
+        "intended_use": "local smoke test only",
+        "known_limitations": ["no label mapping"],
+        "approval_status": "approved",
+        "warnings": [],
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return payload
 
 
 def test_dry_run_without_args_succeeds_without_heavy_dependencies():
@@ -161,6 +217,16 @@ def test_no_model_path_keeps_metadata_only_dry_run_mode():
     assert value["resource_latency_metadata"]["model_size_bytes"] is None
 
 
+def test_explicit_dry_run_mode_keeps_default_behavior():
+    value = run_spike("--mode", "dry-run")
+
+    assert_classify_compatible_shape(value)
+    assert_spike_metadata_shape(value)
+    assert value["spike"]["status"] == "dry_run_metadata_only"
+    assert value["genres"] == [{"tag": "electronic", "prob": 0.0}]
+    assert value["genres_pretty"] == ["Electronic"]
+
+
 def test_temporary_fake_onnx_file_can_be_inspected_without_real_runtime(tmp_path):
     model_path = tmp_path / "fake.onnx"
     model_path.write_bytes(b"not a real model")
@@ -207,6 +273,211 @@ def test_model_provenance_fields_are_recorded():
     assert "model_provenance_unknown" not in warning_categories(value)
 
 
+def test_smoke_mode_without_required_paths_returns_controlled_no_go():
+    value = run_spike("--mode", "smoke")
+
+    assert_classify_compatible_shape(value)
+    assert_smoke_metadata_shape(value)
+    assert value["ok"] is False
+    assert value["genres"] == []
+    assert value["genres_pretty"] == []
+    assert value["metadata"]["model_loaded"] is False
+    assert value["metadata"]["inference_attempted"] is False
+    assert "provenance_path_missing" in warning_categories(value)
+    assert "not_production_classification" in warning_categories(value)
+
+
+def test_smoke_not_approved_provenance_blocks_before_model_loading():
+    value = run_spike(
+        "--mode",
+        "smoke",
+        "--model-path",
+        "/tmp/nonexistent-model.onnx",
+        "--provenance-path",
+        "docs/lightweight/evaluation/model-provenance/example-onnx-model-provenance.json",
+    )
+
+    assert_smoke_metadata_shape(value)
+    assert value["ok"] is False
+    assert value["metadata"]["provenance_approved"] is False
+    assert value["metadata"]["model_loaded"] is False
+    assert value["metadata"]["inference_attempted"] is False
+    categories = warning_categories(value)
+    assert "provenance_not_approved" in categories
+    assert "model_path_missing" not in categories
+    assert "model_path_not_file" not in categories
+
+
+def test_smoke_approved_provenance_missing_model_is_controlled(tmp_path):
+    model_path = tmp_path / "model.onnx"
+    existing_model = tmp_path / "existing.onnx"
+    existing_model.write_bytes(b"fake local model")
+    provenance_path = tmp_path / "provenance.json"
+    write_approved_provenance(provenance_path, existing_model)
+
+    value = run_spike(
+        "--mode",
+        "smoke",
+        "--model-path",
+        str(model_path),
+        "--provenance-path",
+        str(provenance_path),
+    )
+
+    assert value["ok"] is False
+    assert value["metadata"]["provenance_approved"] is True
+    assert value["metadata"]["model_loaded"] is False
+    assert "model_path_missing" in warning_categories(value)
+
+
+def test_smoke_missing_onnxruntime_returns_controlled_skip(monkeypatch, tmp_path):
+    spike_script = load_spike_script()
+    model_path = tmp_path / "model.onnx"
+    model_path.write_bytes(b"fake local model")
+    provenance_path = tmp_path / "provenance.json"
+    write_approved_provenance(provenance_path, model_path)
+    args = spike_script.build_parser().parse_args(
+        [
+            "--mode",
+            "smoke",
+            "--model-path",
+            str(model_path),
+            "--provenance-path",
+            str(provenance_path),
+        ]
+    )
+    monkeypatch.setattr(spike_script.importlib.util, "find_spec", lambda name: None)
+
+    value = spike_script.build_smoke_output(args)
+
+    assert value["ok"] is False
+    assert_smoke_metadata_shape(value)
+    assert value["metadata"]["onnxruntime_available"] is False
+    assert value["metadata"]["model_loaded"] is False
+    assert "onnxruntime_missing" in warning_categories(value)
+
+
+def test_smoke_output_path_refuses_overwrite(tmp_path):
+    model_path = tmp_path / "model.onnx"
+    model_path.write_bytes(b"fake local model")
+    provenance_path = tmp_path / "provenance.json"
+    write_approved_provenance(provenance_path, model_path)
+    output_path = tmp_path / "smoke.json"
+    output_path.write_text("existing\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_PATH),
+            "--mode",
+            "smoke",
+            "--model-path",
+            str(model_path),
+            "--provenance-path",
+            str(provenance_path),
+            "--output-path",
+            str(output_path),
+        ],
+        cwd=SERVICE_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2
+    assert "output write refused" in result.stderr
+    assert output_path.read_text(encoding="utf-8") == "existing\n"
+
+
+def test_smoke_output_path_writes_when_requested(tmp_path):
+    output_path = tmp_path / "nested/smoke.json"
+
+    value = run_spike(
+        "--mode",
+        "smoke",
+        "--model-path",
+        "/tmp/nonexistent-model.onnx",
+        "--provenance-path",
+        "docs/lightweight/evaluation/model-provenance/example-onnx-model-provenance.json",
+        "--output-path",
+        str(output_path),
+    )
+
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert written == value
+    assert_smoke_metadata_shape(written)
+
+
+def test_mocked_successful_smoke_path_records_raw_output_metadata(monkeypatch, tmp_path):
+    spike_script = load_spike_script()
+    model_path = tmp_path / "model.onnx"
+    model_path.write_bytes(b"fake local model")
+    provenance_path = tmp_path / "provenance.json"
+    write_approved_provenance(provenance_path, model_path)
+    args = spike_script.build_parser().parse_args(
+        [
+            "--mode",
+            "smoke",
+            "--model-path",
+            str(model_path),
+            "--provenance-path",
+            str(provenance_path),
+        ]
+    )
+
+    class FakeValue:
+        def __init__(self, name, shape, value_type="tensor(float)"):
+            self.name = name
+            self.shape = shape
+            self.type = value_type
+
+    class FakeOutput:
+        shape = [1, 2]
+
+    class FakeSession:
+        def __init__(self, path):
+            self.path = path
+
+        def get_inputs(self):
+            return [FakeValue("audio_input", [1, 2])]
+
+        def get_outputs(self):
+            return [FakeValue("genre_scores", [1, 2])]
+
+        def run(self, output_names, inputs):
+            assert output_names is None
+            assert "audio_input" in inputs
+            return [FakeOutput()]
+
+    fake_runtime = types.SimpleNamespace(InferenceSession=FakeSession)
+    monkeypatch.setattr(
+        spike_script.importlib.util,
+        "find_spec",
+        lambda name: object() if name == "onnxruntime" else None,
+    )
+    monkeypatch.setattr(
+        spike_script.importlib,
+        "import_module",
+        lambda name: fake_runtime if name == "onnxruntime" else importlib.import_module(name),
+    )
+    monkeypatch.setattr(spike_script, "_safe_dummy_input", lambda shape, input_type: object())
+
+    value = spike_script.build_smoke_output(args)
+
+    assert value["ok"] is True
+    assert value["metadata"]["onnxruntime_available"] is True
+    assert value["metadata"]["model_loaded"] is True
+    assert value["metadata"]["inference_attempted"] is True
+    assert value["metadata"]["inference_succeeded"] is True
+    assert value["metadata"]["input_names"] == ["audio_input"]
+    assert value["metadata"]["output_names"] == ["genre_scores"]
+    assert value["metadata"]["raw_output_shape"] == [1, 2]
+    assert value["genres"] == []
+    assert value["genres_pretty"] == []
+    assert "label_mapping_missing" in warning_categories(value)
+    assert "not_production_classification" in warning_categories(value)
+
+
 def test_script_source_does_not_import_heavy_runtime_modules():
     source = SCRIPT_PATH.read_text(encoding="utf-8")
     forbidden_markers = (
@@ -219,7 +490,6 @@ def test_script_source_does_not_import_heavy_runtime_modules():
         "import app.main",
         "from app.main",
         "provider_factory",
-        "legacy_musicnn",
     )
 
     for marker in forbidden_markers:
