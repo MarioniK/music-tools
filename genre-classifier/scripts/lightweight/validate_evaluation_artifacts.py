@@ -45,6 +45,40 @@ REPORT_MARKERS = (
     "## Approval Gate Status",
 )
 
+REQUIRED_REPORT_MARKERS = (
+    "summary",
+    "scope",
+    "baseline provider",
+    "candidate provider",
+    "manifest",
+    "fixture coverage",
+    "aggregate comparison",
+    "controlled vocabulary results",
+    "oov results",
+    "top-n overlap",
+    "resource metrics",
+    "failures and warnings",
+    "known gaps",
+    "decision",
+    "approval gate status",
+    "appendix",
+    "per-fixture results",
+)
+
+KNOWN_WARNING_CATEGORIES = (
+    "fixture_missing",
+    "fixture_unreadable",
+    "baseline_failed",
+    "candidate_failed",
+    "empty_output",
+    "oov_terms_detected",
+    "major_genre_shift",
+    "license_unknown",
+    "model_provenance_unknown",
+    "runtime_metric_missing",
+    "comparison_incomplete",
+)
+
 README_MARKERS = (
     "# Lightweight Evaluation Artifacts",
     "The `/classify` contract is unchanged.",
@@ -65,6 +99,15 @@ class ValidationSummary(NamedTuple):
     fixture_results_checked: int
 
 
+class GenreOverlapSummary(NamedTuple):
+    baseline_count: int
+    candidate_count: int
+    overlap_count: int
+    overlap_ratio: float
+    baseline_empty: bool
+    candidate_empty: bool
+
+
 def _read_non_empty_text(path: Path) -> str:
     if not path.exists():
         raise ValidationError(f"Missing required artifact: {path}")
@@ -81,6 +124,25 @@ def _validate_markers(path: Path, text: str, markers: Iterable[str]) -> None:
     for marker in markers:
         if marker not in text:
             raise ValidationError(f"Missing marker in {path}: {marker!r}")
+
+
+def _normalize_report_text(text: str) -> str:
+    return " ".join(text.casefold().split())
+
+
+def _validate_normalized_report_markers(path: Path, text: str, markers: Iterable[str]) -> None:
+    normalized_text = _normalize_report_text(text)
+    for marker in markers:
+        normalized_marker = _normalize_report_text(marker)
+        if normalized_marker not in normalized_text:
+            raise ValidationError(f"Missing report section or marker in {path}: {marker!r}")
+
+
+def _validate_report(path: Path) -> None:
+    text = _read_non_empty_text(path)
+    _validate_markers(path, text, REPORT_MARKERS)
+    _validate_normalized_report_markers(path, text, REQUIRED_REPORT_MARKERS)
+    _validate_normalized_report_markers(path, text, KNOWN_WARNING_CATEGORIES)
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -174,6 +236,50 @@ def _validate_output(path: Path) -> int:
     return len(fixture_results)
 
 
+def _extract_genre_tags(value: dict[str, Any]) -> set[str]:
+    fixture_results = value.get("fixture_results")
+    if isinstance(fixture_results, list):
+        results = fixture_results
+    else:
+        results = [value]
+
+    tags: set[str] = set()
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        genres = result.get("genres")
+        if not isinstance(genres, list):
+            continue
+        for item in genres:
+            if not isinstance(item, dict):
+                continue
+            tag = item.get("tag")
+            if isinstance(tag, str) and tag.strip():
+                tags.add(tag.strip().casefold())
+    return tags
+
+
+def compare_genre_overlap(baseline: dict[str, Any], candidate: dict[str, Any]) -> GenreOverlapSummary:
+    baseline_tags = _extract_genre_tags(baseline)
+    candidate_tags = _extract_genre_tags(candidate)
+    overlap_count = len(baseline_tags & candidate_tags)
+    denominator = max(len(baseline_tags), len(candidate_tags))
+    overlap_ratio = overlap_count / denominator if denominator else 0.0
+
+    return GenreOverlapSummary(
+        baseline_count=len(baseline_tags),
+        candidate_count=len(candidate_tags),
+        overlap_count=overlap_count,
+        overlap_ratio=overlap_ratio,
+        baseline_empty=not baseline_tags,
+        candidate_empty=not candidate_tags,
+    )
+
+
+def compare_output_files(baseline_path: Path, candidate_path: Path) -> GenreOverlapSummary:
+    return compare_genre_overlap(_load_json(baseline_path), _load_json(candidate_path))
+
+
 def validate_all(root: Path) -> ValidationSummary:
     evaluation_root = root / EVALUATION_DIR
     for relative_path in REQUIRED_FILES:
@@ -188,8 +294,7 @@ def validate_all(root: Path) -> ValidationSummary:
     _validate_markers(manifest_path, manifest_text, MANIFEST_MARKERS)
 
     report_path = evaluation_root / "reports/example-evaluation-report.md"
-    report_text = _read_non_empty_text(report_path)
-    _validate_markers(report_path, report_text, REPORT_MARKERS)
+    _validate_report(report_path)
 
     fixture_result_count = 0
     for relative_path in OUTPUT_FILES:

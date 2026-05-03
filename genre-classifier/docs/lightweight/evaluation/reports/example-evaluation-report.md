@@ -31,6 +31,24 @@ The `/classify` contract is unchanged. Provider output examples preserve:
 
 Evaluation-only fields such as `normalized_genres`, `warnings`, and `metrics` are not part of the production response shape.
 
+## Baseline Provider
+
+Baseline provider: `legacy_musicnn`.
+
+This example report does not run the baseline provider. The static baseline output file is documentation-only evidence for future offline validation shape checks.
+
+## Candidate Provider
+
+Candidate provider: `example_lightweight_candidate`.
+
+This example report does not implement or run a candidate provider. The static candidate output file is documentation-only evidence for future offline validation shape checks.
+
+## Manifest
+
+Manifest: `docs/lightweight/evaluation/manifests/example-manifest.yaml`.
+
+The manifest is a shallow example skeleton. It is checked as text only and does not require PyYAML or runtime fixture access.
+
 ## Fixture Coverage
 
 Example fixture categories:
@@ -55,6 +73,8 @@ Expected future comparison dimensions:
 - major genre shifts
 - resource deltas
 - warning categories
+
+The example static JSON outputs support a small offline tag-overlap check over `genres[].tag` values only. They do not support precision, recall, F1, or production-quality ranking analysis.
 
 ## Controlled Vocabulary Results
 
@@ -82,7 +102,7 @@ Not measured. Future resource evidence should capture:
 
 Missing resource evidence should be reported as `runtime_metric_missing`.
 
-## Warnings and Failures
+## Failures and Warnings
 
 Current skeleton warnings:
 
@@ -91,6 +111,20 @@ Current skeleton warnings:
 - `runtime_metric_missing`
 - `license_unknown` for candidate model metadata
 - `model_not_used` for candidate output
+
+Known warning categories for future report validation:
+
+- `fixture_missing`
+- `fixture_unreadable`
+- `baseline_failed`
+- `candidate_failed`
+- `empty_output`
+- `oov_terms_detected`
+- `major_genre_shift`
+- `license_unknown`
+- `model_provenance_unknown`
+- `runtime_metric_missing`
+- `comparison_incomplete`
 
 Future reports should preserve warnings and failures as review evidence rather than hiding them in logs.
 
@@ -139,4 +173,3 @@ Per-fixture rows below are placeholders. They illustrate the future report layou
 | fixture_sparse_low_confidence_001 | ambiguous_low_confidence_audio | electronic | electronic | low_confidence_fixture | example_only |
 | fixture_silence_edge_001 | negative_edge_fixtures | none | none | empty_output | example_only |
 | fixture_unsupported_format_edge_001 | negative_edge_fixtures | none | none | fixture_unreadable | example_only |
-
