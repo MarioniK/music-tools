@@ -1,0 +1,175 @@
+{
+  "schema_version": "0.1",
+  "artifact_type": "example_legacy_baseline_output_skeleton",
+  "example_only": true,
+  "illustrative_data_notice": "These values are illustrative and were not captured from a real run.",
+  "run_id": "example_baseline_run_v0_1",
+  "provider": "legacy_musicnn",
+  "baseline_provider": "legacy_musicnn",
+  "manifest": {
+    "schema_version": "0.1",
+    "manifest_id": "example_lightweight_eval_manifest_v0_1",
+    "fixture_count": 8,
+    "source": "docs/lightweight/evaluation/manifests/example-manifest.yaml"
+  },
+  "runtime": {
+    "example_only": true,
+    "code_revision": "example-unset",
+    "python": "example-not-captured",
+    "tensorflow": "example-not-captured",
+    "essentia_tensorflow": "example-not-captured",
+    "platform": "example-not-captured",
+    "notes": "Runtime metadata is placeholder-only for this skeleton."
+  },
+  "fixture_results": [
+    {
+      "fixture_id": "fixture_clear_pop_001",
+      "ok": true,
+      "message": "ok",
+      "genres": [
+        {"tag": "pop", "prob": 0.8421},
+        {"tag": "dance pop", "prob": 0.6217},
+        {"tag": "electropop", "prob": 0.4082}
+      ],
+      "genres_pretty": ["pop", "dance pop", "electropop"],
+      "normalized_genres": ["pop", "electronic"],
+      "warnings": [],
+      "metrics": {
+        "latency_ms": 420.0,
+        "peak_memory_mb": 512.0,
+        "cold_start": false
+      }
+    },
+    {
+      "fixture_id": "fixture_clear_rock_001",
+      "ok": true,
+      "message": "ok",
+      "genres": [
+        {"tag": "rock", "prob": 0.7991},
+        {"tag": "alternative rock", "prob": 0.5524}
+      ],
+      "genres_pretty": ["rock", "alternative rock"],
+      "normalized_genres": ["rock"],
+      "warnings": [],
+      "metrics": {
+        "latency_ms": 435.0,
+        "peak_memory_mb": 514.0,
+        "cold_start": false
+      }
+    },
+    {
+      "fixture_id": "fixture_indie_alt_overlap_001",
+      "ok": true,
+      "message": "ok",
+      "genres": [
+        {"tag": "alternative rock", "prob": 0.7352},
+        {"tag": "indie rock", "prob": 0.6884}
+      ],
+      "genres_pretty": ["alternative rock", "indie rock"],
+      "normalized_genres": ["rock"],
+      "warnings": ["adjacent_genre_overlap_expected"],
+      "metrics": {
+        "latency_ms": 441.0,
+        "peak_memory_mb": 515.0,
+        "cold_start": false
+      }
+    },
+    {
+      "fixture_id": "fixture_house_techno_overlap_001",
+      "ok": true,
+      "message": "ok",
+      "genres": [
+        {"tag": "house", "prob": 0.7219},
+        {"tag": "techno", "prob": 0.6035},
+        {"tag": "electronic", "prob": 0.5811}
+      ],
+      "genres_pretty": ["house", "techno", "electronic"],
+      "normalized_genres": ["electronic"],
+      "warnings": ["adjacent_genre_overlap_expected"],
+      "metrics": {
+        "latency_ms": 428.0,
+        "peak_memory_mb": 513.0,
+        "cold_start": false
+      }
+    },
+    {
+      "fixture_id": "fixture_hiphop_jazz_hybrid_001",
+      "ok": true,
+      "message": "ok",
+      "genres": [
+        {"tag": "hip hop", "prob": 0.6903},
+        {"tag": "jazz", "prob": 0.4748}
+      ],
+      "genres_pretty": ["hip hop", "jazz"],
+      "normalized_genres": ["hip_hop", "jazz"],
+      "warnings": ["hybrid_material_expected"],
+      "metrics": {
+        "latency_ms": 450.0,
+        "peak_memory_mb": 516.0,
+        "cold_start": false
+      }
+    },
+    {
+      "fixture_id": "fixture_sparse_low_confidence_001",
+      "ok": true,
+      "message": "ok",
+      "genres": [
+        {"tag": "ambient", "prob": 0.3661}
+      ],
+      "genres_pretty": ["ambient"],
+      "normalized_genres": ["electronic"],
+      "warnings": ["low_confidence_fixture"],
+      "metrics": {
+        "latency_ms": 398.0,
+        "peak_memory_mb": 510.0,
+        "cold_start": false
+      }
+    },
+    {
+      "fixture_id": "fixture_silence_edge_001",
+      "ok": false,
+      "message": "No confident genre detected in example skeleton output.",
+      "genres": [],
+      "genres_pretty": [],
+      "normalized_genres": [],
+      "warnings": ["empty_output"],
+      "metrics": {
+        "latency_ms": 120.0,
+        "peak_memory_mb": 500.0,
+        "cold_start": false
+      }
+    },
+    {
+      "fixture_id": "fixture_unsupported_format_edge_001",
+      "ok": false,
+      "message": "Unsupported input in example skeleton output.",
+      "genres": [],
+      "genres_pretty": [],
+      "normalized_genres": [],
+      "warnings": ["fixture_unreadable"],
+      "metrics": {
+        "latency_ms": 35.0,
+        "peak_memory_mb": 498.0,
+        "cold_start": false
+      }
+    }
+  ],
+  "warnings": [
+    "example_only",
+    "not_captured_from_real_run",
+    "runtime_metric_missing"
+  ],
+  "aggregate_metrics": {
+    "fixture_count": 8,
+    "successful_fixtures": 6,
+    "failed_fixtures": 2,
+    "mean_latency_ms": 340.875,
+    "p95_latency_ms": 450.0,
+    "peak_memory_mb": 516.0,
+    "startup_import_time_ms": null,
+    "model_size_mb": null,
+    "dependency_runtime_weight_mb": null,
+    "docker_image_size_impact_mb": null,
+    "notes": "Aggregate metrics are illustrative placeholders only."
+  }
+}
