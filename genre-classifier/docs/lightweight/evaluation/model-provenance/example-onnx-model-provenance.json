@@ -1,0 +1,51 @@
+{
+  "schema_version": "0.1",
+  "model_id": "example_onnx_model_provenance_only",
+  "model_name": "Example ONNX Genre Model Metadata",
+  "model_family": "example_audio_genre_classifier",
+  "model_format": "onnx",
+  "source_url": "example-only: not a download instruction",
+  "source_repository": "example-only: repository must be verified before real use",
+  "license": "example-only: license not verified",
+  "license_url": "example-only: license URL must be verified before real use",
+  "model_version": "example-only",
+  "model_hash_sha256": "placeholder_sha256_not_valid_for_inference",
+  "model_file_name": "example-model.onnx",
+  "model_file_size_bytes": 0,
+  "input_names": [
+    "audio_input"
+  ],
+  "input_shapes": [
+    [
+      1,
+      "example_frames",
+      "example_bins"
+    ]
+  ],
+  "output_names": [
+    "genre_scores"
+  ],
+  "output_shapes": [
+    [
+      1,
+      "example_label_count"
+    ]
+  ],
+  "label_source": "example-only: label source must be documented before inference",
+  "label_count": 0,
+  "label_mapping_strategy": "example-only: controlled-vocabulary mapping is not approved",
+  "intended_use": "Documentation sample for Roadmap 4.9 provenance validation only.",
+  "known_limitations": [
+    "No real model is selected.",
+    "No license has been verified.",
+    "No label mapping has been approved.",
+    "No inference is permitted from this artifact."
+  ],
+  "approval_status": "example_only",
+  "warnings": [
+    "sample-only provenance artifact; not approved for inference",
+    "model_hash_sha256 is a placeholder and must not be used for model verification",
+    "source_url and source_repository are examples, not download instructions",
+    "license and label metadata are incomplete"
+  ]
+}

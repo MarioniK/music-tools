@@ -28,6 +28,63 @@ OUTPUT_FILES = (
     Path("outputs/example-candidate-output.json"),
 )
 
+MODEL_PROVENANCE_FILES = (
+    Path("model-provenance/example-onnx-model-provenance.json"),
+)
+
+REQUIRED_MODEL_PROVENANCE_FIELDS = (
+    "schema_version",
+    "model_id",
+    "model_name",
+    "model_family",
+    "model_format",
+    "source_url",
+    "source_repository",
+    "license",
+    "license_url",
+    "model_version",
+    "model_hash_sha256",
+    "model_file_name",
+    "model_file_size_bytes",
+    "input_names",
+    "input_shapes",
+    "output_names",
+    "output_shapes",
+    "label_source",
+    "label_count",
+    "label_mapping_strategy",
+    "intended_use",
+    "known_limitations",
+    "approval_status",
+    "warnings",
+)
+
+MODEL_PROVENANCE_STRING_FIELDS = (
+    "schema_version",
+    "model_id",
+    "model_name",
+    "model_family",
+    "model_format",
+    "source_url",
+    "source_repository",
+    "license",
+    "license_url",
+    "model_version",
+    "model_hash_sha256",
+    "model_file_name",
+    "label_source",
+    "label_mapping_strategy",
+    "intended_use",
+    "approval_status",
+)
+
+PRODUCTION_APPROVED_STATUSES = {
+    "approved",
+    "approved_for_inference",
+    "production_approved",
+    "production-approved",
+}
+
 MANIFEST_MARKERS = (
     'schema_version: "0.1"',
     'artifact_type: "example_manifest_skeleton"',
@@ -97,6 +154,7 @@ class ValidationSummary(NamedTuple):
     files_checked: int
     json_outputs_checked: int
     fixture_results_checked: int
+    model_provenance_checked: int = 0
 
 
 class GenreOverlapSummary(NamedTuple):
@@ -236,6 +294,45 @@ def _validate_output(path: Path) -> int:
     return len(fixture_results)
 
 
+def _validate_model_provenance(path: Path) -> None:
+    data = _load_json(path)
+
+    for field in REQUIRED_MODEL_PROVENANCE_FIELDS:
+        if field not in data:
+            raise ValidationError(f"{path} is missing required provenance field: {field}")
+
+    for field in MODEL_PROVENANCE_STRING_FIELDS:
+        value = data[field]
+        if not isinstance(value, str) or not value.strip():
+            raise ValidationError(f"{path}.{field} must be a non-empty string")
+
+    if data["model_format"] != "onnx":
+        raise ValidationError(f'{path}.model_format must be "onnx"')
+
+    for field in ("input_names", "output_names", "known_limitations", "warnings"):
+        if not isinstance(data[field], list):
+            raise ValidationError(f"{path}.{field} must be a list")
+
+    for field in ("input_shapes", "output_shapes"):
+        value = data[field]
+        if not isinstance(value, list):
+            raise ValidationError(f"{path}.{field} must be a list")
+        for index, item in enumerate(value):
+            if not isinstance(item, list):
+                raise ValidationError(f"{path}.{field}[{index}] must be a list")
+
+    for field in ("model_file_size_bytes", "label_count"):
+        value = data[field]
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            raise ValidationError(f"{path}.{field} must be a non-negative integer")
+
+    _validate_warnings(data, str(path))
+
+    approval_status = data["approval_status"].strip().casefold()
+    if approval_status in PRODUCTION_APPROVED_STATUSES:
+        raise ValidationError(f"{path}.approval_status must not be production-approved")
+
+
 def _extract_genre_tags(value: dict[str, Any]) -> set[str]:
     fixture_results = value.get("fixture_results")
     if isinstance(fixture_results, list):
@@ -300,10 +397,16 @@ def validate_all(root: Path) -> ValidationSummary:
     for relative_path in OUTPUT_FILES:
         fixture_result_count += _validate_output(evaluation_root / relative_path)
 
+    model_provenance_count = 0
+    for relative_path in MODEL_PROVENANCE_FILES:
+        _validate_model_provenance(evaluation_root / relative_path)
+        model_provenance_count += 1
+
     return ValidationSummary(
         files_checked=len(REQUIRED_FILES),
         json_outputs_checked=len(OUTPUT_FILES),
         fixture_results_checked=fixture_result_count,
+        model_provenance_checked=model_provenance_count,
     )
 
 
@@ -332,7 +435,8 @@ def main(argv: list[str] | None = None) -> int:
         "validation ok: "
         f"files={summary.files_checked}, "
         f"json_outputs={summary.json_outputs_checked}, "
-        f"fixture_results={summary.fixture_results_checked}"
+        f"fixture_results={summary.fixture_results_checked}, "
+        f"model_provenance={summary.model_provenance_checked}"
     )
     return 0
 

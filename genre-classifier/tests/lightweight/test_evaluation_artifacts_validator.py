@@ -22,6 +22,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.files_checked == 5
     assert summary.json_outputs_checked == 2
     assert summary.fixture_results_checked == 16
+    assert summary.model_provenance_checked == 1
 
 
 def test_report_required_sections_are_validated(tmp_path):
@@ -97,4 +98,52 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "files=5" in captured.out
     assert "json_outputs=2" in captured.out
     assert "fixture_results=16" in captured.out
+    assert "model_provenance=1" in captured.out
     assert captured.err == ""
+
+
+def test_model_provenance_sample_is_validated():
+    validator = load_validator()
+    provenance_path = (
+        SERVICE_ROOT / "docs/lightweight/evaluation/model-provenance/example-onnx-model-provenance.json"
+    )
+
+    validator._validate_model_provenance(provenance_path)
+
+
+def test_model_provenance_requires_all_fields(tmp_path):
+    validator = load_validator()
+    source_path = (
+        SERVICE_ROOT / "docs/lightweight/evaluation/model-provenance/example-onnx-model-provenance.json"
+    )
+    data = validator._load_json(source_path)
+    del data["license"]
+
+    provenance_path = tmp_path / "provenance.json"
+    provenance_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_model_provenance(provenance_path)
+    except validator.ValidationError as exc:
+        assert "license" in str(exc)
+    else:
+        raise AssertionError("provenance without required fields should fail validation")
+
+
+def test_model_provenance_rejects_production_approved_status(tmp_path):
+    validator = load_validator()
+    source_path = (
+        SERVICE_ROOT / "docs/lightweight/evaluation/model-provenance/example-onnx-model-provenance.json"
+    )
+    data = validator._load_json(source_path)
+    data["approval_status"] = "production_approved"
+
+    provenance_path = tmp_path / "provenance.json"
+    provenance_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_model_provenance(provenance_path)
+    except validator.ValidationError as exc:
+        assert "production-approved" in str(exc)
+    else:
+        raise AssertionError("production-approved provenance should fail validation")
