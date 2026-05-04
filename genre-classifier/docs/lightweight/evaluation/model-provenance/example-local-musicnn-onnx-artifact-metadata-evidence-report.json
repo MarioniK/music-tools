@@ -1,0 +1,100 @@
+{
+  "schema_version": "0.1",
+  "report_type": "local_musicnn_onnx_artifact_metadata_evidence_report_sample",
+  "report_id": "sample-only-not-evidence",
+  "sample_only": true,
+  "candidate_family": "musicnn_msd_local_only_onnx",
+  "purpose": "Sample-only shape for a future local-only MusiCNN ONNX artifact metadata evidence report. This file contains no real artifacts, no measured values, and no inference or production approval.",
+  "not_production_decision": true,
+  "approved_for_inference": false,
+  "approved_for_production": false,
+  "generated_at": null,
+  "generated_by": "roadmap-4.27-sample-only",
+  "local_environment": {
+    "environment_id": "sample-only",
+    "repository_root": null,
+    "artifact_root": null,
+    "notes": "Sample-only placeholder. Real local paths must be recorded only after separate approval and must remain outside the repository."
+  },
+  "artifacts": [
+    {
+      "artifact_role": "official_local_onnx",
+      "artifact_name": "msd-musicnn-1.onnx",
+      "source_url": null,
+      "source_reference_type": null,
+      "local_path": null,
+      "local_only": true,
+      "artifact_downloaded": false,
+      "artifact_in_repo": false,
+      "committed_to_repo": false,
+      "file_size_bytes": null,
+      "sha256": null,
+      "provenance_notes": "Sample-only entry. A real report must record reviewed provenance notes after the artifact is separately approved and prepared outside the repository.",
+      "license_notes": null,
+      "verification_commands": [],
+      "verification_results": {
+        "file_size_measured": false,
+        "sha256_measured": false,
+        "outside_repo_verified": false,
+        "not_staged_verified": false,
+        "not_committed_verified": false
+      }
+    },
+    {
+      "artifact_role": "official_local_json",
+      "artifact_name": "msd-musicnn-1.json",
+      "source_url": null,
+      "source_reference_type": null,
+      "local_path": null,
+      "local_only": true,
+      "artifact_downloaded": false,
+      "artifact_in_repo": false,
+      "committed_to_repo": false,
+      "file_size_bytes": null,
+      "sha256": null,
+      "provenance_notes": "Sample-only entry. A real report must compare reviewed local metadata against the current bundled legacy_musicnn metadata before any parity scaffold.",
+      "license_notes": null,
+      "verification_commands": [],
+      "verification_results": {
+        "file_size_measured": false,
+        "sha256_measured": false,
+        "outside_repo_verified": false,
+        "not_staged_verified": false,
+        "not_committed_verified": false
+      }
+    }
+  ],
+  "verification_commands": [],
+  "verification_results": {
+    "sample_only": true,
+    "real_artifacts_prepared": false,
+    "real_local_paths_recorded": false,
+    "real_file_sizes_recorded": false,
+    "real_hashes_recorded": false,
+    "artifacts_verified_outside_repo": false,
+    "artifacts_verified_not_staged": false,
+    "artifacts_verified_not_committed": false
+  },
+  "warnings": [
+    "sample-only report; not real evidence",
+    "no artifacts were downloaded",
+    "no model files were added",
+    "no measured SHA256 hashes are present",
+    "no measured file sizes are present",
+    "no inference approval",
+    "no production approval",
+    "legacy_musicnn remains the production baseline"
+  ],
+  "no_go_items": [
+    "real_local_artifacts_missing",
+    "real_local_paths_missing",
+    "real_sha256_missing",
+    "real_file_size_missing",
+    "provenance_review_missing",
+    "license_review_missing",
+    "inference_not_approved",
+    "production_not_approved"
+  ],
+  "review_status": "sample_only_not_approved",
+  "next_step_recommendation": "Do not download artifacts, add model files, add dependencies, or run inference. Use this sample only as structure for a separately approved future local-only evidence report."
+}
