@@ -32,6 +32,94 @@ MODEL_PROVENANCE_FILES = (
     Path("model-provenance/example-onnx-model-provenance.json"),
 )
 
+LOCAL_ARTIFACT_METADATA_FILES = (
+    Path("model-provenance/template-local-musicnn-onnx-artifact-metadata.json"),
+)
+
+REQUIRED_LOCAL_ARTIFACT_METADATA_FIELDS = (
+    "schema_version",
+    "report_type",
+    "report_id",
+    "candidate_family",
+    "purpose",
+    "not_production_decision",
+    "approved_for_inference",
+    "approved_for_production",
+    "created_at",
+    "generated_by",
+    "artifacts",
+    "validation_status",
+    "warnings",
+    "no_go_items",
+    "next_step_recommendation",
+)
+
+LOCAL_ARTIFACT_METADATA_STRING_FIELDS = (
+    "schema_version",
+    "report_type",
+    "report_id",
+    "candidate_family",
+    "purpose",
+    "generated_by",
+    "next_step_recommendation",
+)
+
+REQUIRED_LOCAL_ARTIFACT_ROLES = (
+    "current_bundled_pb",
+    "current_bundled_json",
+    "official_local_onnx",
+    "optional_official_local_pb",
+    "official_local_json",
+)
+
+OFFICIAL_LOCAL_ARTIFACT_ROLES = (
+    "official_local_onnx",
+    "optional_official_local_pb",
+    "official_local_json",
+)
+
+REQUIRED_LOCAL_ARTIFACT_FIELDS = (
+    "artifact_role",
+    "artifact_name",
+    "source_url",
+    "local_path",
+    "local_only",
+    "artifact_downloaded",
+    "artifact_in_repo",
+    "committed_to_repo",
+    "file_size_bytes",
+    "sha256",
+    "provenance_notes",
+    "license_notes",
+)
+
+LOCAL_ARTIFACT_PLACEHOLDER_HASHES = {
+    "todo",
+    "fake",
+    "example",
+    "placeholder",
+    "0" * 64,
+}
+
+LOCAL_ARTIFACT_REPO_PATH_PREFIXES = (
+    "/opt/music-tools",
+    "/opt/music-tools/genre-classifier",
+    "docs/",
+    "tests/",
+    "app/",
+    "models/",
+)
+
+REQUIRED_LOCAL_ARTIFACT_VALIDATION_STATUS = {
+    "template_only": True,
+    "artifact_metadata_complete": False,
+    "real_local_paths_recorded": False,
+    "real_hashes_recorded": False,
+    "real_file_sizes_recorded": False,
+    "license_review_complete": False,
+    "compared_against_legacy_musicnn_baseline": False,
+}
+
 LABEL_MAPPING_FILES = (
     Path("label-mapping/example-onnx-label-mapping.json"),
 )
@@ -294,6 +382,7 @@ class ValidationSummary(NamedTuple):
     json_outputs_checked: int
     fixture_results_checked: int
     model_provenance_checked: int = 0
+    local_artifact_metadata_checked: int = 0
     label_mapping_checked: int = 0
     evidence_packages_checked: int = 0
 
@@ -472,6 +561,114 @@ def _validate_model_provenance(path: Path) -> None:
     approval_status = data["approval_status"].strip().casefold()
     if approval_status in PRODUCTION_APPROVED_STATUSES:
         raise ValidationError(f"{path}.approval_status must not be production-approved")
+
+
+def _validate_required_list_container(data: dict[str, Any], path: Path, field: str) -> None:
+    if field not in data:
+        raise ValidationError(f"{path} is missing required local artifact metadata field: {field}")
+    if not isinstance(data[field], list):
+        raise ValidationError(f"{path}.{field} must be a list")
+
+
+def _validate_local_artifact_metadata_template(path: Path) -> None:
+    data = _load_json(path)
+
+    for field in REQUIRED_LOCAL_ARTIFACT_METADATA_FIELDS:
+        if field not in data:
+            raise ValidationError(f"{path} is missing required local artifact metadata field: {field}")
+
+    for field in LOCAL_ARTIFACT_METADATA_STRING_FIELDS:
+        value = data[field]
+        if not isinstance(value, str) or not value.strip():
+            raise ValidationError(f"{path}.{field} must be a non-empty string")
+
+    if data["report_type"] != "local_musicnn_onnx_artifact_metadata_template":
+        raise ValidationError(f'{path}.report_type must be "local_musicnn_onnx_artifact_metadata_template"')
+    if data["not_production_decision"] is not True:
+        raise ValidationError(f"{path}.not_production_decision must be true")
+    if data["approved_for_inference"] is not False:
+        raise ValidationError(f"{path}.approved_for_inference must be false")
+    if data["approved_for_production"] is not False:
+        raise ValidationError(f"{path}.approved_for_production must be false")
+
+    _validate_required_list_container(data, path, "warnings")
+    _validate_required_list_container(data, path, "no_go_items")
+    _validate_warnings(data, str(path))
+
+    validation_status = data["validation_status"]
+    if not isinstance(validation_status, dict):
+        raise ValidationError(f"{path}.validation_status must be an object")
+    for field, expected_value in REQUIRED_LOCAL_ARTIFACT_VALIDATION_STATUS.items():
+        if validation_status.get(field) is not expected_value:
+            expected_text = str(expected_value).lower()
+            raise ValidationError(f"{path}.validation_status.{field} must be {expected_text}")
+    for field, value in validation_status.items():
+        if "approved" in field.casefold() and value is True:
+            raise ValidationError(f"{path}.validation_status must not record approved state")
+        if isinstance(value, str) and value.strip().casefold() in PRODUCTION_APPROVED_STATUSES | {"approved"}:
+            raise ValidationError(f"{path}.validation_status must not record approved state")
+
+    artifacts = data["artifacts"]
+    if not isinstance(artifacts, list) or not artifacts:
+        raise ValidationError(f"{path}.artifacts must be a non-empty list")
+
+    artifacts_by_role: dict[str, dict[str, Any]] = {}
+    for index, artifact in enumerate(artifacts):
+        context = f"{path}.artifacts[{index}]"
+        if not isinstance(artifact, dict):
+            raise ValidationError(f"{context} must be an object")
+        for field in REQUIRED_LOCAL_ARTIFACT_FIELDS:
+            if field not in artifact:
+                raise ValidationError(f"{context} is missing required field: {field}")
+
+        role = artifact["artifact_role"]
+        if not isinstance(role, str) or not role.strip():
+            raise ValidationError(f"{context}.artifact_role must be a non-empty string")
+        if role in artifacts_by_role:
+            raise ValidationError(f"{context}.artifact_role must be unique: {role!r}")
+        artifacts_by_role[role] = artifact
+
+        if not isinstance(artifact["artifact_name"], str) or not artifact["artifact_name"].strip():
+            raise ValidationError(f"{context}.artifact_name must be a non-empty string")
+        if artifact["artifact_downloaded"] is not False:
+            raise ValidationError(f"{context}.artifact_downloaded must be false")
+        if artifact["artifact_in_repo"] is not False:
+            raise ValidationError(f"{context}.artifact_in_repo must be false")
+        if artifact["committed_to_repo"] is not False:
+            raise ValidationError(f"{context}.committed_to_repo must be false")
+        if artifact["file_size_bytes"] is not None:
+            raise ValidationError(f"{context}.file_size_bytes must be null in the template")
+
+        sha256 = artifact["sha256"]
+        if sha256 is not None:
+            if not isinstance(sha256, str):
+                raise ValidationError(f"{context}.sha256 must be null in the template")
+            normalized_sha = sha256.strip().casefold()
+            if normalized_sha in LOCAL_ARTIFACT_PLACEHOLDER_HASHES:
+                raise ValidationError(f"{context}.sha256 must not be a fake placeholder hash")
+            raise ValidationError(f"{context}.sha256 must be null in the template")
+
+        if role in OFFICIAL_LOCAL_ARTIFACT_ROLES:
+            if artifact["local_only"] is not True:
+                raise ValidationError(f"{context}.local_only must be true for official/local artifacts")
+            local_path = artifact["local_path"]
+            if local_path is None:
+                continue
+            if not isinstance(local_path, str) or not local_path.strip():
+                raise ValidationError(f"{context}.local_path must be null or an explicit placeholder path")
+
+            normalized_path = local_path.strip()
+            if any(
+                normalized_path == prefix.rstrip("/") or normalized_path.startswith(prefix)
+                for prefix in LOCAL_ARTIFACT_REPO_PATH_PREFIXES
+            ):
+                raise ValidationError(f"{context}.local_path must not point inside the repository")
+            if "placeholder" not in normalized_path.casefold() and "example" not in normalized_path.casefold():
+                raise ValidationError(f"{context}.local_path must be null or explicitly placeholder/example-only")
+
+    missing_roles = set(REQUIRED_LOCAL_ARTIFACT_ROLES) - set(artifacts_by_role)
+    if missing_roles:
+        raise ValidationError(f"{path}.artifacts missing required roles: {sorted(missing_roles)}")
 
 
 def _validate_label_mapping(path: Path) -> None:
@@ -668,6 +865,11 @@ def validate_all(root: Path) -> ValidationSummary:
         _validate_model_provenance(evaluation_root / relative_path)
         model_provenance_count += 1
 
+    local_artifact_metadata_count = 0
+    for relative_path in LOCAL_ARTIFACT_METADATA_FILES:
+        _validate_local_artifact_metadata_template(evaluation_root / relative_path)
+        local_artifact_metadata_count += 1
+
     label_mapping_count = 0
     for relative_path in LABEL_MAPPING_FILES:
         _validate_label_mapping(evaluation_root / relative_path)
@@ -683,6 +885,7 @@ def validate_all(root: Path) -> ValidationSummary:
         json_outputs_checked=len(OUTPUT_FILES),
         fixture_results_checked=fixture_result_count,
         model_provenance_checked=model_provenance_count,
+        local_artifact_metadata_checked=local_artifact_metadata_count,
         label_mapping_checked=label_mapping_count,
         evidence_packages_checked=evidence_package_count,
     )
@@ -715,6 +918,7 @@ def main(argv: list[str] | None = None) -> int:
         f"json_outputs={summary.json_outputs_checked}, "
         f"fixture_results={summary.fixture_results_checked}, "
         f"model_provenance={summary.model_provenance_checked}, "
+        f"local_artifact_metadata={summary.local_artifact_metadata_checked}, "
         f"label_mapping={summary.label_mapping_checked}, "
         f"evidence_packages={summary.evidence_packages_checked}"
     )

@@ -23,6 +23,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.json_outputs_checked == 2
     assert summary.fixture_results_checked == 16
     assert summary.model_provenance_checked == 1
+    assert summary.local_artifact_metadata_checked == 1
     assert summary.label_mapping_checked == 1
     assert summary.evidence_packages_checked == 1
 
@@ -101,6 +102,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "json_outputs=2" in captured.out
     assert "fixture_results=16" in captured.out
     assert "model_provenance=1" in captured.out
+    assert "local_artifact_metadata=1" in captured.out
     assert "label_mapping=1" in captured.out
     assert "evidence_packages=1" in captured.out
     assert captured.err == ""
@@ -151,6 +153,151 @@ def test_model_provenance_rejects_production_approved_status(tmp_path):
         assert "production-approved" in str(exc)
     else:
         raise AssertionError("production-approved provenance should fail validation")
+
+
+def _local_artifact_metadata_path():
+    return (
+        SERVICE_ROOT
+        / "docs/lightweight/evaluation/model-provenance/template-local-musicnn-onnx-artifact-metadata.json"
+    )
+
+
+def _write_local_artifact_metadata(tmp_path, validator, data):
+    metadata_path = tmp_path / "local-artifact-metadata.json"
+    metadata_path.write_text(validator.json.dumps(data), encoding="utf-8")
+    return metadata_path
+
+
+def _local_artifact_by_role(data, role):
+    for artifact in data["artifacts"]:
+        if artifact["artifact_role"] == role:
+            return artifact
+    raise AssertionError(f"missing artifact role in fixture: {role}")
+
+
+def _assert_local_artifact_metadata_fails(tmp_path, validator, data, expected):
+    metadata_path = _write_local_artifact_metadata(tmp_path, validator, data)
+
+    try:
+        validator._validate_local_artifact_metadata_template(metadata_path)
+    except validator.ValidationError as exc:
+        assert expected in str(exc)
+    else:
+        raise AssertionError("local artifact metadata template should fail validation")
+
+
+def test_local_artifact_metadata_template_is_validated():
+    validator = load_validator()
+
+    validator._validate_local_artifact_metadata_template(_local_artifact_metadata_path())
+
+
+def test_local_artifact_metadata_requires_required_artifact_roles(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_metadata_path())
+    data["artifacts"] = [
+        artifact for artifact in data["artifacts"] if artifact["artifact_role"] != "official_local_json"
+    ]
+
+    _assert_local_artifact_metadata_fails(tmp_path, validator, data, "official_local_json")
+
+
+def test_local_artifact_metadata_rejects_inference_approval(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_metadata_path())
+    data["approved_for_inference"] = True
+
+    _assert_local_artifact_metadata_fails(tmp_path, validator, data, "approved_for_inference")
+
+
+def test_local_artifact_metadata_rejects_production_approval(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_metadata_path())
+    data["approved_for_production"] = True
+
+    _assert_local_artifact_metadata_fails(tmp_path, validator, data, "approved_for_production")
+
+
+def test_local_artifact_metadata_rejects_production_decision(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_metadata_path())
+    data["not_production_decision"] = False
+
+    _assert_local_artifact_metadata_fails(tmp_path, validator, data, "not_production_decision")
+
+
+def test_local_artifact_metadata_rejects_sha256_placeholder_string(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_metadata_path())
+    _local_artifact_by_role(data, "official_local_onnx")["sha256"] = "placeholder"
+
+    _assert_local_artifact_metadata_fails(tmp_path, validator, data, "fake placeholder hash")
+
+
+def test_local_artifact_metadata_rejects_sha256_all_zero_string(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_metadata_path())
+    _local_artifact_by_role(data, "official_local_onnx")["sha256"] = "0" * 64
+
+    _assert_local_artifact_metadata_fails(tmp_path, validator, data, "fake placeholder hash")
+
+
+def test_local_artifact_metadata_rejects_fake_file_size(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_metadata_path())
+    _local_artifact_by_role(data, "official_local_onnx")["file_size_bytes"] = 123
+
+    _assert_local_artifact_metadata_fails(tmp_path, validator, data, "file_size_bytes")
+
+
+def test_local_artifact_metadata_rejects_artifact_in_repo(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_metadata_path())
+    _local_artifact_by_role(data, "official_local_onnx")["artifact_in_repo"] = True
+
+    _assert_local_artifact_metadata_fails(tmp_path, validator, data, "artifact_in_repo")
+
+
+def test_local_artifact_metadata_rejects_committed_to_repo(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_metadata_path())
+    _local_artifact_by_role(data, "official_local_onnx")["committed_to_repo"] = True
+
+    _assert_local_artifact_metadata_fails(tmp_path, validator, data, "committed_to_repo")
+
+
+def test_local_artifact_metadata_rejects_local_path_inside_repo(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_metadata_path())
+    _local_artifact_by_role(data, "official_local_onnx")[
+        "local_path"
+    ] = "/opt/music-tools/genre-classifier/models/msd-musicnn-1.onnx"
+
+    _assert_local_artifact_metadata_fails(tmp_path, validator, data, "inside the repository")
+
+
+def test_local_artifact_metadata_requires_warnings_container(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_metadata_path())
+    del data["warnings"]
+
+    _assert_local_artifact_metadata_fails(tmp_path, validator, data, "warnings")
+
+
+def test_local_artifact_metadata_requires_no_go_items_container(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_metadata_path())
+    del data["no_go_items"]
+
+    _assert_local_artifact_metadata_fails(tmp_path, validator, data, "no_go_items")
+
+
+def test_local_artifact_metadata_rejects_approved_validation_status(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_metadata_path())
+    data["validation_status"]["approved_for_inference"] = True
+
+    _assert_local_artifact_metadata_fails(tmp_path, validator, data, "approved state")
 
 
 def test_label_mapping_sample_is_validated():
