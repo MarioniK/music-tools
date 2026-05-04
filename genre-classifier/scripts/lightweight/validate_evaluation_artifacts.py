@@ -36,6 +36,10 @@ LABEL_MAPPING_FILES = (
     Path("label-mapping/example-onnx-label-mapping.json"),
 )
 
+EVIDENCE_PACKAGE_FILES = (
+    Path("evidence/example-onnx-evidence-package.json"),
+)
+
 REQUIRED_MODEL_PROVENANCE_FIELDS = (
     "schema_version",
     "model_id",
@@ -141,6 +145,85 @@ LABEL_MAPPING_APPROVAL_STATUSES = {
     "deprecated",
 }
 
+EVIDENCE_PACKAGE_TYPE = "onnx_offline_evaluation_evidence_package"
+
+EVIDENCE_DECISION_STATUSES = {
+    "continue",
+    "revise",
+    "reject",
+    "blocked",
+}
+
+REQUIRED_EVIDENCE_PACKAGE_FIELDS = (
+    "schema_version",
+    "package_id",
+    "package_type",
+    "created_at",
+    "decision_status",
+    "decision_summary",
+    "not_production_decision",
+    "baseline_provider",
+    "candidate_provider",
+    "candidate_family",
+    "artifacts",
+    "model_provenance_path",
+    "label_mapping_path",
+    "manifest_path",
+    "baseline_output_path",
+    "candidate_output_path",
+    "report_path",
+    "validation",
+    "validator_command",
+    "validator_result",
+    "tests_command",
+    "tests_result",
+    "approvals",
+    "approval_gates",
+    "no_go_checklist",
+    "warnings",
+    "known_gaps",
+    "next_step_recommendation",
+)
+
+EVIDENCE_PACKAGE_STRING_FIELDS = (
+    "schema_version",
+    "package_id",
+    "package_type",
+    "created_at",
+    "decision_status",
+    "decision_summary",
+    "baseline_provider",
+    "candidate_provider",
+    "candidate_family",
+    "model_provenance_path",
+    "label_mapping_path",
+    "manifest_path",
+    "baseline_output_path",
+    "candidate_output_path",
+    "report_path",
+    "validator_command",
+    "validator_result",
+    "tests_command",
+    "tests_result",
+    "next_step_recommendation",
+)
+
+EVIDENCE_PACKAGE_ARTIFACT_PATH_FIELDS = (
+    "model_provenance_path",
+    "label_mapping_path",
+    "manifest_path",
+    "baseline_output_path",
+    "candidate_output_path",
+    "report_path",
+)
+
+EVIDENCE_PACKAGE_LIST_FIELDS = (
+    "approval_gates",
+    "no_go_checklist",
+    "warnings",
+    "known_gaps",
+)
+
 MANIFEST_MARKERS = (
     'schema_version: "0.1"',
     'artifact_type: "example_manifest_skeleton"',
@@ -212,6 +295,7 @@ class ValidationSummary(NamedTuple):
     fixture_results_checked: int
     model_provenance_checked: int = 0
     label_mapping_checked: int = 0
+    evidence_packages_checked: int = 0
 
 
 class GenreOverlapSummary(NamedTuple):
@@ -463,6 +547,58 @@ def _validate_label_mapping(path: Path) -> None:
         raise ValidationError(f"{path}.labels does not demonstrate decisions: {sorted(missing_decisions)}")
 
 
+def _validate_evidence_package(path: Path) -> None:
+    data = _load_json(path)
+
+    for field in REQUIRED_EVIDENCE_PACKAGE_FIELDS:
+        if field not in data:
+            raise ValidationError(f"{path} is missing required evidence package field: {field}")
+
+    for field in EVIDENCE_PACKAGE_STRING_FIELDS:
+        value = data[field]
+        if not isinstance(value, str) or not value.strip():
+            raise ValidationError(f"{path}.{field} must be a non-empty string")
+
+    if data["package_type"] != EVIDENCE_PACKAGE_TYPE:
+        raise ValidationError(f'{path}.package_type must be "{EVIDENCE_PACKAGE_TYPE}"')
+
+    if data["decision_status"] not in EVIDENCE_DECISION_STATUSES:
+        raise ValidationError(f"{path}.decision_status is not allowed: {data['decision_status']!r}")
+
+    if data["not_production_decision"] is not True:
+        raise ValidationError(f"{path}.not_production_decision must be true")
+
+    artifacts = data["artifacts"]
+    if not isinstance(artifacts, dict):
+        raise ValidationError(f"{path}.artifacts must be an object")
+
+    for field in EVIDENCE_PACKAGE_ARTIFACT_PATH_FIELDS:
+        value = data[field]
+        if not isinstance(value, str) or not value.strip():
+            raise ValidationError(f"{path}.{field} must be a non-empty string path")
+
+        artifact_value = artifacts.get(field)
+        if artifact_value is not None and artifact_value != value:
+            raise ValidationError(f"{path}.artifacts.{field} must match {field}")
+
+    validation = data["validation"]
+    if not isinstance(validation, dict):
+        raise ValidationError(f"{path}.validation must be an object")
+    for field in ("validator_command", "validator_result", "tests_command", "tests_result"):
+        if field not in validation:
+            raise ValidationError(f"{path}.validation is missing required field: {field}")
+        if validation[field] != data[field]:
+            raise ValidationError(f"{path}.validation.{field} must match {field}")
+
+    approvals = data["approvals"]
+    if not isinstance(approvals, dict):
+        raise ValidationError(f"{path}.approvals must be an object")
+
+    for field in EVIDENCE_PACKAGE_LIST_FIELDS:
+        if not isinstance(data[field], list):
+            raise ValidationError(f"{path}.{field} must be a list")
+
+
 def _extract_genre_tags(value: dict[str, Any]) -> set[str]:
     fixture_results = value.get("fixture_results")
     if isinstance(fixture_results, list):
@@ -537,12 +673,18 @@ def validate_all(root: Path) -> ValidationSummary:
         _validate_label_mapping(evaluation_root / relative_path)
         label_mapping_count += 1
 
+    evidence_package_count = 0
+    for relative_path in EVIDENCE_PACKAGE_FILES:
+        _validate_evidence_package(evaluation_root / relative_path)
+        evidence_package_count += 1
+
     return ValidationSummary(
         files_checked=len(REQUIRED_FILES),
         json_outputs_checked=len(OUTPUT_FILES),
         fixture_results_checked=fixture_result_count,
         model_provenance_checked=model_provenance_count,
         label_mapping_checked=label_mapping_count,
+        evidence_packages_checked=evidence_package_count,
     )
 
 
@@ -573,7 +715,8 @@ def main(argv: list[str] | None = None) -> int:
         f"json_outputs={summary.json_outputs_checked}, "
         f"fixture_results={summary.fixture_results_checked}, "
         f"model_provenance={summary.model_provenance_checked}, "
-        f"label_mapping={summary.label_mapping_checked}"
+        f"label_mapping={summary.label_mapping_checked}, "
+        f"evidence_packages={summary.evidence_packages_checked}"
     )
     return 0
 

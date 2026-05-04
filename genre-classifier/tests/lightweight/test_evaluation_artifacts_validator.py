@@ -24,6 +24,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.fixture_results_checked == 16
     assert summary.model_provenance_checked == 1
     assert summary.label_mapping_checked == 1
+    assert summary.evidence_packages_checked == 1
 
 
 def test_report_required_sections_are_validated(tmp_path):
@@ -101,6 +102,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "fixture_results=16" in captured.out
     assert "model_provenance=1" in captured.out
     assert "label_mapping=1" in captured.out
+    assert "evidence_packages=1" in captured.out
     assert captured.err == ""
 
 
@@ -190,3 +192,62 @@ def test_label_mapping_rejects_unknown_decision(tmp_path):
         assert "mapping_decision" in str(exc)
     else:
         raise AssertionError("label mapping with unknown decision should fail validation")
+
+
+def test_evidence_package_sample_is_validated():
+    validator = load_validator()
+    evidence_path = SERVICE_ROOT / "docs/lightweight/evaluation/evidence/example-onnx-evidence-package.json"
+
+    validator._validate_evidence_package(evidence_path)
+    assert validator._load_json(evidence_path)["candidate_family"] == "onnx_runtime"
+
+
+def test_evidence_package_requires_all_fields(tmp_path):
+    validator = load_validator()
+    source_path = SERVICE_ROOT / "docs/lightweight/evaluation/evidence/example-onnx-evidence-package.json"
+    data = validator._load_json(source_path)
+    del data["decision_summary"]
+
+    evidence_path = tmp_path / "evidence-package.json"
+    evidence_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_evidence_package(evidence_path)
+    except validator.ValidationError as exc:
+        assert "decision_summary" in str(exc)
+    else:
+        raise AssertionError("evidence package without required fields should fail validation")
+
+
+def test_evidence_package_rejects_invalid_decision_status(tmp_path):
+    validator = load_validator()
+    source_path = SERVICE_ROOT / "docs/lightweight/evaluation/evidence/example-onnx-evidence-package.json"
+    data = validator._load_json(source_path)
+    data["decision_status"] = "approved"
+
+    evidence_path = tmp_path / "evidence-package.json"
+    evidence_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_evidence_package(evidence_path)
+    except validator.ValidationError as exc:
+        assert "decision_status" in str(exc)
+    else:
+        raise AssertionError("evidence package with invalid decision_status should fail validation")
+
+
+def test_evidence_package_rejects_production_decision(tmp_path):
+    validator = load_validator()
+    source_path = SERVICE_ROOT / "docs/lightweight/evaluation/evidence/example-onnx-evidence-package.json"
+    data = validator._load_json(source_path)
+    data["not_production_decision"] = False
+
+    evidence_path = tmp_path / "evidence-package.json"
+    evidence_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_evidence_package(evidence_path)
+    except validator.ValidationError as exc:
+        assert "not_production_decision" in str(exc)
+    else:
+        raise AssertionError("production-decision evidence package should fail validation")

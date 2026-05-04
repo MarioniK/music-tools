@@ -1,0 +1,99 @@
+{
+  "schema_version": "0.1",
+  "package_id": "example_onnx_offline_evidence_package_v0_1",
+  "package_type": "onnx_offline_evaluation_evidence_package",
+  "created_at": "2026-05-04T00:00:00Z",
+  "decision_status": "blocked",
+  "decision_summary": "Example-only package shape. This is blocked because provenance, label mapping, model license, runtime metrics, and production approval are incomplete.",
+  "not_production_decision": true,
+  "baseline_provider": "legacy_musicnn",
+  "candidate_provider": "example_lightweight_candidate",
+  "candidate_family": "onnx_runtime",
+  "artifacts": {
+    "model_provenance_path": "docs/lightweight/evaluation/model-provenance/example-onnx-model-provenance.json",
+    "label_mapping_path": "docs/lightweight/evaluation/label-mapping/example-onnx-label-mapping.json",
+    "manifest_path": "docs/lightweight/evaluation/manifests/example-manifest.yaml",
+    "baseline_output_path": "docs/lightweight/evaluation/outputs/example-legacy-baseline-output.json",
+    "candidate_output_path": "docs/lightweight/evaluation/outputs/example-candidate-output.json",
+    "report_path": "docs/lightweight/evaluation/reports/example-evaluation-report.md"
+  },
+  "model_provenance_path": "docs/lightweight/evaluation/model-provenance/example-onnx-model-provenance.json",
+  "label_mapping_path": "docs/lightweight/evaluation/label-mapping/example-onnx-label-mapping.json",
+  "manifest_path": "docs/lightweight/evaluation/manifests/example-manifest.yaml",
+  "baseline_output_path": "docs/lightweight/evaluation/outputs/example-legacy-baseline-output.json",
+  "candidate_output_path": "docs/lightweight/evaluation/outputs/example-candidate-output.json",
+  "report_path": "docs/lightweight/evaluation/reports/example-evaluation-report.md",
+  "validation": {
+    "validator_command": "python3 scripts/lightweight/validate_evaluation_artifacts.py",
+    "validator_result": "example-only: expected pass for static artifact shape",
+    "tests_command": "python3 -m pytest tests/lightweight -q",
+    "tests_result": "example-only: expected pass for lightweight static tests"
+  },
+  "validator_command": "python3 scripts/lightweight/validate_evaluation_artifacts.py",
+  "validator_result": "example-only: expected pass for static artifact shape",
+  "tests_command": "python3 -m pytest tests/lightweight -q",
+  "tests_result": "example-only: expected pass for lightweight static tests",
+  "approvals": {
+    "model_provenance": "not_approved",
+    "label_mapping": "not_approved",
+    "offline_evaluation_report": "example_only",
+    "production_provider": "not_requested",
+    "default_provider_switch": "not_requested",
+    "shadow_or_canary": "not_requested"
+  },
+  "approval_gates": [
+    {
+      "gate": "model provenance approved",
+      "status": "blocked",
+      "reason": "example provenance uses placeholder hash, source, license, and model metadata"
+    },
+    {
+      "gate": "label mapping approved",
+      "status": "blocked",
+      "reason": "example mapping is illustrative and not tied to a real ONNX output"
+    },
+    {
+      "gate": "offline evaluation report reviewed",
+      "status": "blocked",
+      "reason": "example report is static sample evidence, not a captured run"
+    },
+    {
+      "gate": "production migration decision",
+      "status": "not_requested",
+      "reason": "Roadmap 4.14 is not a production decision"
+    }
+  ],
+  "no_go_checklist": [
+    "provenance_not_approved",
+    "label_mapping_not_approved",
+    "model_hash_mismatch",
+    "label_count_mismatch",
+    "candidate_output_missing",
+    "generated_report_missing",
+    "validator_failed",
+    "tests_failed",
+    "major_genre_shift_unresolved",
+    "oov_rate_unknown_or_too_high",
+    "runtime_metrics_missing",
+    "model_license_unclear",
+    "production_dependency_required",
+    "provider_switch_requested_prematurely",
+    "shadow_canary_requested_prematurely"
+  ],
+  "warnings": [
+    "example-only evidence package; not a captured production readiness decision",
+    "legacy_musicnn remains the baseline and default provider",
+    "no inference was run and /classify was not called",
+    "candidate evidence is illustrative and must not enable provider factory wiring"
+  ],
+  "known_gaps": [
+    "no approved model provenance",
+    "no approved label mapping",
+    "no real ONNX Runtime run",
+    "no real audio fixture execution",
+    "no reviewed model license",
+    "no approved runtime metrics",
+    "no production migration approval"
+  ],
+  "next_step_recommendation": "Keep ONNX work offline. Replace example artifacts with captured offline evidence only after provenance, mapping, license, and evaluation data are available for review."
+}
