@@ -881,21 +881,23 @@ def test_musicnn_onnx_parity_spike_report_is_validated():
     validator._validate_musicnn_onnx_parity_spike_report(report_path)
     data = validator._load_json(report_path)
 
-    assert data["roadmap_step"] == "4.39"
-    assert data["report_type"] == "local_musicnn_tensorflow_vs_onnx_runtime_parity_spike"
+    assert data["roadmap"] == "4.40"
+    assert data["report_type"] == "musicnn_onnx_parity_spike_report"
     assert data["not_production_decision"] is True
     assert data["approved_for_production"] is False
     assert data["approved_for_provider_implementation"] is False
     assert data["approved_for_default_provider_switch"] is False
     assert data["approved_for_inference_beyond_local_spike"] is False
+    assert data["onnxruntime_added_to_production_requirements"] is False
+    assert data["metrics"]["max_abs_diff"] is None
 
 
 def test_blocked_musicnn_onnx_parity_spike_report_rejects_fake_metrics(tmp_path):
     validator = load_validator()
     data = validator._load_json(_musicnn_onnx_parity_spike_report_path())
-    data["decision_status"] = "blocked"
+    data["decision_status"] = "blocked_missing_runtime"
     data["parity_run_executed"] = False
-    data["max_abs_diff"] = 0.0
+    data["metrics"]["max_abs_diff"] = 0.0
 
     report_path = tmp_path / "musicnn-onnx-parity-spike-report.json"
     report_path.write_text(validator.json.dumps(data), encoding="utf-8")

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Roadmap 4.39 local-only MusiCNN TensorFlow vs ONNX Runtime parity scaffold.
+"""Roadmap 4.40 local-only MusiCNN TensorFlow vs ONNX Runtime parity scaffold.
 
 This CLI is intentionally stdlib-only. The default mode performs a local-only
-preflight and writes a sanitized Roadmap 4.39 evidence report. It does not
+preflight and writes a sanitized Roadmap 4.40 evidence report. It does not
 install dependencies, call /classify, import provider code, or touch production
 runtime wiring. If local prerequisites are missing, it records explicit blockers
 instead of fake parity metrics.
@@ -50,7 +50,7 @@ LOCAL_ONLY_MODEL_ARTIFACTS = (
     "msd-musicnn-1.pb",
     "msd-musicnn-1.json",
 )
-PARITY_REPORT_TYPE = "local_musicnn_tensorflow_vs_onnx_runtime_parity_spike"
+PARITY_REPORT_TYPE = "musicnn_onnx_parity_spike_report"
 
 EXPECTED_ARTIFACTS = {
     "official_local_onnx": {
@@ -417,6 +417,17 @@ def _audio_fixture_count() -> tuple[bool, int]:
     return True, count
 
 
+def _blocked_decision_status(blockers: list[dict[str, str]]) -> str:
+    blocker_codes = {blocker["code"] for blocker in blockers}
+    if "MODEL_ARTIFACTS_MISSING" in blocker_codes:
+        return "blocked_missing_artifacts"
+    if {"ONNXRUNTIME_UNAVAILABLE", "BASELINE_RUNTIME_UNAVAILABLE"} & blocker_codes:
+        return "blocked_missing_runtime"
+    if {"FIXTURE_DIR_MISSING", "FIXTURE_FILES_MISSING"} & blocker_codes:
+        return "blocked_missing_fixtures"
+    return "blocked_missing_artifacts"
+
+
 def _blocker(code: str, message: str) -> dict[str, str]:
     return {"code": code, "message": message}
 
@@ -440,11 +451,11 @@ def run_parity_spike(report_path: Path) -> dict[str, Any]:
     blockers = []
     if not model_artifacts_available:
         missing = [record["artifact_name"] for record in artifact_records if not record["exists"]]
-        blockers.append(_blocker("LOCAL_MODEL_ARTIFACTS_MISSING", f"Missing local-only model artifacts: {missing}"))
+        blockers.append(_blocker("MODEL_ARTIFACTS_MISSING", f"Missing local-only model artifacts: {missing}"))
     if not fixture_dir_available:
         blockers.append(_blocker("FIXTURE_DIR_MISSING", "Local-only fixture directory is missing."))
     if fixture_dir_available and fixture_count == 0:
-        blockers.append(_blocker("AUDIO_FIXTURES_MISSING", "Local-only fixture directory has no audio fixture files."))
+        blockers.append(_blocker("FIXTURE_FILES_MISSING", "Local-only fixture directory has no audio fixture files."))
     if not onnx_runtime_available:
         blockers.append(_blocker("ONNXRUNTIME_UNAVAILABLE", "onnxruntime is not importable in the local environment."))
     if not baseline_runtime_available:
@@ -459,17 +470,46 @@ def run_parity_spike(report_path: Path) -> dict[str, Any]:
         )
 
     metrics_unavailable_reason = None
-    decision_status = "blocked"
+    decision_status = "blocked_missing_artifacts"
     preprocessing_alignment_status = "not_evaluated"
     if blockers:
         metrics_unavailable_reason = "parity run was not executed because local-only prerequisites are missing"
+        decision_status = _blocked_decision_status(blockers)
         blockers.append(_blocker("PARITY_RUN_NOT_EXECUTED", metrics_unavailable_reason))
+    else:
+        # Numeric parity execution is intentionally not simulated. If this point is
+        # reachable in a local environment, the scaffold must be extended with real
+        # TensorFlow/Essentia and ONNX Runtime capture before reporting metrics.
+        blockers.append(
+            _blocker(
+                "PREPROCESSING_INPUT_MISMATCH",
+                "Numeric capture implementation is not yet present; preprocessing alignment needs real execution.",
+            )
+        )
+        blockers.append(_blocker("PARITY_RUN_NOT_EXECUTED", "numeric parity capture is not implemented"))
+        decision_status = "needs_preprocessing_alignment"
+        metrics_unavailable_reason = "numeric parity capture is not implemented"
+
+    metrics = {
+        "fixture_count": fixture_count,
+        "baseline_runtime_available": baseline_runtime_available,
+        "onnx_runtime_available": onnx_runtime_available,
+        "baseline_output_shape": None,
+        "onnx_output_shape": None,
+        "output_shape_match": None,
+        "max_abs_diff": None,
+        "mean_abs_diff": None,
+        "top_1_match": None,
+        "top_3_overlap": None,
+        "top_5_overlap": None,
+        "preprocessing_alignment_status": preprocessing_alignment_status,
+    }
 
     report = {
         "schema_version": "0.1",
-        "roadmap_step": "4.39",
+        "roadmap": "4.40",
         "report_type": PARITY_REPORT_TYPE,
-        "report_id": "roadmap_4_39_local_musicnn_tensorflow_vs_onnx_runtime_parity_spike",
+        "report_id": "roadmap_4_40_local_only_parity_prerequisites_unblock_and_execution_rerun",
         "generated_by": "scripts/lightweight/musicnn_onnx_parity_scaffold.py",
         "not_production_decision": True,
         "approved_for_production": False,
@@ -483,17 +523,25 @@ def run_parity_spike(report_path: Path) -> dict[str, Any]:
         "no_audio_files_committed": True,
         "no_model_files_committed": True,
         "no_dependency_changes": True,
+        "onnxruntime_added_to_production_requirements": False,
         "no_docker_changes": True,
         "no_provider_factory_changes": True,
         "no_default_provider_changes": True,
         "no_classify_calls": True,
         "tidal_parser_untouched": True,
         "local_only_storage_policy": {
-            "model_artifact_root": "/tmp/music-tools-onnx-parity/",
-            "fixture_root": "/tmp/music-tools-onnx-parity/fixtures/",
+            "model_artifact_root_policy": "allowed_tmp_music_tools_onnx_parity_only",
+            "fixture_root_policy": "allowed_tmp_music_tools_onnx_parity_fixtures_only",
             "audio_files_must_remain_outside_repo": True,
             "model_files_must_remain_outside_repo": True,
+            "full_fixture_paths_published": False,
         },
+        "inherited_roadmap_4_39_blockers": [
+            "FIXTURE_DIR_MISSING",
+            "ONNXRUNTIME_UNAVAILABLE",
+            "BASELINE_RUNTIME_UNAVAILABLE",
+            "PARITY_RUN_NOT_EXECUTED",
+        ],
         "fixture_count": fixture_count,
         "baseline_runtime_available": baseline_runtime_available,
         "onnx_runtime_available": onnx_runtime_available,
@@ -507,15 +555,7 @@ def run_parity_spike(report_path: Path) -> dict[str, Any]:
         "decision_status": decision_status,
         "blockers": blockers,
         "metrics_unavailable_reason": metrics_unavailable_reason,
-        "baseline_output_shape": None,
-        "onnx_output_shape": None,
-        "output_shape_match": None,
-        "max_abs_diff": None,
-        "mean_abs_diff": None,
-        "top_1_match": None,
-        "top_3_overlap": None,
-        "top_5_overlap": None,
-        "preprocessing_alignment_status": preprocessing_alignment_status,
+        "metrics": metrics,
         "warnings": [
             "No fake parity metrics are recorded when prerequisites are missing.",
             "This report is local-only evidence and does not approve production migration.",

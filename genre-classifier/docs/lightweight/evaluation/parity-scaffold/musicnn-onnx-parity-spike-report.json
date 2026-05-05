@@ -4,7 +4,6 @@
   "approved_for_production": false,
   "approved_for_provider_implementation": false,
   "baseline_capture_attempted": false,
-  "baseline_output_shape": null,
   "baseline_runtime_available": false,
   "blockers": [
     {
@@ -25,11 +24,17 @@
     }
   ],
   "classify_contract_unchanged": true,
-  "decision_status": "blocked",
+  "decision_status": "blocked_missing_runtime",
   "default_provider_unchanged": true,
   "fixture_count": 0,
   "fixtures_available": false,
   "generated_by": "scripts/lightweight/musicnn_onnx_parity_scaffold.py",
+  "inherited_roadmap_4_39_blockers": [
+    "FIXTURE_DIR_MISSING",
+    "ONNXRUNTIME_UNAVAILABLE",
+    "BASELINE_RUNTIME_UNAVAILABLE",
+    "PARITY_RUN_NOT_EXECUTED"
+  ],
   "legacy_musicnn_remains_baseline": true,
   "local_model_artifacts": [
     {
@@ -59,12 +64,25 @@
   ],
   "local_only_storage_policy": {
     "audio_files_must_remain_outside_repo": true,
-    "fixture_root": "/tmp/music-tools-onnx-parity/fixtures/",
-    "model_artifact_root": "/tmp/music-tools-onnx-parity/",
+    "fixture_root_policy": "allowed_tmp_music_tools_onnx_parity_fixtures_only",
+    "full_fixture_paths_published": false,
+    "model_artifact_root_policy": "allowed_tmp_music_tools_onnx_parity_only",
     "model_files_must_remain_outside_repo": true
   },
-  "max_abs_diff": null,
-  "mean_abs_diff": null,
+  "metrics": {
+    "baseline_output_shape": null,
+    "baseline_runtime_available": false,
+    "fixture_count": 0,
+    "max_abs_diff": null,
+    "mean_abs_diff": null,
+    "onnx_output_shape": null,
+    "onnx_runtime_available": false,
+    "output_shape_match": null,
+    "preprocessing_alignment_status": "not_evaluated",
+    "top_1_match": null,
+    "top_3_overlap": null,
+    "top_5_overlap": null
+  },
   "metrics_unavailable_reason": "parity run was not executed because local-only prerequisites are missing",
   "model_artifacts_available": true,
   "next_step_recommendation": "Provide local-only audio fixtures and local TensorFlow/Essentia plus onnxruntime availability before running a numeric parity comparison.",
@@ -77,15 +95,13 @@
   "no_provider_factory_changes": true,
   "not_production_decision": true,
   "onnx_capture_attempted": false,
-  "onnx_output_shape": null,
   "onnx_runtime_available": false,
-  "output_shape_match": null,
+  "onnxruntime_added_to_production_requirements": false,
   "parity_run_executed": false,
-  "preprocessing_alignment_status": "not_evaluated",
-  "report_id": "roadmap_4_39_local_musicnn_tensorflow_vs_onnx_runtime_parity_spike",
-  "report_type": "local_musicnn_tensorflow_vs_onnx_runtime_parity_spike",
+  "report_id": "roadmap_4_40_local_only_parity_prerequisites_unblock_and_execution_rerun",
+  "report_type": "musicnn_onnx_parity_spike_report",
   "response_shape_unchanged": true,
-  "roadmap_step": "4.39",
+  "roadmap": "4.40",
   "runtime_module_checks": {
     "essentia": false,
     "essentia.standard": false,
@@ -94,9 +110,6 @@
   },
   "schema_version": "0.1",
   "tidal_parser_untouched": true,
-  "top_1_match": null,
-  "top_3_overlap": null,
-  "top_5_overlap": null,
   "warnings": [
     "No fake parity metrics are recorded when prerequisites are missing.",
     "This report is local-only evidence and does not approve production migration."

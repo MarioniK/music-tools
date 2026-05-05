@@ -487,17 +487,26 @@ EVIDENCE_PACKAGE_LIST_FIELDS = (
     "known_gaps",
 )
 
-MUSICNN_ONNX_PARITY_SPIKE_REPORT_TYPE = "local_musicnn_tensorflow_vs_onnx_runtime_parity_spike"
+MUSICNN_ONNX_PARITY_SPIKE_REPORT_TYPE = "musicnn_onnx_parity_spike_report"
 
 MUSICNN_ONNX_PARITY_SPIKE_DECISION_STATUSES = {
-    "blocked",
+    "viable",
+    "not_viable",
     "needs_preprocessing_alignment",
-    "executed_local_only",
+    "blocked_missing_runtime",
+    "blocked_missing_fixtures",
+    "blocked_missing_artifacts",
+}
+
+MUSICNN_ONNX_PARITY_SPIKE_BLOCKED_STATUSES = {
+    "blocked_missing_runtime",
+    "blocked_missing_fixtures",
+    "blocked_missing_artifacts",
 }
 
 REQUIRED_MUSICNN_ONNX_PARITY_SPIKE_FIELDS = (
     "schema_version",
-    "roadmap_step",
+    "roadmap",
     "report_type",
     "report_id",
     "generated_by",
@@ -513,6 +522,7 @@ REQUIRED_MUSICNN_ONNX_PARITY_SPIKE_FIELDS = (
     "no_audio_files_committed",
     "no_model_files_committed",
     "no_dependency_changes",
+    "onnxruntime_added_to_production_requirements",
     "no_docker_changes",
     "no_provider_factory_changes",
     "no_default_provider_changes",
@@ -528,15 +538,7 @@ REQUIRED_MUSICNN_ONNX_PARITY_SPIKE_FIELDS = (
     "parity_run_executed",
     "decision_status",
     "blockers",
-    "baseline_output_shape",
-    "onnx_output_shape",
-    "output_shape_match",
-    "max_abs_diff",
-    "mean_abs_diff",
-    "top_1_match",
-    "top_3_overlap",
-    "top_5_overlap",
-    "preprocessing_alignment_status",
+    "metrics",
     "warnings",
     "next_step_recommendation",
 )
@@ -982,10 +984,10 @@ def _validate_musicnn_onnx_parity_spike_report(path: Path) -> None:
 
     for field in REQUIRED_MUSICNN_ONNX_PARITY_SPIKE_FIELDS:
         if field not in data:
-            raise ValidationError(f"{path} is missing required Roadmap 4.39 parity spike field: {field}")
+            raise ValidationError(f"{path} is missing required Roadmap 4.40 parity spike field: {field}")
 
-    if data["roadmap_step"] != "4.39":
-        raise ValidationError(f'{path}.roadmap_step must be "4.39"')
+    if data["roadmap"] != "4.40":
+        raise ValidationError(f'{path}.roadmap must be "4.40"')
     if data["report_type"] != MUSICNN_ONNX_PARITY_SPIKE_REPORT_TYPE:
         raise ValidationError(f'{path}.report_type must be "{MUSICNN_ONNX_PARITY_SPIKE_REPORT_TYPE}"')
     if data["generated_by"] != "scripts/lightweight/musicnn_onnx_parity_scaffold.py":
@@ -996,6 +998,7 @@ def _validate_musicnn_onnx_parity_spike_report(path: Path) -> None:
         "approved_for_provider_implementation",
         "approved_for_default_provider_switch",
         "approved_for_inference_beyond_local_spike",
+        "onnxruntime_added_to_production_requirements",
     )
     for field in expected_false_flags:
         _require_bool_value(data[field], False, f"{path}.{field}")
@@ -1037,6 +1040,33 @@ def _validate_musicnn_onnx_parity_spike_report(path: Path) -> None:
     if data["decision_status"] not in MUSICNN_ONNX_PARITY_SPIKE_DECISION_STATUSES:
         raise ValidationError(f"{path}.decision_status is not allowed: {data['decision_status']!r}")
 
+    metrics = data["metrics"]
+    if not isinstance(metrics, dict):
+        raise ValidationError(f"{path}.metrics must be an object")
+    required_metric_fields = (
+        "fixture_count",
+        "baseline_runtime_available",
+        "onnx_runtime_available",
+        "baseline_output_shape",
+        "onnx_output_shape",
+        "output_shape_match",
+        "max_abs_diff",
+        "mean_abs_diff",
+        "top_1_match",
+        "top_3_overlap",
+        "top_5_overlap",
+        "preprocessing_alignment_status",
+    )
+    for field in required_metric_fields:
+        if field not in metrics:
+            raise ValidationError(f"{path}.metrics is missing required field: {field}")
+    if metrics["fixture_count"] != data["fixture_count"]:
+        raise ValidationError(f"{path}.metrics.fixture_count must match top-level fixture_count")
+    if metrics["baseline_runtime_available"] != data["baseline_runtime_available"]:
+        raise ValidationError(f"{path}.metrics.baseline_runtime_available must match top-level value")
+    if metrics["onnx_runtime_available"] != data["onnx_runtime_available"]:
+        raise ValidationError(f"{path}.metrics.onnx_runtime_available must match top-level value")
+
     blockers = data["blockers"]
     if not isinstance(blockers, list):
         raise ValidationError(f"{path}.blockers must be a list")
@@ -1049,7 +1079,7 @@ def _validate_musicnn_onnx_parity_spike_report(path: Path) -> None:
             if not isinstance(value, str) or not value.strip():
                 raise ValidationError(f"{context}.{field} must be a non-empty string")
 
-    if data["decision_status"] == "blocked":
+    if data["decision_status"] in MUSICNN_ONNX_PARITY_SPIKE_BLOCKED_STATUSES:
         if not blockers:
             raise ValidationError(f"{path}.blockers must be non-empty when decision_status is blocked")
         if data["parity_run_executed"] is not False:
@@ -1066,24 +1096,29 @@ def _validate_musicnn_onnx_parity_spike_report(path: Path) -> None:
             "top_3_overlap",
             "top_5_overlap",
         ):
-            if data[field] is not None:
-                raise ValidationError(f"{path}.{field} must be null in a blocked report")
+            if metrics[field] is not None:
+                raise ValidationError(f"{path}.metrics.{field} must be null in a blocked report")
 
     for field in ("max_abs_diff", "mean_abs_diff", "top_3_overlap", "top_5_overlap"):
-        _validate_nullable_metric(data, path, field)
+        value = metrics[field]
+        if value is not None and not _is_number(value):
+            raise ValidationError(f"{path}.metrics.{field} must be null or numeric")
 
     for field in ("baseline_output_shape", "onnx_output_shape"):
-        value = data[field]
+        value = metrics[field]
         if value is not None and not isinstance(value, list):
-            raise ValidationError(f"{path}.{field} must be null or a list")
+            raise ValidationError(f"{path}.metrics.{field} must be null or a list")
 
     for field in ("output_shape_match", "top_1_match"):
-        value = data[field]
+        value = metrics[field]
         if value is not None and not isinstance(value, bool):
-            raise ValidationError(f"{path}.{field} must be null or a bool")
+            raise ValidationError(f"{path}.metrics.{field} must be null or a bool")
 
-    if not isinstance(data["preprocessing_alignment_status"], str) or not data["preprocessing_alignment_status"].strip():
-        raise ValidationError(f"{path}.preprocessing_alignment_status must be a non-empty string")
+    if (
+        not isinstance(metrics["preprocessing_alignment_status"], str)
+        or not metrics["preprocessing_alignment_status"].strip()
+    ):
+        raise ValidationError(f"{path}.metrics.preprocessing_alignment_status must be a non-empty string")
 
     _validate_required_list_container(data, path, "warnings")
     _validate_warnings(data, str(path))
