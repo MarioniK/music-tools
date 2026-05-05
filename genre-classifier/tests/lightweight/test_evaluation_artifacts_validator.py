@@ -29,6 +29,8 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.real_local_artifact_evidence_reports_checked == 1
     assert summary.parity_scaffold_dry_run_outputs_checked == 1
     assert summary.musicnn_onnx_parity_spike_reports_checked == 1
+    assert summary.musicnn_onnx_parity_environment_preparation_reports_checked == 1
+    assert summary.musicnn_onnx_fixtures_and_baseline_runtime_decision_reports_checked == 1
     assert summary.label_mapping_checked == 1
     assert summary.evidence_packages_checked == 1
     assert summary.fixture_manifest_templates_checked == 1
@@ -114,6 +116,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "parity_scaffold_dry_run_outputs=1" in captured.out
     assert "musicnn_onnx_parity_spike_reports=1" in captured.out
     assert "label_mapping=1" in captured.out
+    assert "musicnn_onnx_fixtures_and_baseline_runtime_decision_reports=1" in captured.out
     assert "evidence_packages=1" in captured.out
     assert "fixture_manifest_templates=1" in captured.out
     assert captured.err == ""
@@ -881,6 +884,13 @@ def _musicnn_onnx_parity_environment_preparation_report_path():
     )
 
 
+def _musicnn_onnx_fixtures_and_baseline_runtime_decision_report_path():
+    return (
+        SERVICE_ROOT
+        / "docs/lightweight/evaluation/parity-scaffold/musicnn-onnx-parity-fixtures-and-baseline-runtime-decision-report.json"
+    )
+
+
 def test_musicnn_onnx_parity_spike_report_is_validated():
     validator = load_validator()
     report_path = _musicnn_onnx_parity_spike_report_path()
@@ -964,3 +974,51 @@ def test_musicnn_onnx_parity_environment_preparation_report_rejects_private_path
         assert "full local path" in str(exc)
     else:
         raise AssertionError("environment preparation report with private paths should fail validation")
+
+
+def test_musicnn_onnx_fixtures_and_baseline_runtime_decision_report_is_validated():
+    validator = load_validator()
+    report_path = _musicnn_onnx_fixtures_and_baseline_runtime_decision_report_path()
+
+    validator._validate_musicnn_onnx_fixtures_and_baseline_runtime_decision_report(report_path)
+    data = validator._load_json(report_path)
+
+    assert data["roadmap"] == "4.42"
+    assert data["report_type"] == "musicnn_onnx_fixtures_and_baseline_runtime_decision_report"
+    assert data["fixture_status"] == "missing"
+    assert data["baseline_runtime_status"] == "unavailable"
+    assert data["approved_for_numeric_parity_run"] is False
+    assert data["onnxruntime_available"] is True
+    assert data["sanitized_fixtures"] == []
+
+
+def test_musicnn_onnx_fixtures_and_baseline_runtime_decision_report_rejects_private_paths(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_musicnn_onnx_fixtures_and_baseline_runtime_decision_report_path())
+    data["sanitized_locations"]["fixture_workspace_label"] = "/tmp/music-tools-onnx-parity/fixtures"
+
+    report_path = tmp_path / "musicnn-onnx-parity-fixtures-and-baseline-runtime-decision-report.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_musicnn_onnx_fixtures_and_baseline_runtime_decision_report(report_path)
+    except validator.ValidationError as exc:
+        assert "full local path" in str(exc)
+    else:
+        raise AssertionError("decision report with private paths should fail validation")
+
+
+def test_musicnn_onnx_fixtures_and_baseline_runtime_decision_report_rejects_numeric_parity_flag(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_musicnn_onnx_fixtures_and_baseline_runtime_decision_report_path())
+    data["approved_for_numeric_parity_run"] = True
+
+    report_path = tmp_path / "musicnn-onnx-parity-fixtures-and-baseline-runtime-decision-report.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_musicnn_onnx_fixtures_and_baseline_runtime_decision_report(report_path)
+    except validator.ValidationError as exc:
+        assert "approved_for_numeric_parity_run" in str(exc)
+    else:
+        raise AssertionError("decision report with numeric parity flag should fail validation")

@@ -60,6 +60,10 @@ MUSICNN_ONNX_PARITY_ENVIRONMENT_PREPARATION_REPORT_FILES = (
     Path("parity-scaffold/musicnn-onnx-parity-environment-preparation-report.json"),
 )
 
+MUSICNN_ONNX_FIXTURES_AND_BASELINE_RUNTIME_DECISION_REPORT_FILES = (
+    Path("parity-scaffold/musicnn-onnx-parity-fixtures-and-baseline-runtime-decision-report.json"),
+)
+
 REQUIRED_LOCAL_ARTIFACT_METADATA_FIELDS = (
     "schema_version",
     "report_type",
@@ -495,6 +499,9 @@ MUSICNN_ONNX_PARITY_SPIKE_REPORT_TYPE = "musicnn_onnx_parity_spike_report"
 MUSICNN_ONNX_PARITY_ENVIRONMENT_PREPARATION_REPORT_TYPE = (
     "musicnn_onnx_parity_environment_preparation_report"
 )
+MUSICNN_ONNX_FIXTURES_AND_BASELINE_RUNTIME_DECISION_REPORT_TYPE = (
+    "musicnn_onnx_fixtures_and_baseline_runtime_decision_report"
+)
 
 MUSICNN_ONNX_PARITY_SPIKE_DECISION_STATUSES = {
     "viable",
@@ -606,6 +613,75 @@ REQUIRED_MUSICNN_ONNX_PARITY_ENVIRONMENT_PREREQUISITES = (
     "isolated_env_path_sanitized",
 )
 
+MUSICNN_ONNX_FIXTURE_STATUSES = {
+    "available",
+    "missing",
+    "unclear_provenance",
+}
+
+MUSICNN_ONNX_BASELINE_RUNTIME_STATUSES = {
+    "available",
+    "unavailable",
+    "container_only_candidate",
+    "unsafe_to_import",
+}
+
+MUSICNN_ONNX_DECISION_GATE_STATUSES = {
+    "ready_for_numeric_parity_run",
+    "blocked_missing_fixtures",
+    "blocked_missing_baseline_runtime",
+    "blocked_missing_fixtures_and_baseline_runtime",
+    "blocked_fixture_provenance_unclear",
+}
+
+MUSICNN_ONNX_DECISION_GATE_BLOCKERS = {
+    "FIXTURE_FILES_MISSING",
+    "FIXTURE_PROVENANCE_UNCLEAR",
+    "TENSORFLOW_UNAVAILABLE",
+    "ESSENTIA_UNAVAILABLE",
+    "BASELINE_RUNTIME_UNAVAILABLE",
+    "BASELINE_CONTAINER_PATH_NEEDED",
+    "BASELINE_ENVIRONMENT_NOT_REPRODUCIBLE",
+    "UNSAFE_TO_IMPORT_BASELINE_PROVIDER",
+    "ONNXRUNTIME_ENV_NOT_AVAILABLE",
+    "LOCAL_PATHS_NOT_PUBLISHABLE",
+    "NUMERIC_PARITY_NOT_APPROVED",
+}
+
+REQUIRED_MUSICNN_ONNX_DECISION_GATE_FIELDS = (
+    "report_type",
+    "roadmap",
+    "not_production_decision",
+    "approved_for_production",
+    "approved_for_provider_implementation",
+    "approved_for_default_provider_switch",
+    "approved_for_numeric_parity_run",
+    "no_audio_files_committed",
+    "no_model_files_committed",
+    "no_venv_committed",
+    "no_dependency_changes",
+    "no_docker_changes",
+    "no_classify_calls",
+    "legacy_musicnn_remains_baseline",
+    "fixture_status",
+    "fixture_count",
+    "sanitized_fixtures",
+    "baseline_runtime_status",
+    "tensorflow_available",
+    "essentia_available",
+    "onnxruntime_available",
+    "decision_status",
+    "blockers",
+    "next_step_recommendation",
+)
+
+REQUIRED_SANITIZED_FIXTURE_FIELDS = (
+    "fixture_id",
+    "format",
+    "file_size_bytes",
+    "sha256",
+)
+
 MANIFEST_MARKERS = (
     'schema_version: "0.1"',
     'artifact_type: "example_manifest_skeleton"',
@@ -682,6 +758,7 @@ class ValidationSummary(NamedTuple):
     parity_scaffold_dry_run_outputs_checked: int = 0
     musicnn_onnx_parity_spike_reports_checked: int = 0
     musicnn_onnx_parity_environment_preparation_reports_checked: int = 0
+    musicnn_onnx_fixtures_and_baseline_runtime_decision_reports_checked: int = 0
     label_mapping_checked: int = 0
     evidence_packages_checked: int = 0
     fixture_manifest_templates_checked: int = 0
@@ -1293,6 +1370,146 @@ def _validate_musicnn_onnx_parity_environment_preparation_report(path: Path) -> 
 
     _validate_required_list_container(data, path, "warnings")
     _validate_warnings(data, str(path))
+    _validate_no_inference_or_production_approval_claims(data, str(path))
+    _validate_no_parity_or_runtime_approval_claims(data, path)
+
+
+def _validate_musicnn_onnx_fixtures_and_baseline_runtime_decision_report(path: Path) -> None:
+    data = _load_json(path)
+
+    for field in REQUIRED_MUSICNN_ONNX_DECISION_GATE_FIELDS:
+        if field not in data:
+            raise ValidationError(f"{path} is missing required Roadmap 4.42 decision gate field: {field}")
+
+    if data["roadmap"] != "4.42":
+        raise ValidationError(f'{path}.roadmap must be "4.42"')
+    if data["report_type"] != MUSICNN_ONNX_FIXTURES_AND_BASELINE_RUNTIME_DECISION_REPORT_TYPE:
+        raise ValidationError(
+            f'{path}.report_type must be "{MUSICNN_ONNX_FIXTURES_AND_BASELINE_RUNTIME_DECISION_REPORT_TYPE}"'
+        )
+
+    for field in (
+        "approved_for_production",
+        "approved_for_provider_implementation",
+        "approved_for_default_provider_switch",
+        "approved_for_numeric_parity_run",
+    ):
+        _require_bool_value(data[field], False, f"{path}.{field}")
+
+    for field in (
+        "not_production_decision",
+        "no_audio_files_committed",
+        "no_model_files_committed",
+        "no_venv_committed",
+        "no_dependency_changes",
+        "no_docker_changes",
+        "no_classify_calls",
+        "legacy_musicnn_remains_baseline",
+    ):
+        _require_bool_value(data[field], True, f"{path}.{field}")
+
+    fixture_status = data["fixture_status"]
+    if fixture_status not in MUSICNN_ONNX_FIXTURE_STATUSES:
+        raise ValidationError(f"{path}.fixture_status is not allowed: {fixture_status!r}")
+
+    baseline_status = data["baseline_runtime_status"]
+    if baseline_status not in MUSICNN_ONNX_BASELINE_RUNTIME_STATUSES:
+        raise ValidationError(f"{path}.baseline_runtime_status is not allowed: {baseline_status!r}")
+
+    decision_status = data["decision_status"]
+    if decision_status not in MUSICNN_ONNX_DECISION_GATE_STATUSES:
+        raise ValidationError(f"{path}.decision_status is not allowed: {decision_status!r}")
+
+    fixture_count = data["fixture_count"]
+    if not isinstance(fixture_count, int) or isinstance(fixture_count, bool) or fixture_count < 0:
+        raise ValidationError(f"{path}.fixture_count must be a non-negative integer")
+
+    for field in ("tensorflow_available", "essentia_available", "onnxruntime_available"):
+        if not isinstance(data[field], bool):
+            raise ValidationError(f"{path}.{field} must be a bool")
+
+    sanitized_fixtures = data["sanitized_fixtures"]
+    if not isinstance(sanitized_fixtures, list):
+        raise ValidationError(f"{path}.sanitized_fixtures must be a list")
+    if fixture_count != len(sanitized_fixtures):
+        raise ValidationError(f"{path}.fixture_count must match sanitized_fixtures length")
+
+    for index, fixture in enumerate(sanitized_fixtures):
+        context = f"{path}.sanitized_fixtures[{index}]"
+        if not isinstance(fixture, dict):
+            raise ValidationError(f"{context} must be an object")
+        for field in REQUIRED_SANITIZED_FIXTURE_FIELDS:
+            if field not in fixture:
+                raise ValidationError(f"{context} is missing required field: {field}")
+        fixture_id = fixture["fixture_id"]
+        if not isinstance(fixture_id, str) or not fixture_id.strip():
+            raise ValidationError(f"{context}.fixture_id must be a non-empty string")
+        if "/" in fixture_id or "\\" in fixture_id:
+            raise ValidationError(f"{context}.fixture_id must not contain path separators")
+        audio_format = fixture["format"]
+        if not isinstance(audio_format, str) or not audio_format.strip():
+            raise ValidationError(f"{context}.format must be a non-empty string")
+        _validate_positive_integer(fixture["file_size_bytes"], f"{context}.file_size_bytes")
+        _validate_sha256(fixture["sha256"], f"{context}.sha256")
+        duration = fixture.get("duration_seconds")
+        if duration is not None and (not _is_number(duration) or duration <= 0):
+            raise ValidationError(f"{context}.duration_seconds must be null, absent, or a positive number")
+        category = fixture.get("category")
+        if category is not None and (not isinstance(category, str) or not category.strip()):
+            raise ValidationError(f"{context}.category must be a non-empty string when present")
+
+    blockers = data["blockers"]
+    if not isinstance(blockers, list):
+        raise ValidationError(f"{path}.blockers must be a list")
+    blocker_codes: set[str] = set()
+    for index, blocker in enumerate(blockers):
+        context = f"{path}.blockers[{index}]"
+        if not isinstance(blocker, dict):
+            raise ValidationError(f"{context} must be an object")
+        code = blocker.get("code")
+        message = blocker.get("message")
+        if code not in MUSICNN_ONNX_DECISION_GATE_BLOCKERS:
+            raise ValidationError(f"{context}.code is not allowed: {code!r}")
+        if not isinstance(message, str) or not message.strip():
+            raise ValidationError(f"{context}.message must be a non-empty string")
+        blocker_codes.add(code)
+
+    if fixture_status == "available" and fixture_count <= 0:
+        raise ValidationError(f"{path}.fixture_count must be positive when fixtures are available")
+    if fixture_status == "missing" and "FIXTURE_FILES_MISSING" not in blocker_codes:
+        raise ValidationError(f"{path}.blockers must include FIXTURE_FILES_MISSING when fixtures are missing")
+    if fixture_status == "unclear_provenance" and "FIXTURE_PROVENANCE_UNCLEAR" not in blocker_codes:
+        raise ValidationError(f"{path}.blockers must include FIXTURE_PROVENANCE_UNCLEAR when provenance is unclear")
+
+    if baseline_status == "available":
+        _require_bool_value(data["tensorflow_available"], True, f"{path}.tensorflow_available")
+        _require_bool_value(data["essentia_available"], True, f"{path}.essentia_available")
+    elif "BASELINE_RUNTIME_UNAVAILABLE" not in blocker_codes and baseline_status in {"unavailable", "container_only_candidate"}:
+        raise ValidationError(f"{path}.blockers must explain unavailable baseline runtime")
+
+    if decision_status == "ready_for_numeric_parity_run":
+        if blockers:
+            raise ValidationError(f"{path}.blockers must be empty when ready_for_numeric_parity_run")
+        if fixture_status != "available" or baseline_status != "available":
+            raise ValidationError(f"{path}.decision_status cannot be ready without fixtures and baseline runtime")
+    else:
+        if not blockers:
+            raise ValidationError(f"{path}.blockers must be non-empty when decision_status is blocked")
+        if "NUMERIC_PARITY_NOT_APPROVED" not in blocker_codes:
+            raise ValidationError(f"{path}.blockers must include NUMERIC_PARITY_NOT_APPROVED when blocked")
+
+    sanitized_locations = data.get("sanitized_locations")
+    if sanitized_locations is not None:
+        if not isinstance(sanitized_locations, dict):
+            raise ValidationError(f"{path}.sanitized_locations must be an object")
+        if sanitized_locations.get("full_local_paths_published") is not False:
+            raise ValidationError(f"{path}.sanitized_locations.full_local_paths_published must be false")
+
+    serialized = json.dumps(data)
+    for forbidden_path in ("/tmp/music-tools-onnx-parity", "/opt/music-tools"):
+        if forbidden_path in serialized:
+            raise ValidationError(f"{path} must not publish private full local path: {forbidden_path}")
+
     _validate_no_inference_or_production_approval_claims(data, str(path))
     _validate_no_parity_or_runtime_approval_claims(data, path)
 
@@ -1991,6 +2208,11 @@ def validate_all(root: Path) -> ValidationSummary:
         _validate_musicnn_onnx_parity_environment_preparation_report(evaluation_root / relative_path)
         musicnn_onnx_parity_environment_preparation_report_count += 1
 
+    musicnn_onnx_fixtures_and_baseline_runtime_decision_report_count = 0
+    for relative_path in MUSICNN_ONNX_FIXTURES_AND_BASELINE_RUNTIME_DECISION_REPORT_FILES:
+        _validate_musicnn_onnx_fixtures_and_baseline_runtime_decision_report(evaluation_root / relative_path)
+        musicnn_onnx_fixtures_and_baseline_runtime_decision_report_count += 1
+
     label_mapping_count = 0
     for relative_path in LABEL_MAPPING_FILES:
         _validate_label_mapping(evaluation_root / relative_path)
@@ -2013,6 +2235,9 @@ def validate_all(root: Path) -> ValidationSummary:
         musicnn_onnx_parity_spike_reports_checked=musicnn_onnx_parity_spike_report_count,
         musicnn_onnx_parity_environment_preparation_reports_checked=(
             musicnn_onnx_parity_environment_preparation_report_count
+        ),
+        musicnn_onnx_fixtures_and_baseline_runtime_decision_reports_checked=(
+            musicnn_onnx_fixtures_and_baseline_runtime_decision_report_count
         ),
         label_mapping_checked=label_mapping_count,
         evidence_packages_checked=evidence_package_count,
@@ -2054,6 +2279,8 @@ def main(argv: list[str] | None = None) -> int:
         f"musicnn_onnx_parity_spike_reports={summary.musicnn_onnx_parity_spike_reports_checked}, "
         "musicnn_onnx_parity_environment_preparation_reports="
         f"{summary.musicnn_onnx_parity_environment_preparation_reports_checked}, "
+        "musicnn_onnx_fixtures_and_baseline_runtime_decision_reports="
+        f"{summary.musicnn_onnx_fixtures_and_baseline_runtime_decision_reports_checked}, "
         f"label_mapping={summary.label_mapping_checked}, "
         f"evidence_packages={summary.evidence_packages_checked}, "
         f"fixture_manifest_templates={summary.fixture_manifest_templates_checked}"
