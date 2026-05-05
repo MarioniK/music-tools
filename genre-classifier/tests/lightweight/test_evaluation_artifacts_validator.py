@@ -31,6 +31,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.musicnn_onnx_parity_spike_reports_checked == 1
     assert summary.musicnn_onnx_parity_environment_preparation_reports_checked == 1
     assert summary.musicnn_onnx_fixtures_and_baseline_runtime_decision_reports_checked == 1
+    assert summary.musicnn_onnx_fixture_set_and_baseline_runtime_strategy_reports_checked == 1
     assert summary.label_mapping_checked == 1
     assert summary.evidence_packages_checked == 1
     assert summary.fixture_manifest_templates_checked == 1
@@ -117,6 +118,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "musicnn_onnx_parity_spike_reports=1" in captured.out
     assert "label_mapping=1" in captured.out
     assert "musicnn_onnx_fixtures_and_baseline_runtime_decision_reports=1" in captured.out
+    assert "musicnn_onnx_fixture_set_and_baseline_runtime_strategy_reports=1" in captured.out
     assert "evidence_packages=1" in captured.out
     assert "fixture_manifest_templates=1" in captured.out
     assert captured.err == ""

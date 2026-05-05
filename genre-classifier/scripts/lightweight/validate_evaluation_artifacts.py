@@ -64,6 +64,10 @@ MUSICNN_ONNX_FIXTURES_AND_BASELINE_RUNTIME_DECISION_REPORT_FILES = (
     Path("parity-scaffold/musicnn-onnx-parity-fixtures-and-baseline-runtime-decision-report.json"),
 )
 
+MUSICNN_ONNX_FIXTURE_SET_AND_BASELINE_RUNTIME_STRATEGY_REPORT_FILES = (
+    Path("parity-scaffold/musicnn-onnx-parity-fixture-set-and-baseline-runtime-strategy-report.json"),
+)
+
 REQUIRED_LOCAL_ARTIFACT_METADATA_FIELDS = (
     "schema_version",
     "report_type",
@@ -502,6 +506,9 @@ MUSICNN_ONNX_PARITY_ENVIRONMENT_PREPARATION_REPORT_TYPE = (
 MUSICNN_ONNX_FIXTURES_AND_BASELINE_RUNTIME_DECISION_REPORT_TYPE = (
     "musicnn_onnx_fixtures_and_baseline_runtime_decision_report"
 )
+MUSICNN_ONNX_FIXTURE_SET_AND_BASELINE_RUNTIME_STRATEGY_REPORT_TYPE = (
+    "musicnn_onnx_fixture_set_and_baseline_runtime_strategy_report"
+)
 
 MUSICNN_ONNX_PARITY_SPIKE_DECISION_STATUSES = {
     "viable",
@@ -623,6 +630,7 @@ MUSICNN_ONNX_BASELINE_RUNTIME_STATUSES = {
     "available",
     "unavailable",
     "container_only_candidate",
+    "container_strategy_candidate",
     "unsafe_to_import",
 }
 
@@ -632,6 +640,7 @@ MUSICNN_ONNX_DECISION_GATE_STATUSES = {
     "blocked_missing_baseline_runtime",
     "blocked_missing_fixtures_and_baseline_runtime",
     "blocked_fixture_provenance_unclear",
+    "baseline_container_strategy_selected",
 }
 
 MUSICNN_ONNX_DECISION_GATE_BLOCKERS = {
@@ -641,6 +650,7 @@ MUSICNN_ONNX_DECISION_GATE_BLOCKERS = {
     "ESSENTIA_UNAVAILABLE",
     "BASELINE_RUNTIME_UNAVAILABLE",
     "BASELINE_CONTAINER_PATH_NEEDED",
+    "BASELINE_CONTAINER_STRATEGY_SELECTED",
     "BASELINE_ENVIRONMENT_NOT_REPRODUCIBLE",
     "UNSAFE_TO_IMPORT_BASELINE_PROVIDER",
     "ONNXRUNTIME_ENV_NOT_AVAILABLE",
@@ -759,6 +769,7 @@ class ValidationSummary(NamedTuple):
     musicnn_onnx_parity_spike_reports_checked: int = 0
     musicnn_onnx_parity_environment_preparation_reports_checked: int = 0
     musicnn_onnx_fixtures_and_baseline_runtime_decision_reports_checked: int = 0
+    musicnn_onnx_fixture_set_and_baseline_runtime_strategy_reports_checked: int = 0
     label_mapping_checked: int = 0
     evidence_packages_checked: int = 0
     fixture_manifest_templates_checked: int = 0
@@ -1374,19 +1385,26 @@ def _validate_musicnn_onnx_parity_environment_preparation_report(path: Path) -> 
     _validate_no_parity_or_runtime_approval_claims(data, path)
 
 
-def _validate_musicnn_onnx_fixtures_and_baseline_runtime_decision_report(path: Path) -> None:
+def _validate_musicnn_onnx_fixtures_and_baseline_runtime_decision_report(
+    path: Path,
+    *,
+    expected_roadmap: str = "4.42",
+    expected_report_type: str = MUSICNN_ONNX_FIXTURES_AND_BASELINE_RUNTIME_DECISION_REPORT_TYPE,
+    require_baseline_strategy: bool = False,
+) -> None:
     data = _load_json(path)
 
     for field in REQUIRED_MUSICNN_ONNX_DECISION_GATE_FIELDS:
         if field not in data:
-            raise ValidationError(f"{path} is missing required Roadmap 4.42 decision gate field: {field}")
+            raise ValidationError(f"{path} is missing required Roadmap decision gate field: {field}")
 
-    if data["roadmap"] != "4.42":
-        raise ValidationError(f'{path}.roadmap must be "4.42"')
-    if data["report_type"] != MUSICNN_ONNX_FIXTURES_AND_BASELINE_RUNTIME_DECISION_REPORT_TYPE:
-        raise ValidationError(
-            f'{path}.report_type must be "{MUSICNN_ONNX_FIXTURES_AND_BASELINE_RUNTIME_DECISION_REPORT_TYPE}"'
-        )
+    if require_baseline_strategy and "baseline_runtime_strategy" not in data:
+        raise ValidationError(f"{path} is missing required Roadmap 4.43 field: baseline_runtime_strategy")
+
+    if data["roadmap"] != expected_roadmap:
+        raise ValidationError(f'{path}.roadmap must be "{expected_roadmap}"')
+    if data["report_type"] != expected_report_type:
+        raise ValidationError(f'{path}.report_type must be "{expected_report_type}"')
 
     for field in (
         "approved_for_production",
@@ -1415,6 +1433,16 @@ def _validate_musicnn_onnx_fixtures_and_baseline_runtime_decision_report(path: P
     baseline_status = data["baseline_runtime_status"]
     if baseline_status not in MUSICNN_ONNX_BASELINE_RUNTIME_STATUSES:
         raise ValidationError(f"{path}.baseline_runtime_status is not allowed: {baseline_status!r}")
+
+    if require_baseline_strategy:
+        baseline_strategy = data["baseline_runtime_strategy"]
+        if baseline_strategy not in {
+            "local_service_env",
+            "existing_container_local_only",
+            "isolated_baseline_env",
+            "unavailable",
+        }:
+            raise ValidationError(f"{path}.baseline_runtime_strategy is not allowed: {baseline_strategy!r}")
 
     decision_status = data["decision_status"]
     if decision_status not in MUSICNN_ONNX_DECISION_GATE_STATUSES:
@@ -1484,7 +1512,11 @@ def _validate_musicnn_onnx_fixtures_and_baseline_runtime_decision_report(path: P
     if baseline_status == "available":
         _require_bool_value(data["tensorflow_available"], True, f"{path}.tensorflow_available")
         _require_bool_value(data["essentia_available"], True, f"{path}.essentia_available")
-    elif "BASELINE_RUNTIME_UNAVAILABLE" not in blocker_codes and baseline_status in {"unavailable", "container_only_candidate"}:
+    elif (
+        "BASELINE_RUNTIME_UNAVAILABLE" not in blocker_codes
+        and "BASELINE_CONTAINER_STRATEGY_SELECTED" not in blocker_codes
+        and baseline_status in {"unavailable", "container_only_candidate", "container_strategy_candidate"}
+    ):
         raise ValidationError(f"{path}.blockers must explain unavailable baseline runtime")
 
     if decision_status == "ready_for_numeric_parity_run":
@@ -1512,6 +1544,15 @@ def _validate_musicnn_onnx_fixtures_and_baseline_runtime_decision_report(path: P
 
     _validate_no_inference_or_production_approval_claims(data, str(path))
     _validate_no_parity_or_runtime_approval_claims(data, path)
+
+
+def _validate_musicnn_onnx_fixture_set_and_baseline_runtime_strategy_report(path: Path) -> None:
+    _validate_musicnn_onnx_fixtures_and_baseline_runtime_decision_report(
+        path,
+        expected_roadmap="4.43",
+        expected_report_type=MUSICNN_ONNX_FIXTURE_SET_AND_BASELINE_RUNTIME_STRATEGY_REPORT_TYPE,
+        require_baseline_strategy=True,
+    )
 
 
 def _validate_no_inference_or_production_approval_claims(value: Any, context: str) -> None:
@@ -2213,6 +2254,11 @@ def validate_all(root: Path) -> ValidationSummary:
         _validate_musicnn_onnx_fixtures_and_baseline_runtime_decision_report(evaluation_root / relative_path)
         musicnn_onnx_fixtures_and_baseline_runtime_decision_report_count += 1
 
+    musicnn_onnx_fixture_set_and_baseline_runtime_strategy_report_count = 0
+    for relative_path in MUSICNN_ONNX_FIXTURE_SET_AND_BASELINE_RUNTIME_STRATEGY_REPORT_FILES:
+        _validate_musicnn_onnx_fixture_set_and_baseline_runtime_strategy_report(evaluation_root / relative_path)
+        musicnn_onnx_fixture_set_and_baseline_runtime_strategy_report_count += 1
+
     label_mapping_count = 0
     for relative_path in LABEL_MAPPING_FILES:
         _validate_label_mapping(evaluation_root / relative_path)
@@ -2238,6 +2284,9 @@ def validate_all(root: Path) -> ValidationSummary:
         ),
         musicnn_onnx_fixtures_and_baseline_runtime_decision_reports_checked=(
             musicnn_onnx_fixtures_and_baseline_runtime_decision_report_count
+        ),
+        musicnn_onnx_fixture_set_and_baseline_runtime_strategy_reports_checked=(
+            musicnn_onnx_fixture_set_and_baseline_runtime_strategy_report_count
         ),
         label_mapping_checked=label_mapping_count,
         evidence_packages_checked=evidence_package_count,
@@ -2281,6 +2330,8 @@ def main(argv: list[str] | None = None) -> int:
         f"{summary.musicnn_onnx_parity_environment_preparation_reports_checked}, "
         "musicnn_onnx_fixtures_and_baseline_runtime_decision_reports="
         f"{summary.musicnn_onnx_fixtures_and_baseline_runtime_decision_reports_checked}, "
+        "musicnn_onnx_fixture_set_and_baseline_runtime_strategy_reports="
+        f"{summary.musicnn_onnx_fixture_set_and_baseline_runtime_strategy_reports_checked}, "
         f"label_mapping={summary.label_mapping_checked}, "
         f"evidence_packages={summary.evidence_packages_checked}, "
         f"fixture_manifest_templates={summary.fixture_manifest_templates_checked}"
