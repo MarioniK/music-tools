@@ -30,6 +30,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.parity_scaffold_dry_run_outputs_checked == 1
     assert summary.label_mapping_checked == 1
     assert summary.evidence_packages_checked == 1
+    assert summary.fixture_manifest_templates_checked == 1
 
 
 def test_report_required_sections_are_validated(tmp_path):
@@ -112,6 +113,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "parity_scaffold_dry_run_outputs=1" in captured.out
     assert "label_mapping=1" in captured.out
     assert "evidence_packages=1" in captured.out
+    assert "fixture_manifest_templates=1" in captured.out
     assert captured.err == ""
 
 
@@ -672,6 +674,98 @@ def test_real_local_artifact_evidence_report_requires_next_step_recommendation(t
     del data["next_step_recommendation"]
 
     _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "next_step_recommendation")
+
+
+def _fixture_manifest_template_path():
+    return (
+        SERVICE_ROOT
+        / "docs/lightweight/evaluation/fixtures/template-local-musicnn-onnx-parity-fixture-manifest.json"
+    )
+
+
+def _write_fixture_manifest_template(tmp_path, validator, data):
+    template_path = tmp_path / "fixture-manifest-template.json"
+    template_path.write_text(validator.json.dumps(data), encoding="utf-8")
+    return template_path
+
+
+def _assert_fixture_manifest_template_fails(tmp_path, validator, data, expected):
+    template_path = _write_fixture_manifest_template(tmp_path, validator, data)
+
+    try:
+        validator._validate_fixture_manifest_template(template_path)
+    except validator.ValidationError as exc:
+        assert expected in str(exc)
+    else:
+        raise AssertionError("fixture manifest template should fail validation")
+
+
+def test_fixture_manifest_template_is_validated():
+    validator = load_validator()
+
+    validator._validate_fixture_manifest_template(_fixture_manifest_template_path())
+
+
+def test_fixture_manifest_template_rejects_inference_approval(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_fixture_manifest_template_path())
+    data["approved_for_inference"] = True
+
+    _assert_fixture_manifest_template_fails(tmp_path, validator, data, "approved_for_inference")
+
+
+def test_fixture_manifest_template_rejects_sample_local_path(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_fixture_manifest_template_path())
+    data["sample_fixture"]["local_path"] = "/tmp/music-tools-onnx-parity/fixtures/example.wav"
+
+    _assert_fixture_manifest_template_fails(tmp_path, validator, data, "local_path")
+
+
+def test_fixture_manifest_template_rejects_sample_sha256(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_fixture_manifest_template_path())
+    data["sample_fixture"]["sha256"] = "0" * 64
+
+    _assert_fixture_manifest_template_fails(tmp_path, validator, data, "sha256")
+
+
+def test_fixture_manifest_template_rejects_sample_file_size(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_fixture_manifest_template_path())
+    data["sample_fixture"]["file_size_bytes"] = 123
+
+    _assert_fixture_manifest_template_fails(tmp_path, validator, data, "file_size_bytes")
+
+
+def test_fixture_manifest_template_requires_required_fixture_fields(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_fixture_manifest_template_path())
+    data["required_fixture_fields"] = [
+        field for field in data["required_fixture_fields"] if field != "usage_permission"
+    ]
+
+    _assert_fixture_manifest_template_fails(tmp_path, validator, data, "usage_permission")
+
+
+def test_fixture_manifest_template_requires_storage_policy_root(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_fixture_manifest_template_path())
+    data["fixture_storage_policy"]["recommended_local_fixture_root"] = "/opt/music-tools/genre-classifier"
+
+    _assert_fixture_manifest_template_fails(tmp_path, validator, data, "/tmp/music-tools-onnx-parity/fixtures/")
+
+
+def test_fixture_manifest_template_requires_forbidden_path_markers(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_fixture_manifest_template_path())
+    data["fixture_storage_policy"]["forbidden_paths"] = [
+        marker
+        for marker in data["fixture_storage_policy"]["forbidden_paths"]
+        if marker != "any git-tracked path"
+    ]
+
+    _assert_fixture_manifest_template_fails(tmp_path, validator, data, "any git-tracked path")
 
 
 def test_label_mapping_sample_is_validated():

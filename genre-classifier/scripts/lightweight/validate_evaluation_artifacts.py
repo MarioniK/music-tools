@@ -44,6 +44,10 @@ REAL_LOCAL_ARTIFACT_EVIDENCE_REPORT_FILES = (
     Path("model-provenance/local-musicnn-onnx-artifact-metadata-evidence-report.json"),
 )
 
+FIXTURE_MANIFEST_TEMPLATE_FILES = (
+    Path("fixtures/template-local-musicnn-onnx-parity-fixture-manifest.json"),
+)
+
 PARITY_SCAFFOLD_DRY_RUN_OUTPUT_GLOB = "parity-scaffold/*.json"
 
 REQUIRED_LOCAL_ARTIFACT_METADATA_FIELDS = (
@@ -222,6 +226,68 @@ REQUIRED_LOCAL_ARTIFACT_VALIDATION_STATUS = {
     "license_review_complete": False,
     "compared_against_legacy_musicnn_baseline": False,
 }
+
+FIXTURE_MANIFEST_TEMPLATE_TYPE = "local_musicnn_onnx_parity_fixture_manifest_template"
+
+REQUIRED_FIXTURE_MANIFEST_TEMPLATE_FIELDS = (
+    "schema_version",
+    "manifest_type",
+    "template_only",
+    "not_production_decision",
+    "approval_status",
+    "approved_for_inference",
+    "approved_for_production",
+    "approved_for_local_parity_evaluation",
+    "approved_for_repo_inclusion",
+    "audio_files_in_repo",
+    "real_audio_fixtures_included",
+    "fixture_manifest_approved",
+    "fixture_storage_policy",
+    "required_fixture_fields",
+    "fixture_categories",
+    "sample_fixture",
+)
+
+REQUIRED_FIXTURE_FIELDS = (
+    "fixture_id",
+    "local_path",
+    "local_only",
+    "artifact_in_repo",
+    "committed_to_repo",
+    "duration_seconds",
+    "file_size_bytes",
+    "sha256",
+    "audio_format",
+    "sample_rate_hz",
+    "channels",
+    "source_type",
+    "license_status",
+    "usage_permission",
+    "provenance_notes",
+    "expected_quality_notes",
+    "category",
+    "tags",
+    "approved_for_local_parity_evaluation",
+    "approved_for_repo_inclusion",
+)
+
+FIXTURE_CATEGORIES = (
+    "clear mainstream genre sample",
+    "ambiguous / overlapping genre sample",
+    "low-confidence / edge sample",
+    "short sample",
+    "production-relevant sample",
+    "silence / corrupt / unreadable negative sample",
+)
+
+FIXTURE_FORBIDDEN_PATH_MARKERS = (
+    "repo root",
+    "docs/",
+    "tests/",
+    "app/",
+    "any git-tracked path",
+    "any location under /opt/music-tools/genre-classifier",
+)
 
 LABEL_MAPPING_FILES = (
     Path("label-mapping/example-onnx-label-mapping.json"),
@@ -491,6 +557,7 @@ class ValidationSummary(NamedTuple):
     parity_scaffold_dry_run_outputs_checked: int = 0
     label_mapping_checked: int = 0
     evidence_packages_checked: int = 0
+    fixture_manifest_templates_checked: int = 0
 
 
 class GenreOverlapSummary(NamedTuple):
@@ -1209,6 +1276,103 @@ def _validate_local_artifact_metadata_template(path: Path) -> None:
         raise ValidationError(f"{path}.artifacts missing required roles: {sorted(missing_roles)}")
 
 
+def _validate_fixture_manifest_template(path: Path) -> None:
+    data = _load_json(path)
+
+    for field in REQUIRED_FIXTURE_MANIFEST_TEMPLATE_FIELDS:
+        if field not in data:
+            raise ValidationError(f"{path} is missing required fixture manifest template field: {field}")
+
+    if data["manifest_type"] != FIXTURE_MANIFEST_TEMPLATE_TYPE:
+        raise ValidationError(f'{path}.manifest_type must be "{FIXTURE_MANIFEST_TEMPLATE_TYPE}"')
+    if data["approval_status"] != "template_only_not_approved":
+        raise ValidationError(f'{path}.approval_status must be "template_only_not_approved"')
+
+    expected_top_level_flags = {
+        "template_only": True,
+        "not_production_decision": True,
+        "approved_for_inference": False,
+        "approved_for_production": False,
+        "approved_for_local_parity_evaluation": False,
+        "approved_for_repo_inclusion": False,
+        "audio_files_in_repo": False,
+        "real_audio_fixtures_included": False,
+        "fixture_manifest_approved": False,
+    }
+    for field, expected_value in expected_top_level_flags.items():
+        _require_bool_value(data[field], expected_value, f"{path}.{field}")
+
+    storage_policy = _validate_required_object(data, path, "fixture_storage_policy")
+    if storage_policy["recommended_local_fixture_root"] != "/tmp/music-tools-onnx-parity/fixtures/":
+        raise ValidationError(f"{path}.fixture_storage_policy must recommend /tmp/music-tools-onnx-parity/fixtures/")
+    _require_bool_value(
+        storage_policy["audio_files_must_remain_outside_repo"],
+        True,
+        f"{path}.fixture_storage_policy.audio_files_must_remain_outside_repo",
+    )
+
+    forbidden_paths = storage_policy["forbidden_paths"]
+    if not isinstance(forbidden_paths, list):
+        raise ValidationError(f"{path}.fixture_storage_policy.forbidden_paths must be a list")
+    for marker in FIXTURE_FORBIDDEN_PATH_MARKERS:
+        if marker not in forbidden_paths:
+            raise ValidationError(f"{path}.fixture_storage_policy.forbidden_paths must include {marker!r}")
+
+    required_fields = data["required_fixture_fields"]
+    if not isinstance(required_fields, list):
+        raise ValidationError(f"{path}.required_fixture_fields must be a list")
+    missing_fixture_fields = set(REQUIRED_FIXTURE_FIELDS) - set(required_fields)
+    if missing_fixture_fields:
+        raise ValidationError(f"{path}.required_fixture_fields missing fields: {sorted(missing_fixture_fields)}")
+
+    categories = data["fixture_categories"]
+    if not isinstance(categories, list):
+        raise ValidationError(f"{path}.fixture_categories must be a list")
+    missing_categories = set(FIXTURE_CATEGORIES) - set(categories)
+    if missing_categories:
+        raise ValidationError(f"{path}.fixture_categories missing categories: {sorted(missing_categories)}")
+
+    sample_fixture = _validate_required_object(data, path, "sample_fixture")
+    for field in REQUIRED_FIXTURE_FIELDS:
+        if field not in sample_fixture:
+            raise ValidationError(f"{path}.sample_fixture is missing required field: {field}")
+
+    if sample_fixture["fixture_id"] != "template-placeholder":
+        raise ValidationError(f'{path}.sample_fixture.fixture_id must be "template-placeholder"')
+    for field in (
+        "local_path",
+        "duration_seconds",
+        "file_size_bytes",
+        "sha256",
+        "audio_format",
+        "sample_rate_hz",
+        "channels",
+        "source_type",
+        "license_status",
+        "usage_permission",
+        "provenance_notes",
+        "expected_quality_notes",
+        "category",
+    ):
+        if sample_fixture[field] is not None:
+            raise ValidationError(f"{path}.sample_fixture.{field} must be null in the template")
+
+    for field, expected_value in {
+        "local_only": True,
+        "artifact_in_repo": False,
+        "committed_to_repo": False,
+        "approved_for_local_parity_evaluation": False,
+        "approved_for_repo_inclusion": False,
+    }.items():
+        _require_bool_value(sample_fixture[field], expected_value, f"{path}.sample_fixture.{field}")
+
+    if sample_fixture["tags"] != []:
+        raise ValidationError(f"{path}.sample_fixture.tags must be an empty list")
+
+    _validate_no_inference_or_production_approval_claims(data, str(path))
+    _validate_no_parity_or_runtime_approval_claims(data, path)
+
+
 def _validate_label_mapping(path: Path) -> None:
     data = _load_json(path)
 
@@ -1418,6 +1582,11 @@ def validate_all(root: Path) -> ValidationSummary:
         _validate_real_local_artifact_evidence_report(evaluation_root / relative_path)
         real_local_artifact_evidence_report_count += 1
 
+    fixture_manifest_template_count = 0
+    for relative_path in FIXTURE_MANIFEST_TEMPLATE_FILES:
+        _validate_fixture_manifest_template(evaluation_root / relative_path)
+        fixture_manifest_template_count += 1
+
     parity_scaffold_dry_run_output_count = 0
     for path in sorted(evaluation_root.glob(PARITY_SCAFFOLD_DRY_RUN_OUTPUT_GLOB)):
         _validate_parity_scaffold_dry_run_output(path)
@@ -1444,6 +1613,7 @@ def validate_all(root: Path) -> ValidationSummary:
         parity_scaffold_dry_run_outputs_checked=parity_scaffold_dry_run_output_count,
         label_mapping_checked=label_mapping_count,
         evidence_packages_checked=evidence_package_count,
+        fixture_manifest_templates_checked=fixture_manifest_template_count,
     )
 
 
@@ -1479,7 +1649,8 @@ def main(argv: list[str] | None = None) -> int:
         f"real_local_artifact_evidence_reports={summary.real_local_artifact_evidence_reports_checked}, "
         f"parity_scaffold_dry_run_outputs={summary.parity_scaffold_dry_run_outputs_checked}, "
         f"label_mapping={summary.label_mapping_checked}, "
-        f"evidence_packages={summary.evidence_packages_checked}"
+        f"evidence_packages={summary.evidence_packages_checked}, "
+        f"fixture_manifest_templates={summary.fixture_manifest_templates_checked}"
     )
     return 0
 
