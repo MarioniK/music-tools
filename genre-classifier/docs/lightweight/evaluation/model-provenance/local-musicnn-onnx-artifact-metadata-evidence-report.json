@@ -1,0 +1,229 @@
+{
+  "schema_version": "0.1",
+  "report_type": "local_musicnn_onnx_artifact_metadata_evidence_report",
+  "report_id": "roadmap-4.30-2026-05-05-local-musicnn-onnx-artifact-metadata",
+  "candidate_family": "musicnn_msd_local_only_onnx",
+  "purpose": "Real local-only metadata evidence for manually prepared official MusiCNN ONNX/PB/JSON artifacts. This report records measured file sizes, SHA256 hashes, local-only paths, provenance notes, and safety confirmations only; it is not an inference, provider, runtime, dependency, Docker, or production decision.",
+  "not_production_decision": true,
+  "approved_for_inference": false,
+  "approved_for_production": false,
+  "generated_at": "2026-05-05T09:12:52+03:00",
+  "generated_by": "roadmap-4.30-manual-local-only-artifact-preparation",
+  "local_environment": {
+    "service_working_directory": "/opt/music-tools/genre-classifier",
+    "repository_root": "/opt/music-tools",
+    "artifact_root": "/tmp/music-tools-onnx-parity",
+    "timezone": "Europe/Minsk",
+    "notes": "The artifact_root is local-only, outside the repository, disposable, non-portable, and not used by production runtime."
+  },
+  "artifacts": [
+    {
+      "artifact_role": "official_local_onnx",
+      "artifact_name": "msd-musicnn-1.onnx",
+      "source_url": "https://essentia.upf.edu/models/feature-extractors/musicnn/msd-musicnn-1.onnx",
+      "source_reference_type": "official_essentia_feature_extractors_musicnn_index",
+      "local_path": "/tmp/music-tools-onnx-parity/msd-musicnn-1.onnx",
+      "local_only": true,
+      "downloaded_manually": true,
+      "artifact_downloaded": true,
+      "artifact_in_repo": false,
+      "committed_to_repo": false,
+      "file_size_bytes": 3168334,
+      "sha256": "49668ffec47e52e94b96f45930bb46a28a1368d4bdfb5c05378fa834aca616e1",
+      "provenance_notes": "Manually prepared outside the repository from the official Essentia feature-extractors/musicnn source index. The source index lists msd-musicnn-1.onnx dated 18-May-2023 with size 3168334 bytes. This artifact was measured locally after download and was not copied into the repo.",
+      "license_notes": "Essentia documentation states MTG-created models are licensed under CC BY-NC-SA 4.0 and may be available under proprietary license upon request. License review remains required before any inference, redistribution, or production use.",
+      "verification_commands": [
+        "sha256sum /tmp/music-tools-onnx-parity/msd-musicnn-1.onnx",
+        "stat -c '%n %s' /tmp/music-tools-onnx-parity/msd-musicnn-1.onnx",
+        "realpath /tmp/music-tools-onnx-parity/"
+      ],
+      "verification_results": {
+        "file_size_measured": true,
+        "sha256_measured": true,
+        "outside_repo_verified": true,
+        "not_staged_verified": true,
+        "not_committed_verified": true
+      }
+    },
+    {
+      "artifact_role": "official_local_json",
+      "artifact_name": "msd-musicnn-1.json",
+      "source_url": "https://essentia.upf.edu/models/feature-extractors/musicnn/msd-musicnn-1.json",
+      "source_reference_type": "official_essentia_feature_extractors_musicnn_index",
+      "local_path": "/tmp/music-tools-onnx-parity/msd-musicnn-1.json",
+      "local_only": true,
+      "downloaded_manually": true,
+      "artifact_downloaded": true,
+      "artifact_in_repo": false,
+      "committed_to_repo": false,
+      "file_size_bytes": 3299,
+      "sha256": "8e6b3b509f0610c0e65dce467fd459d6777509388eaddb13ed138d8ac1341ffe",
+      "provenance_notes": "Manually prepared outside the repository from the official Essentia feature-extractors/musicnn source index. The source index lists msd-musicnn-1.json dated 16-May-2023 with size 3299 bytes. This official/local JSON differs from the current bundled baseline JSON by measured SHA256 and one byte of file size; this is recorded only as a metadata evidence gap and review item. It is not parity evidence, does not approve inference, and must be reviewed before any parity scaffold.",
+      "license_notes": "Essentia documentation states MTG-created models are licensed under CC BY-NC-SA 4.0 and may be available under proprietary license upon request. License review remains required before any inference, redistribution, or production use.",
+      "verification_commands": [
+        "sha256sum /tmp/music-tools-onnx-parity/msd-musicnn-1.json",
+        "stat -c '%n %s' /tmp/music-tools-onnx-parity/msd-musicnn-1.json",
+        "realpath /tmp/music-tools-onnx-parity/"
+      ],
+      "verification_results": {
+        "file_size_measured": true,
+        "sha256_measured": true,
+        "outside_repo_verified": true,
+        "not_staged_verified": true,
+        "not_committed_verified": true
+      }
+    },
+    {
+      "artifact_role": "optional_official_local_pb",
+      "artifact_name": "msd-musicnn-1.pb",
+      "source_url": "https://essentia.upf.edu/models/feature-extractors/musicnn/msd-musicnn-1.pb",
+      "source_reference_type": "official_essentia_feature_extractors_musicnn_index",
+      "local_path": "/tmp/music-tools-onnx-parity/msd-musicnn-1.pb",
+      "local_only": true,
+      "downloaded_manually": true,
+      "artifact_downloaded": true,
+      "artifact_in_repo": false,
+      "committed_to_repo": false,
+      "file_size_bytes": 3197999,
+      "sha256": "cdea0722bcee7f731286843f2233e3aa69887bb5c3e2dce011eff55f38d04f3e",
+      "provenance_notes": "Optional PB was prepared because the official source index exposes it alongside the ONNX and JSON artifacts, and it is useful for identity/hash comparison against the current bundled production baseline PB. The official/local PB SHA256 matches app/models/msd-musicnn-1.pb.",
+      "license_notes": "Essentia documentation states MTG-created models are licensed under CC BY-NC-SA 4.0 and may be available under proprietary license upon request. License review remains required before any inference, redistribution, or production use.",
+      "verification_commands": [
+        "sha256sum /tmp/music-tools-onnx-parity/msd-musicnn-1.pb",
+        "stat -c '%n %s' /tmp/music-tools-onnx-parity/msd-musicnn-1.pb",
+        "cmp -s /tmp/music-tools-onnx-parity/msd-musicnn-1.pb app/models/msd-musicnn-1.pb"
+      ],
+      "verification_results": {
+        "file_size_measured": true,
+        "sha256_measured": true,
+        "outside_repo_verified": true,
+        "not_staged_verified": true,
+        "not_committed_verified": true,
+        "matches_current_bundled_pb_sha256": true
+      }
+    },
+    {
+      "artifact_role": "current_bundled_pb",
+      "artifact_name": "msd-musicnn-1.pb",
+      "source_url": null,
+      "source_reference_type": "existing_service_runtime_baseline",
+      "repo_relative_path": "app/models/msd-musicnn-1.pb",
+      "local_path": "/opt/music-tools/genre-classifier/app/models/msd-musicnn-1.pb",
+      "local_only": false,
+      "downloaded_manually": false,
+      "artifact_downloaded": false,
+      "artifact_in_repo": true,
+      "committed_to_repo": false,
+      "git_status": "ignored_existing_runtime_baseline_file",
+      "file_size_bytes": 3197999,
+      "sha256": "cdea0722bcee7f731286843f2233e3aa69887bb5c3e2dce011eff55f38d04f3e",
+      "provenance_notes": "Existing production baseline PB already present under app/models for the legacy_musicnn runtime path. It was measured for comparison only, was not newly downloaded, and is not an official/local temp artifact. git ls-files did not list it; git status --ignored reported it as ignored.",
+      "license_notes": "Existing bundled production baseline artifact. License status is not changed by this metadata evidence report.",
+      "verification_commands": [
+        "sha256sum app/models/msd-musicnn-1.pb",
+        "stat -c '%n %s' app/models/msd-musicnn-1.pb",
+        "git status --short --ignored app/models/msd-musicnn-1.pb",
+        "git ls-files app/models/msd-musicnn-1.pb"
+      ],
+      "verification_results": {
+        "file_size_measured": true,
+        "sha256_measured": true,
+        "existing_production_baseline_artifact": true,
+        "newly_downloaded": false,
+        "official_local_temp_artifact": false,
+        "tracked_by_git_ls_files": false,
+        "ignored_by_git_status": true
+      }
+    },
+    {
+      "artifact_role": "current_bundled_json",
+      "artifact_name": "msd-musicnn-1.json",
+      "source_url": null,
+      "source_reference_type": "existing_service_runtime_baseline",
+      "repo_relative_path": "app/models/msd-musicnn-1.json",
+      "local_path": "/opt/music-tools/genre-classifier/app/models/msd-musicnn-1.json",
+      "local_only": false,
+      "downloaded_manually": false,
+      "artifact_downloaded": false,
+      "artifact_in_repo": true,
+      "committed_to_repo": false,
+      "git_status": "ignored_existing_runtime_baseline_file",
+      "file_size_bytes": 3298,
+      "sha256": "24842b068b5c09dce033a0bcb41d450e4e469352b799e831ac7728c93bbfb6be",
+      "provenance_notes": "Existing production baseline JSON already present under app/models for the legacy_musicnn runtime path. It was measured for comparison only, was not newly downloaded, and is not an official/local temp artifact. git ls-files did not list it; git status --ignored reported it as ignored. It differs from the official/local JSON by measured SHA256 and one byte of file size. This difference is an evidence gap and review item, not parity evidence or inference approval.",
+      "license_notes": "Existing bundled production baseline artifact. License status is not changed by this metadata evidence report.",
+      "verification_commands": [
+        "sha256sum app/models/msd-musicnn-1.json",
+        "stat -c '%n %s' app/models/msd-musicnn-1.json",
+        "git status --short --ignored app/models/msd-musicnn-1.json",
+        "git ls-files app/models/msd-musicnn-1.json"
+      ],
+      "verification_results": {
+        "file_size_measured": true,
+        "sha256_measured": true,
+        "existing_production_baseline_artifact": true,
+        "newly_downloaded": false,
+        "official_local_temp_artifact": false,
+        "tracked_by_git_ls_files": false,
+        "ignored_by_git_status": true,
+        "matches_official_local_json_sha256": false
+      }
+    }
+  ],
+  "verification_commands": [
+    "realpath /tmp/music-tools-onnx-parity/",
+    "ls -lh /tmp/music-tools-onnx-parity/",
+    "sha256sum /tmp/music-tools-onnx-parity/msd-musicnn-1.onnx /tmp/music-tools-onnx-parity/msd-musicnn-1.json /tmp/music-tools-onnx-parity/msd-musicnn-1.pb app/models/msd-musicnn-1.pb app/models/msd-musicnn-1.json",
+    "stat -c '%n %s' /tmp/music-tools-onnx-parity/msd-musicnn-1.onnx /tmp/music-tools-onnx-parity/msd-musicnn-1.json /tmp/music-tools-onnx-parity/msd-musicnn-1.pb app/models/msd-musicnn-1.pb app/models/msd-musicnn-1.json",
+    "git ls-files | grep -E 'msd-musicnn-1\\\\.(onnx|pb|json)' || true",
+    "git status --short --ignored app/models/msd-musicnn-1.pb app/models/msd-musicnn-1.json",
+    "cmp -s /tmp/music-tools-onnx-parity/msd-musicnn-1.pb app/models/msd-musicnn-1.pb",
+    "cmp -s /tmp/music-tools-onnx-parity/msd-musicnn-1.json app/models/msd-musicnn-1.json"
+  ],
+  "verification_results": {
+    "real_artifacts_prepared": true,
+    "real_local_paths_recorded": true,
+    "real_file_sizes_recorded": true,
+    "real_hashes_recorded": true,
+    "artifacts_verified_outside_repo": true,
+    "artifacts_verified_not_staged": true,
+    "artifacts_verified_not_committed": true,
+    "official_local_artifacts_under_tmp_only": true,
+    "official_local_model_files_added_to_repo": false,
+    "current_bundled_pb_matches_official_local_pb_sha256": true,
+    "current_bundled_json_matches_official_local_json_sha256": false,
+    "inference_executed": false,
+    "classify_called": false,
+    "onnxruntime_added": false,
+    "dependencies_added": false,
+    "provider_runtime_docker_changed": false,
+    "tidal_parser_touched": false
+  },
+  "warnings": [
+    "local-only paths are non-portable and must not be used by production runtime",
+    "license review remains required before inference, redistribution, or production use",
+    "official/local JSON differs from the current bundled JSON by SHA256 and one byte of file size; this is an evidence gap and review item, not parity evidence",
+    "current bundled app/models artifacts are present in the service tree but are ignored by git in this worktree",
+    "this report does not approve inference",
+    "this report does not approve production use",
+    "legacy_musicnn remains the production baseline"
+  ],
+  "no_go_items": [
+    "do_not_run_inference",
+    "do_not_call_classify",
+    "do_not_add_onnxruntime",
+    "do_not_add_dependencies",
+    "do_not_change_provider_factory",
+    "do_not_change_default_provider",
+    "do_not_change_production_runtime",
+    "do_not_change_docker",
+    "do_not_store_official_local_artifacts_in_repo",
+    "do_not_commit_or_stage_model_files",
+    "do_not_touch_tidal_parser",
+    "do_not_treat_json_difference_as_parity_evidence",
+    "review_json_difference_before_any_parity_scaffold"
+  ],
+  "review_status": "prepared_for_review",
+  "approval_status": "local_artifact_preparation_only",
+  "next_step_recommendation": "review real local-only artifact metadata evidence before any parity scaffold"
+}
