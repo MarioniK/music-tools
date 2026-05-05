@@ -32,6 +32,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.musicnn_onnx_parity_environment_preparation_reports_checked == 1
     assert summary.musicnn_onnx_fixtures_and_baseline_runtime_decision_reports_checked == 1
     assert summary.musicnn_onnx_fixture_set_and_baseline_runtime_strategy_reports_checked == 1
+    assert summary.musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_reports_checked == 1
     assert summary.label_mapping_checked == 1
     assert summary.evidence_packages_checked == 1
     assert summary.fixture_manifest_templates_checked == 1
@@ -119,9 +120,43 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "label_mapping=1" in captured.out
     assert "musicnn_onnx_fixtures_and_baseline_runtime_decision_reports=1" in captured.out
     assert "musicnn_onnx_fixture_set_and_baseline_runtime_strategy_reports=1" in captured.out
+    assert "musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_reports=1" in captured.out
     assert "evidence_packages=1" in captured.out
     assert "fixture_manifest_templates=1" in captured.out
     assert captured.err == ""
+
+
+def _scoped_baseline_capture_approval_path():
+    return (
+        SERVICE_ROOT
+        / "docs/lightweight/evaluation/parity-scaffold/"
+        / "musicnn-onnx-parity-fixtures-and-scoped-baseline-capture-approval-report.json"
+    )
+
+
+def test_scoped_baseline_capture_approval_report_is_validated():
+    validator = load_validator()
+
+    validator._validate_musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_report(
+        _scoped_baseline_capture_approval_path()
+    )
+
+
+def test_scoped_baseline_capture_approval_requires_missing_fixture_blocker(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_scoped_baseline_capture_approval_path())
+    data["fixture_blockers"] = []
+    data["readiness_decision"]["blockers"] = []
+
+    report_path = tmp_path / "approval-report.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_report(report_path)
+    except validator.ValidationError as exc:
+        assert "FIXTURE_FILES_MISSING" in str(exc) or "blockers must be non-empty" in str(exc)
+    else:
+        raise AssertionError("missing fixture report should require a fixture blocker")
 
 
 def test_model_provenance_sample_is_validated():
