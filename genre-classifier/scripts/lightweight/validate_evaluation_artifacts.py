@@ -44,6 +44,8 @@ REAL_LOCAL_ARTIFACT_EVIDENCE_REPORT_FILES = (
     Path("model-provenance/local-musicnn-onnx-artifact-metadata-evidence-report.json"),
 )
 
+PARITY_SCAFFOLD_DRY_RUN_OUTPUT_GLOB = "parity-scaffold/*.json"
+
 REQUIRED_LOCAL_ARTIFACT_METADATA_FIELDS = (
     "schema_version",
     "report_type",
@@ -486,6 +488,7 @@ class ValidationSummary(NamedTuple):
     local_artifact_metadata_checked: int = 0
     local_artifact_evidence_reports_checked: int = 0
     real_local_artifact_evidence_reports_checked: int = 0
+    parity_scaffold_dry_run_outputs_checked: int = 0
     label_mapping_checked: int = 0
     evidence_packages_checked: int = 0
 
@@ -733,6 +736,7 @@ def _has_true_key(value: Any, key_name: str) -> bool:
 def _validate_no_parity_or_runtime_approval_claims(data: dict[str, Any], path: Path) -> None:
     text = _joined_normalized_text(data)
     dangerous_phrases = (
+        "model parity proven",
         "numeric parity approved",
         "numeric parity is approved",
         "numeric parity confirmed",
@@ -743,6 +747,8 @@ def _validate_no_parity_or_runtime_approval_claims(data: dict[str, Any], path: P
         "genres_pretty parity approved",
         "genres_pretty parity confirmed",
         "parity evidence approved",
+        "parity proven",
+        "parity confirmed",
         "approved for inference",
         "inference is approved",
         "onnxruntime approved",
@@ -754,6 +760,85 @@ def _validate_no_parity_or_runtime_approval_claims(data: dict[str, Any], path: P
     for phrase in dangerous_phrases:
         if phrase in text:
             raise ValidationError(f"{path} must not claim parity/inference/runtime/production approval: {phrase!r}")
+
+
+def _require_bool_value(value: Any, expected: bool, context: str) -> None:
+    if value is not expected:
+        expected_text = str(expected).lower()
+        raise ValidationError(f"{context} must be {expected_text}")
+
+
+def _validate_required_object(data: dict[str, Any], path: Path, field: str) -> dict[str, Any]:
+    value = data.get(field)
+    if not isinstance(value, dict):
+        raise ValidationError(f"{path}.{field} must be an object")
+    return value
+
+
+def _validate_required_non_empty_list(data: dict[str, Any], path: Path, field: str) -> None:
+    value = data.get(field)
+    if not isinstance(value, list) or not value:
+        raise ValidationError(f"{path}.{field} must be a non-empty list")
+
+
+def _validate_required_list(data: dict[str, Any], path: Path, field: str) -> None:
+    value = data.get(field)
+    if not isinstance(value, list):
+        raise ValidationError(f"{path}.{field} must be a list")
+
+
+def _validate_parity_scaffold_dry_run_output(path: Path) -> None:
+    data = _load_json(path)
+
+    if data.get("artifact_type") != "scaffold_dry_run_output":
+        raise ValidationError(f'{path}.artifact_type must be "scaffold_dry_run_output"')
+    _require_bool_value(data.get("not_production_decision"), True, f"{path}.not_production_decision")
+    _require_bool_value(data.get("approved_for_inference"), False, f"{path}.approved_for_inference")
+    _require_bool_value(data.get("approved_for_production"), False, f"{path}.approved_for_production")
+
+    generated_from = data.get("generated_from")
+    if generated_from != "scripts/lightweight/musicnn_onnx_parity_scaffold.py":
+        raise ValidationError(f"{path}.generated_from must reference the scaffold script")
+    command = data.get("command")
+    if command != "python3 scripts/lightweight/musicnn_onnx_parity_scaffold.py --mode dry-run":
+        raise ValidationError(f"{path}.command must record the dry-run scaffold command")
+
+    scaffold_output = _validate_required_object(data, path, "scaffold_output")
+    _require_bool_value(scaffold_output.get("ok"), True, f"{path}.scaffold_output.ok")
+    if scaffold_output.get("mode") != "dry-run":
+        raise ValidationError(f'{path}.scaffold_output.mode must be "dry-run"')
+
+    for field in ("scaffold_type", "evidence_report_path", "next_step_recommendation"):
+        value = scaffold_output.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raise ValidationError(f"{path}.scaffold_output.{field} must be a non-empty string")
+
+    for field in (
+        "inference_attempted",
+        "onnxruntime_imported",
+        "tensorflow_imported",
+        "essentia_imported",
+        "classify_called",
+        "provider_imported",
+        "production_runtime_touched",
+    ):
+        _require_bool_value(scaffold_output.get(field), False, f"{path}.scaffold_output.{field}")
+
+    _validate_required_non_empty_list(scaffold_output, path / "scaffold_output", "checks")
+    _validate_required_list(scaffold_output, path / "scaffold_output", "warnings")
+    _validate_required_list(scaffold_output, path / "scaffold_output", "no_go_items")
+
+    for index, check in enumerate(scaffold_output["checks"]):
+        context = f"{path}.scaffold_output.checks[{index}]"
+        if not isinstance(check, dict):
+            raise ValidationError(f"{context} must be an object")
+        if not isinstance(check.get("name"), str) or not check["name"].strip():
+            raise ValidationError(f"{context}.name must be a non-empty string")
+        if check.get("ok") is not True:
+            raise ValidationError(f"{context}.ok must be true in a committed successful dry-run artifact")
+
+    _validate_no_inference_or_production_approval_claims(data, str(path))
+    _validate_no_parity_or_runtime_approval_claims(data, path)
 
 
 def _validate_no_inference_or_production_approval_claims(value: Any, context: str) -> None:
@@ -1333,6 +1418,11 @@ def validate_all(root: Path) -> ValidationSummary:
         _validate_real_local_artifact_evidence_report(evaluation_root / relative_path)
         real_local_artifact_evidence_report_count += 1
 
+    parity_scaffold_dry_run_output_count = 0
+    for path in sorted(evaluation_root.glob(PARITY_SCAFFOLD_DRY_RUN_OUTPUT_GLOB)):
+        _validate_parity_scaffold_dry_run_output(path)
+        parity_scaffold_dry_run_output_count += 1
+
     label_mapping_count = 0
     for relative_path in LABEL_MAPPING_FILES:
         _validate_label_mapping(evaluation_root / relative_path)
@@ -1351,6 +1441,7 @@ def validate_all(root: Path) -> ValidationSummary:
         local_artifact_metadata_checked=local_artifact_metadata_count,
         local_artifact_evidence_reports_checked=local_artifact_evidence_report_count,
         real_local_artifact_evidence_reports_checked=real_local_artifact_evidence_report_count,
+        parity_scaffold_dry_run_outputs_checked=parity_scaffold_dry_run_output_count,
         label_mapping_checked=label_mapping_count,
         evidence_packages_checked=evidence_package_count,
     )
@@ -1386,6 +1477,7 @@ def main(argv: list[str] | None = None) -> int:
         f"local_artifact_metadata={summary.local_artifact_metadata_checked}, "
         f"local_artifact_evidence_reports={summary.local_artifact_evidence_reports_checked}, "
         f"real_local_artifact_evidence_reports={summary.real_local_artifact_evidence_reports_checked}, "
+        f"parity_scaffold_dry_run_outputs={summary.parity_scaffold_dry_run_outputs_checked}, "
         f"label_mapping={summary.label_mapping_checked}, "
         f"evidence_packages={summary.evidence_packages_checked}"
     )

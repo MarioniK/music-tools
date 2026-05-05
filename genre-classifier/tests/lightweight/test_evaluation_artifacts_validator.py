@@ -27,6 +27,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.local_artifact_metadata_checked == 1
     assert summary.local_artifact_evidence_reports_checked == 1
     assert summary.real_local_artifact_evidence_reports_checked == 1
+    assert summary.parity_scaffold_dry_run_outputs_checked == 1
     assert summary.label_mapping_checked == 1
     assert summary.evidence_packages_checked == 1
 
@@ -108,6 +109,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "local_artifact_metadata=1" in captured.out
     assert "local_artifact_evidence_reports=1" in captured.out
     assert "real_local_artifact_evidence_reports=1" in captured.out
+    assert "parity_scaffold_dry_run_outputs=1" in captured.out
     assert "label_mapping=1" in captured.out
     assert "evidence_packages=1" in captured.out
     assert captured.err == ""
