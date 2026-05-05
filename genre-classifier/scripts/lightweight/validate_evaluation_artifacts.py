@@ -40,6 +40,10 @@ LOCAL_ARTIFACT_EVIDENCE_REPORT_FILES = (
     Path("model-provenance/example-local-musicnn-onnx-artifact-metadata-evidence-report.json"),
 )
 
+REAL_LOCAL_ARTIFACT_EVIDENCE_REPORT_FILES = (
+    Path("model-provenance/local-musicnn-onnx-artifact-metadata-evidence-report.json"),
+)
+
 REQUIRED_LOCAL_ARTIFACT_METADATA_FIELDS = (
     "schema_version",
     "report_type",
@@ -142,6 +146,53 @@ LOCAL_ARTIFACT_EVIDENCE_REPORT_REVIEW_STATUSES = {
     "pending_review",
     "reviewed_not_approved",
     "blocked",
+}
+
+REAL_LOCAL_ARTIFACT_EVIDENCE_REPORT_TYPE = "local_musicnn_onnx_artifact_metadata_evidence_report"
+
+REQUIRED_REAL_LOCAL_ARTIFACT_EVIDENCE_REPORT_FIELDS = (
+    "schema_version",
+    "report_type",
+    "report_id",
+    "candidate_family",
+    "purpose",
+    "not_production_decision",
+    "approved_for_inference",
+    "approved_for_production",
+    "generated_by",
+    "artifacts",
+    "verification_commands",
+    "verification_results",
+    "warnings",
+    "no_go_items",
+    "review_status",
+    "approval_status",
+    "next_step_recommendation",
+)
+
+REAL_LOCAL_ARTIFACT_EVIDENCE_REPORT_STRING_FIELDS = (
+    "schema_version",
+    "report_type",
+    "report_id",
+    "candidate_family",
+    "purpose",
+    "generated_by",
+    "review_status",
+    "approval_status",
+    "next_step_recommendation",
+)
+
+REAL_LOCAL_ARTIFACT_EVIDENCE_REPORT_REVIEW_STATUSES = {
+    "prepared_for_review",
+    "reviewed_not_approved",
+}
+
+EXPECTED_REAL_LOCAL_ARTIFACT_HASHES = {
+    "official_local_onnx": "49668ffec47e52e94b96f45930bb46a28a1368d4bdfb5c05378fa834aca616e1",
+    "optional_official_local_pb": "cdea0722bcee7f731286843f2233e3aa69887bb5c3e2dce011eff55f38d04f3e",
+    "current_bundled_pb": "cdea0722bcee7f731286843f2233e3aa69887bb5c3e2dce011eff55f38d04f3e",
+    "official_local_json": "8e6b3b509f0610c0e65dce467fd459d6777509388eaddb13ed138d8ac1341ffe",
+    "current_bundled_json": "24842b068b5c09dce033a0bcb41d450e4e469352b799e831ac7728c93bbfb6be",
 }
 
 LOCAL_ARTIFACT_APPROVAL_FLAG_FIELDS = {
@@ -434,6 +485,7 @@ class ValidationSummary(NamedTuple):
     model_provenance_checked: int = 0
     local_artifact_metadata_checked: int = 0
     local_artifact_evidence_reports_checked: int = 0
+    real_local_artifact_evidence_reports_checked: int = 0
     label_mapping_checked: int = 0
     evidence_packages_checked: int = 0
 
@@ -632,6 +684,78 @@ def _is_fake_or_placeholder_hash(value: str) -> bool:
     return False
 
 
+def _validate_sha256(value: Any, context: str) -> str:
+    if not isinstance(value, str) or len(value) != 64:
+        raise ValidationError(f"{context} must be a 64-character lowercase hex string")
+    if any(character not in "0123456789abcdef" for character in value):
+        raise ValidationError(f"{context} must be a 64-character lowercase hex string")
+    if _is_fake_or_placeholder_hash(value):
+        raise ValidationError(f"{context} must not be a fake placeholder hash")
+    return value
+
+
+def _validate_positive_integer(value: Any, context: str) -> None:
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        raise ValidationError(f"{context} must be a positive integer")
+
+
+def _iter_text_values(value: Any) -> Iterable[str]:
+    if isinstance(value, str):
+        yield value
+        return
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if isinstance(key, str):
+                yield key
+            yield from _iter_text_values(item)
+        return
+    if isinstance(value, list):
+        for item in value:
+            yield from _iter_text_values(item)
+
+
+def _joined_normalized_text(value: Any) -> str:
+    return _normalize_report_text(" ".join(_iter_text_values(value)))
+
+
+def _has_true_key(value: Any, key_name: str) -> bool:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == key_name and item is True:
+                return True
+            if _has_true_key(item, key_name):
+                return True
+    if isinstance(value, list):
+        return any(_has_true_key(item, key_name) for item in value)
+    return False
+
+
+def _validate_no_parity_or_runtime_approval_claims(data: dict[str, Any], path: Path) -> None:
+    text = _joined_normalized_text(data)
+    dangerous_phrases = (
+        "numeric parity approved",
+        "numeric parity is approved",
+        "numeric parity confirmed",
+        "numeric parity passed",
+        "claims numeric parity",
+        "final genres parity approved",
+        "final genres parity confirmed",
+        "genres_pretty parity approved",
+        "genres_pretty parity confirmed",
+        "parity evidence approved",
+        "approved for inference",
+        "inference is approved",
+        "onnxruntime approved",
+        "onnx runtime approved",
+        "provider implementation approved",
+        "production migration approved",
+        "default provider switch approved",
+    )
+    for phrase in dangerous_phrases:
+        if phrase in text:
+            raise ValidationError(f"{path} must not claim parity/inference/runtime/production approval: {phrase!r}")
+
+
 def _validate_no_inference_or_production_approval_claims(value: Any, context: str) -> None:
     if isinstance(value, dict):
         for key, item in value.items():
@@ -737,6 +861,166 @@ def _validate_local_artifact_evidence_report(path: Path) -> None:
         raise ValidationError(f"{path}.artifacts missing required roles: {sorted(missing_roles)}")
 
     _validate_no_inference_or_production_approval_claims(data, str(path))
+
+
+def _validate_real_official_local_artifact(artifact: dict[str, Any], context: str) -> None:
+    if artifact.get("local_only") is not True:
+        raise ValidationError(f"{context}.local_only must be true for official/local artifacts")
+
+    local_path = artifact.get("local_path")
+    if not isinstance(local_path, str) or not local_path.startswith("/tmp/music-tools-onnx-parity/"):
+        raise ValidationError(f"{context}.local_path must start with /tmp/music-tools-onnx-parity/")
+    if any(
+        local_path == prefix.rstrip("/") or local_path.startswith(prefix)
+        for prefix in LOCAL_ARTIFACT_REPO_PATH_PREFIXES
+    ):
+        raise ValidationError(f"{context}.local_path must not point inside the repository")
+
+    if artifact.get("artifact_in_repo") is not False:
+        raise ValidationError(f"{context}.artifact_in_repo must be false for official/local artifacts")
+    if artifact.get("committed_to_repo") is not False:
+        raise ValidationError(f"{context}.committed_to_repo must be false for official/local artifacts")
+
+    _validate_positive_integer(artifact.get("file_size_bytes"), f"{context}.file_size_bytes")
+    _validate_sha256(artifact.get("sha256"), f"{context}.sha256")
+
+
+def _validate_real_current_bundled_artifact(artifact: dict[str, Any], context: str) -> None:
+    if artifact.get("source_reference_type") != "existing_service_runtime_baseline":
+        raise ValidationError(f"{context}.source_reference_type must mark the current production baseline")
+    if artifact.get("artifact_downloaded") is not False:
+        raise ValidationError(f"{context}.artifact_downloaded must be false for current bundled baselines")
+    if artifact.get("downloaded_manually") is not False:
+        raise ValidationError(f"{context}.downloaded_manually must be false for current bundled baselines")
+    if artifact.get("local_only") is not False:
+        raise ValidationError(f"{context}.local_only must be false for current bundled baselines")
+
+    verification_results = artifact.get("verification_results")
+    if not isinstance(verification_results, dict):
+        raise ValidationError(f"{context}.verification_results must be an object")
+    if verification_results.get("existing_production_baseline_artifact") is not True:
+        raise ValidationError(f"{context}.verification_results must mark the current production baseline")
+    if verification_results.get("newly_downloaded") is not False:
+        raise ValidationError(f"{context}.verification_results.newly_downloaded must be false")
+    if verification_results.get("official_local_temp_artifact") is not False:
+        raise ValidationError(f"{context}.verification_results.official_local_temp_artifact must be false")
+
+    _validate_positive_integer(artifact.get("file_size_bytes"), f"{context}.file_size_bytes")
+    _validate_sha256(artifact.get("sha256"), f"{context}.sha256")
+
+
+def _validate_real_local_artifact_evidence_report(path: Path) -> None:
+    data = _load_json(path)
+
+    for field in REQUIRED_REAL_LOCAL_ARTIFACT_EVIDENCE_REPORT_FIELDS:
+        if field not in data:
+            raise ValidationError(f"{path} is missing required real local artifact evidence report field: {field}")
+
+    for field in REAL_LOCAL_ARTIFACT_EVIDENCE_REPORT_STRING_FIELDS:
+        value = data[field]
+        if not isinstance(value, str) or not value.strip():
+            raise ValidationError(f"{path}.{field} must be a non-empty string")
+
+    if data["report_type"] != REAL_LOCAL_ARTIFACT_EVIDENCE_REPORT_TYPE:
+        raise ValidationError(f'{path}.report_type must be "{REAL_LOCAL_ARTIFACT_EVIDENCE_REPORT_TYPE}"')
+    if data.get("sample_only", False) is not False:
+        raise ValidationError(f"{path}.sample_only must be absent or false")
+    if data["not_production_decision"] is not True:
+        raise ValidationError(f"{path}.not_production_decision must be true")
+    if data["approved_for_inference"] is not False:
+        raise ValidationError(f"{path}.approved_for_inference must be false")
+    if data["approved_for_production"] is not False:
+        raise ValidationError(f"{path}.approved_for_production must be false")
+    if data["approval_status"] != "local_artifact_preparation_only":
+        raise ValidationError(f'{path}.approval_status must be "local_artifact_preparation_only"')
+
+    review_status = data["review_status"].strip().casefold()
+    if review_status not in REAL_LOCAL_ARTIFACT_EVIDENCE_REPORT_REVIEW_STATUSES:
+        raise ValidationError(f"{path}.review_status must be a documented non-production status")
+
+    next_step = data["next_step_recommendation"].strip().casefold()
+    if any(term in next_step for term in ("approve inference", "approve production", "production migration")):
+        raise ValidationError(f"{path}.next_step_recommendation must not look like approval")
+
+    _validate_required_list_container(data, path, "verification_commands")
+    _validate_required_list_container(data, path, "warnings")
+    _validate_required_list_container(data, path, "no_go_items")
+    _validate_warnings(data, str(path))
+
+    if not isinstance(data["verification_results"], dict) or not data["verification_results"]:
+        raise ValidationError(f"{path}.verification_results must be a non-empty object")
+
+    artifacts = data["artifacts"]
+    if not isinstance(artifacts, list) or not artifacts:
+        raise ValidationError(f"{path}.artifacts must be a non-empty list")
+
+    artifacts_by_role: dict[str, dict[str, Any]] = {}
+    for index, artifact in enumerate(artifacts):
+        context = f"{path}.artifacts[{index}]"
+        if not isinstance(artifact, dict):
+            raise ValidationError(f"{context} must be an object")
+
+        role = artifact.get("artifact_role")
+        if not isinstance(role, str) or not role.strip():
+            raise ValidationError(f"{context}.artifact_role must be a non-empty string")
+        if role in artifacts_by_role:
+            raise ValidationError(f"{context}.artifact_role must be unique: {role!r}")
+        artifacts_by_role[role] = artifact
+
+        for field in ("artifact_name", "local_path", "file_size_bytes", "sha256", "verification_results"):
+            if field not in artifact:
+                raise ValidationError(f"{context} is missing required field: {field}")
+
+    required_roles = set(REQUIRED_LOCAL_ARTIFACT_ROLES)
+    if "optional_official_local_pb" in artifacts_by_role:
+        required_roles.add("optional_official_local_pb")
+    missing_roles = required_roles - set(artifacts_by_role)
+    if missing_roles:
+        raise ValidationError(f"{path}.artifacts missing required roles: {sorted(missing_roles)}")
+
+    for role in OFFICIAL_LOCAL_ARTIFACT_ROLES:
+        if role in artifacts_by_role:
+            _validate_real_official_local_artifact(artifacts_by_role[role], f"{path}.artifacts[{role}]")
+
+    for role in ("current_bundled_pb", "current_bundled_json"):
+        _validate_real_current_bundled_artifact(artifacts_by_role[role], f"{path}.artifacts[{role}]")
+
+    for role, expected_hash in EXPECTED_REAL_LOCAL_ARTIFACT_HASHES.items():
+        actual_hash = artifacts_by_role[role]["sha256"]
+        if actual_hash != expected_hash:
+            raise ValidationError(f"{path}.artifacts[{role}].sha256 must match the measured Roadmap 4.30 hash")
+
+    official_pb_hash = artifacts_by_role["optional_official_local_pb"]["sha256"]
+    current_pb_hash = artifacts_by_role["current_bundled_pb"]["sha256"]
+    if official_pb_hash != current_pb_hash:
+        raise ValidationError(f"{path} must record official/local PB sha256 matching current bundled PB")
+
+    official_json_hash = artifacts_by_role["official_local_json"]["sha256"]
+    current_json_hash = artifacts_by_role["current_bundled_json"]["sha256"]
+    if official_json_hash == current_json_hash:
+        raise ValidationError(f"{path} must record official/local JSON sha256 differing from current bundled JSON")
+
+    normalized_text_values = [_normalize_report_text(text) for text in _iter_text_values(data)]
+    has_pb_match_observation = _has_true_key(
+        data, "current_bundled_pb_matches_official_local_pb_sha256"
+    ) or _has_true_key(data, "matches_current_bundled_pb_sha256")
+    has_pb_match_observation = has_pb_match_observation or any(
+        ("pb sha256 match" in text or "pb hash match" in text or "pb sha256 matches" in text)
+        for text in normalized_text_values
+    )
+    if not has_pb_match_observation:
+        raise ValidationError(f"{path} must include a PB hash match observation")
+
+    report_text = " ".join(normalized_text_values)
+    if not (
+        "json differs" in report_text
+        and "evidence gap" in report_text
+        and "not parity evidence" in report_text
+    ):
+        raise ValidationError(f"{path} must include a JSON mismatch warning/evidence gap")
+
+    _validate_no_inference_or_production_approval_claims(data, str(path))
+    _validate_no_parity_or_runtime_approval_claims(data, path)
 
 
 def _validate_local_artifact_metadata_template(path: Path) -> None:
@@ -1044,6 +1328,11 @@ def validate_all(root: Path) -> ValidationSummary:
         _validate_local_artifact_evidence_report(evaluation_root / relative_path)
         local_artifact_evidence_report_count += 1
 
+    real_local_artifact_evidence_report_count = 0
+    for relative_path in REAL_LOCAL_ARTIFACT_EVIDENCE_REPORT_FILES:
+        _validate_real_local_artifact_evidence_report(evaluation_root / relative_path)
+        real_local_artifact_evidence_report_count += 1
+
     label_mapping_count = 0
     for relative_path in LABEL_MAPPING_FILES:
         _validate_label_mapping(evaluation_root / relative_path)
@@ -1061,6 +1350,7 @@ def validate_all(root: Path) -> ValidationSummary:
         model_provenance_checked=model_provenance_count,
         local_artifact_metadata_checked=local_artifact_metadata_count,
         local_artifact_evidence_reports_checked=local_artifact_evidence_report_count,
+        real_local_artifact_evidence_reports_checked=real_local_artifact_evidence_report_count,
         label_mapping_checked=label_mapping_count,
         evidence_packages_checked=evidence_package_count,
     )
@@ -1095,6 +1385,7 @@ def main(argv: list[str] | None = None) -> int:
         f"model_provenance={summary.model_provenance_checked}, "
         f"local_artifact_metadata={summary.local_artifact_metadata_checked}, "
         f"local_artifact_evidence_reports={summary.local_artifact_evidence_reports_checked}, "
+        f"real_local_artifact_evidence_reports={summary.real_local_artifact_evidence_reports_checked}, "
         f"label_mapping={summary.label_mapping_checked}, "
         f"evidence_packages={summary.evidence_packages_checked}"
     )

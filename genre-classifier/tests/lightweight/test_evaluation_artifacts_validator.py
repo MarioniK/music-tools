@@ -1,3 +1,4 @@
+import copy
 import importlib.util
 from pathlib import Path
 
@@ -25,6 +26,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.model_provenance_checked == 1
     assert summary.local_artifact_metadata_checked == 1
     assert summary.local_artifact_evidence_reports_checked == 1
+    assert summary.real_local_artifact_evidence_reports_checked == 1
     assert summary.label_mapping_checked == 1
     assert summary.evidence_packages_checked == 1
 
@@ -105,6 +107,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "model_provenance=1" in captured.out
     assert "local_artifact_metadata=1" in captured.out
     assert "local_artifact_evidence_reports=1" in captured.out
+    assert "real_local_artifact_evidence_reports=1" in captured.out
     assert "label_mapping=1" in captured.out
     assert "evidence_packages=1" in captured.out
     assert captured.err == ""
@@ -467,6 +470,206 @@ def test_local_artifact_evidence_report_requires_next_step_recommendation(tmp_pa
     del data["next_step_recommendation"]
 
     _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "next_step_recommendation")
+
+
+def _real_local_artifact_evidence_report_path():
+    return (
+        SERVICE_ROOT
+        / "docs/lightweight/evaluation/model-provenance/local-musicnn-onnx-artifact-metadata-evidence-report.json"
+    )
+
+
+def _write_real_local_artifact_evidence_report(tmp_path, validator, data):
+    report_path = tmp_path / "real-local-artifact-evidence-report.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+    return report_path
+
+
+def _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, expected):
+    report_path = _write_real_local_artifact_evidence_report(tmp_path, validator, data)
+
+    try:
+        validator._validate_real_local_artifact_evidence_report(report_path)
+    except validator.ValidationError as exc:
+        assert expected in str(exc)
+    else:
+        raise AssertionError("real local artifact evidence report should fail validation")
+
+
+def _real_report_data(validator):
+    return copy.deepcopy(validator._load_json(_real_local_artifact_evidence_report_path()))
+
+
+def test_real_local_artifact_evidence_report_is_validated():
+    validator = load_validator()
+
+    validator._validate_real_local_artifact_evidence_report(_real_local_artifact_evidence_report_path())
+
+
+def test_real_local_artifact_evidence_report_rejects_inference_approval(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    data["approved_for_inference"] = True
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "approved_for_inference")
+
+
+def test_real_local_artifact_evidence_report_rejects_production_approval(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    data["approved_for_production"] = True
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "approved_for_production")
+
+
+def test_real_local_artifact_evidence_report_rejects_production_decision(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    data["not_production_decision"] = False
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "not_production_decision")
+
+
+def test_real_local_artifact_evidence_report_rejects_wrong_approval_status(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    data["approval_status"] = "reviewed_not_approved"
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "approval_status")
+
+
+def test_real_local_artifact_evidence_report_rejects_invalid_sha256(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    _evidence_artifact_by_role(data, "official_local_onnx")["sha256"] = "not-a-valid-sha"
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "sha256")
+
+
+def test_real_local_artifact_evidence_report_rejects_all_zero_sha256(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    _evidence_artifact_by_role(data, "official_local_onnx")["sha256"] = "0" * 64
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "fake placeholder hash")
+
+
+def test_real_local_artifact_evidence_report_rejects_missing_or_zero_file_size(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    _evidence_artifact_by_role(data, "official_local_onnx")["file_size_bytes"] = 0
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "file_size_bytes")
+
+
+def test_real_local_artifact_evidence_report_rejects_official_local_path_inside_repo(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    _evidence_artifact_by_role(data, "official_local_onnx")[
+        "local_path"
+    ] = "/opt/music-tools/genre-classifier/app/models/msd-musicnn-1.onnx"
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "local_path")
+
+
+def test_real_local_artifact_evidence_report_rejects_official_local_artifact_in_repo(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    _evidence_artifact_by_role(data, "official_local_onnx")["artifact_in_repo"] = True
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "artifact_in_repo")
+
+
+def test_real_local_artifact_evidence_report_rejects_official_local_committed_to_repo(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    _evidence_artifact_by_role(data, "official_local_onnx")["committed_to_repo"] = True
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "committed_to_repo")
+
+
+def test_real_local_artifact_evidence_report_requires_pb_hash_match_observation(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    data["verification_results"].pop("current_bundled_pb_matches_official_local_pb_sha256")
+    optional_pb = _evidence_artifact_by_role(data, "optional_official_local_pb")
+    optional_pb["verification_results"].pop("matches_current_bundled_pb_sha256")
+    optional_pb["provenance_notes"] = "Optional PB was measured for metadata review only."
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "PB hash match observation")
+
+
+def test_real_local_artifact_evidence_report_requires_json_mismatch_warning(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    _evidence_artifact_by_role(data, "official_local_json")[
+        "provenance_notes"
+    ] = "Official/local JSON was measured for metadata review only."
+    _evidence_artifact_by_role(data, "current_bundled_json")[
+        "provenance_notes"
+    ] = "Current bundled JSON was measured for metadata review only."
+    data["warnings"] = ["local-only paths are non-portable and must not be used by production runtime"]
+    data["no_go_items"] = ["do_not_run_inference"]
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "JSON mismatch")
+
+
+def test_real_local_artifact_evidence_report_rejects_numeric_parity_claim(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    data["warnings"].append("numeric parity approved")
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "numeric parity approved")
+
+
+def test_real_local_artifact_evidence_report_rejects_final_genres_parity_claim(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    data["warnings"].append("final genres parity confirmed")
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "final genres parity confirmed")
+
+
+def test_real_local_artifact_evidence_report_rejects_genres_pretty_parity_claim(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    data["warnings"].append("genres_pretty parity approved")
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "genres_pretty parity approved")
+
+
+def test_real_local_artifact_evidence_report_rejects_provider_implementation_approval(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    data["warnings"].append("provider implementation approved")
+
+    _assert_real_local_artifact_evidence_report_fails(
+        tmp_path, validator, data, "provider implementation approved"
+    )
+
+
+def test_real_local_artifact_evidence_report_requires_verification_commands(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    del data["verification_commands"]
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "verification_commands")
+
+
+def test_real_local_artifact_evidence_report_requires_verification_results(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    del data["verification_results"]
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "verification_results")
+
+
+def test_real_local_artifact_evidence_report_requires_next_step_recommendation(tmp_path):
+    validator = load_validator()
+    data = _real_report_data(validator)
+    del data["next_step_recommendation"]
+
+    _assert_real_local_artifact_evidence_report_fails(tmp_path, validator, data, "next_step_recommendation")
 
 
 def test_label_mapping_sample_is_validated():
