@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Roadmap 4.35 local-only MusiCNN ONNX metadata-validation scaffold.
+"""Roadmap 4.39 local-only MusiCNN TensorFlow vs ONNX Runtime parity scaffold.
 
-This CLI is intentionally stdlib-only and dry-run only. It validates recorded
-artifact metadata and documented approval boundaries; it does not import or
-execute production runtime, provider, TensorFlow, Essentia, or ONNX Runtime
-code.
+This CLI is intentionally stdlib-only. The default mode performs a local-only
+preflight and writes a sanitized Roadmap 4.39 evidence report. It does not
+install dependencies, call /classify, import provider code, or touch production
+runtime wiring. If local prerequisites are missing, it records explicit blockers
+instead of fake parity metrics.
 """
 
 import argparse
+import importlib.util
 import json
 import re
 import sys
@@ -20,13 +22,35 @@ DEFAULT_EVIDENCE_REPORT = (
     SERVICE_ROOT
     / "docs/lightweight/evaluation/model-provenance/local-musicnn-onnx-artifact-metadata-evidence-report.json"
 )
+DEFAULT_PARITY_SPIKE_REPORT = (
+    SERVICE_ROOT
+    / "docs/lightweight/evaluation/parity-scaffold/musicnn-onnx-parity-spike-report.json"
+)
 ROADMAP_4_32_DOC = (
     SERVICE_ROOT / "docs/lightweight/roadmap-4.32-musicnn-json-metadata-diff-review-parity-readiness-gate.md"
 )
 
 SCAFFOLD_TYPE = "local-only metadata-validation"
 NEXT_STEP_RECOMMENDATION = "review dry-run metadata-validation output before any inference approval"
-TMP_ARTIFACT_ROOT = "/tmp/music-tools-onnx-parity/"
+TMP_ARTIFACT_ROOT_PATH = Path("/tmp/music-tools-onnx-parity")
+TMP_ARTIFACT_ROOT = f"{TMP_ARTIFACT_ROOT_PATH}/"
+TMP_FIXTURE_ROOT_PATH = TMP_ARTIFACT_ROOT_PATH / "fixtures"
+AUDIO_FIXTURE_EXTENSIONS = {
+    ".aif",
+    ".aiff",
+    ".flac",
+    ".m4a",
+    ".mp3",
+    ".ogg",
+    ".opus",
+    ".wav",
+}
+LOCAL_ONLY_MODEL_ARTIFACTS = (
+    "msd-musicnn-1.onnx",
+    "msd-musicnn-1.pb",
+    "msd-musicnn-1.json",
+)
+PARITY_REPORT_TYPE = "local_musicnn_tensorflow_vs_onnx_runtime_parity_spike"
 
 EXPECTED_ARTIFACTS = {
     "official_local_onnx": {
@@ -358,18 +382,173 @@ def run_dry_run(evidence_report_path: Path) -> dict[str, Any]:
     return result
 
 
+def _module_available(name: str) -> bool:
+    try:
+        return importlib.util.find_spec(name) is not None
+    except (ImportError, AttributeError, ValueError):
+        return False
+
+
+def _artifact_status() -> tuple[list[dict[str, Any]], bool]:
+    records = []
+    for name in LOCAL_ONLY_MODEL_ARTIFACTS:
+        path = TMP_ARTIFACT_ROOT_PATH / name
+        records.append(
+            {
+                "artifact_name": name,
+                "local_only": True,
+                "artifact_in_repo": False,
+                "committed_to_repo": False,
+                "exists": path.is_file(),
+                "file_size_bytes": path.stat().st_size if path.is_file() else None,
+            }
+        )
+    return records, all(record["exists"] for record in records)
+
+
+def _audio_fixture_count() -> tuple[bool, int]:
+    if not TMP_FIXTURE_ROOT_PATH.is_dir():
+        return False, 0
+
+    count = 0
+    for path in TMP_FIXTURE_ROOT_PATH.iterdir():
+        if path.is_file() and path.suffix.casefold() in AUDIO_FIXTURE_EXTENSIONS:
+            count += 1
+    return True, count
+
+
+def _blocker(code: str, message: str) -> dict[str, str]:
+    return {"code": code, "message": message}
+
+
+def run_parity_spike(report_path: Path) -> dict[str, Any]:
+    artifact_records, model_artifacts_available = _artifact_status()
+    fixture_dir_available, fixture_count = _audio_fixture_count()
+    fixtures_available = fixture_dir_available and fixture_count > 0
+
+    module_checks = {
+        "onnxruntime": _module_available("onnxruntime"),
+        "tensorflow": _module_available("tensorflow"),
+        "essentia": _module_available("essentia"),
+        "essentia.standard": _module_available("essentia.standard"),
+    }
+    onnx_runtime_available = module_checks["onnxruntime"]
+    baseline_runtime_available = (
+        module_checks["tensorflow"] and module_checks["essentia"] and module_checks["essentia.standard"]
+    )
+
+    blockers = []
+    if not model_artifacts_available:
+        missing = [record["artifact_name"] for record in artifact_records if not record["exists"]]
+        blockers.append(_blocker("LOCAL_MODEL_ARTIFACTS_MISSING", f"Missing local-only model artifacts: {missing}"))
+    if not fixture_dir_available:
+        blockers.append(_blocker("FIXTURE_DIR_MISSING", "Local-only fixture directory is missing."))
+    if fixture_dir_available and fixture_count == 0:
+        blockers.append(_blocker("AUDIO_FIXTURES_MISSING", "Local-only fixture directory has no audio fixture files."))
+    if not onnx_runtime_available:
+        blockers.append(_blocker("ONNXRUNTIME_UNAVAILABLE", "onnxruntime is not importable in the local environment."))
+    if not baseline_runtime_available:
+        missing_baseline = [
+            name for name in ("tensorflow", "essentia", "essentia.standard") if not module_checks[name]
+        ]
+        blockers.append(
+            _blocker(
+                "BASELINE_RUNTIME_UNAVAILABLE",
+                f"TensorFlow/Essentia baseline runtime modules are not importable: {missing_baseline}",
+            )
+        )
+
+    metrics_unavailable_reason = None
+    decision_status = "blocked"
+    preprocessing_alignment_status = "not_evaluated"
+    if blockers:
+        metrics_unavailable_reason = "parity run was not executed because local-only prerequisites are missing"
+        blockers.append(_blocker("PARITY_RUN_NOT_EXECUTED", metrics_unavailable_reason))
+
+    report = {
+        "schema_version": "0.1",
+        "roadmap_step": "4.39",
+        "report_type": PARITY_REPORT_TYPE,
+        "report_id": "roadmap_4_39_local_musicnn_tensorflow_vs_onnx_runtime_parity_spike",
+        "generated_by": "scripts/lightweight/musicnn_onnx_parity_scaffold.py",
+        "not_production_decision": True,
+        "approved_for_production": False,
+        "approved_for_provider_implementation": False,
+        "approved_for_default_provider_switch": False,
+        "approved_for_inference_beyond_local_spike": False,
+        "legacy_musicnn_remains_baseline": True,
+        "default_provider_unchanged": True,
+        "classify_contract_unchanged": True,
+        "response_shape_unchanged": True,
+        "no_audio_files_committed": True,
+        "no_model_files_committed": True,
+        "no_dependency_changes": True,
+        "no_docker_changes": True,
+        "no_provider_factory_changes": True,
+        "no_default_provider_changes": True,
+        "no_classify_calls": True,
+        "tidal_parser_untouched": True,
+        "local_only_storage_policy": {
+            "model_artifact_root": "/tmp/music-tools-onnx-parity/",
+            "fixture_root": "/tmp/music-tools-onnx-parity/fixtures/",
+            "audio_files_must_remain_outside_repo": True,
+            "model_files_must_remain_outside_repo": True,
+        },
+        "fixture_count": fixture_count,
+        "baseline_runtime_available": baseline_runtime_available,
+        "onnx_runtime_available": onnx_runtime_available,
+        "model_artifacts_available": model_artifacts_available,
+        "fixtures_available": fixtures_available,
+        "local_model_artifacts": artifact_records,
+        "runtime_module_checks": module_checks,
+        "baseline_capture_attempted": False,
+        "onnx_capture_attempted": False,
+        "parity_run_executed": False,
+        "decision_status": decision_status,
+        "blockers": blockers,
+        "metrics_unavailable_reason": metrics_unavailable_reason,
+        "baseline_output_shape": None,
+        "onnx_output_shape": None,
+        "output_shape_match": None,
+        "max_abs_diff": None,
+        "mean_abs_diff": None,
+        "top_1_match": None,
+        "top_3_overlap": None,
+        "top_5_overlap": None,
+        "preprocessing_alignment_status": preprocessing_alignment_status,
+        "warnings": [
+            "No fake parity metrics are recorded when prerequisites are missing.",
+            "This report is local-only evidence and does not approve production migration.",
+        ],
+        "next_step_recommendation": (
+            "Provide local-only audio fixtures and local TensorFlow/Essentia plus onnxruntime availability before "
+            "running a numeric parity comparison."
+        ),
+    }
+
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return report
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Local-only MusiCNN ONNX metadata-validation dry-run scaffold")
-    parser.add_argument("--mode", choices=("dry-run",), default="dry-run")
+    parser = argparse.ArgumentParser(description="Local-only MusiCNN TensorFlow vs ONNX Runtime parity scaffold")
+    parser.add_argument("--mode", choices=("parity-spike", "dry-run"), default="parity-spike")
     parser.add_argument("--evidence-report", type=Path, default=DEFAULT_EVIDENCE_REPORT)
+    parser.add_argument("--report", type=Path, default=DEFAULT_PARITY_SPIKE_REPORT)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    result = run_dry_run(args.evidence_report)
+    if args.mode == "dry-run":
+        result = run_dry_run(args.evidence_report)
+    else:
+        result = run_parity_spike(args.report)
     print(json.dumps(result, indent=2, sort_keys=True))
-    return 0 if result["ok"] else 1
+    if args.mode == "dry-run":
+        return 0 if result["ok"] else 1
+    return 0
 
 
 if __name__ == "__main__":

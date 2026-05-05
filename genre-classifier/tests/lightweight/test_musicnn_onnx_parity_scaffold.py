@@ -12,7 +12,6 @@ EVIDENCE_REPORT_PATH = (
     SERVICE_ROOT
     / "docs/lightweight/evaluation/model-provenance/local-musicnn-onnx-artifact-metadata-evidence-report.json"
 )
-
 FALSE_RUNTIME_FLAGS = (
     "inference_attempted",
     "onnxruntime_imported",
@@ -82,15 +81,33 @@ def assert_no_forbidden_claims(output):
         assert claim not in serialized
 
 
-def test_default_dry_run_succeeds_with_current_evidence_report():
-    result, output = run_scaffold()
+def test_default_parity_spike_writes_safe_report(tmp_path):
+    report_path = tmp_path / "musicnn-onnx-parity-spike-report.json"
+    result, output = run_scaffold("--report", str(report_path))
 
     assert result.returncode == 0
-    assert output["ok"] is True
-    assert output["mode"] == "dry-run"
-    assert output["scaffold_type"] == "local-only metadata-validation"
-    assert output["evidence_report_path"] == str(EVIDENCE_REPORT_PATH)
-    assert_runtime_flags_false(output)
+    assert output["roadmap_step"] == "4.39"
+    assert output["report_type"] == "local_musicnn_tensorflow_vs_onnx_runtime_parity_spike"
+    assert output["not_production_decision"] is True
+    assert output["approved_for_production"] is False
+    assert output["approved_for_provider_implementation"] is False
+    assert output["approved_for_default_provider_switch"] is False
+    assert output["approved_for_inference_beyond_local_spike"] is False
+    assert output["no_classify_calls"] is True
+    assert output["baseline_capture_attempted"] is False
+    assert output["onnx_capture_attempted"] is False
+    assert report_path.exists()
+    assert json.loads(report_path.read_text(encoding="utf-8")) == output
+    assert_no_forbidden_claims(output)
+
+
+def test_explicit_parity_spike_succeeds(tmp_path):
+    report_path = tmp_path / "musicnn-onnx-parity-spike-report.json"
+    result, output = run_scaffold("--mode", "parity-spike", "--report", str(report_path))
+
+    assert result.returncode == 0
+    assert output["roadmap_step"] == "4.39"
+    assert output["report_type"] == "local_musicnn_tensorflow_vs_onnx_runtime_parity_spike"
     assert_no_forbidden_claims(output)
 
 
@@ -104,7 +121,7 @@ def test_explicit_dry_run_succeeds():
 
 
 def test_explicit_evidence_report_path_succeeds():
-    result, output = run_scaffold("--evidence-report", str(EVIDENCE_REPORT_PATH))
+    result, output = run_scaffold("--mode", "dry-run", "--evidence-report", str(EVIDENCE_REPORT_PATH))
 
     assert result.returncode == 0
     assert output["ok"] is True
@@ -115,7 +132,7 @@ def test_explicit_evidence_report_path_succeeds():
 def test_invalid_report_path_returns_json_without_traceback(tmp_path):
     missing_path = tmp_path / "missing-report.json"
 
-    result, output = run_scaffold("--evidence-report", str(missing_path))
+    result, output = run_scaffold("--mode", "dry-run", "--evidence-report", str(missing_path))
 
     assert result.returncode != 0
     assert output["ok"] is False
@@ -175,7 +192,7 @@ def test_hash_mismatch_fails(tmp_path):
 
 
 def test_output_does_not_claim_parity():
-    _, output = run_scaffold()
+    _, output = run_scaffold("--mode", "dry-run")
 
     assert_no_forbidden_claims(output)
 

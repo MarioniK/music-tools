@@ -28,6 +28,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.local_artifact_evidence_reports_checked == 1
     assert summary.real_local_artifact_evidence_reports_checked == 1
     assert summary.parity_scaffold_dry_run_outputs_checked == 1
+    assert summary.musicnn_onnx_parity_spike_reports_checked == 1
     assert summary.label_mapping_checked == 1
     assert summary.evidence_packages_checked == 1
     assert summary.fixture_manifest_templates_checked == 1
@@ -111,6 +112,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "local_artifact_evidence_reports=1" in captured.out
     assert "real_local_artifact_evidence_reports=1" in captured.out
     assert "parity_scaffold_dry_run_outputs=1" in captured.out
+    assert "musicnn_onnx_parity_spike_reports=1" in captured.out
     assert "label_mapping=1" in captured.out
     assert "evidence_packages=1" in captured.out
     assert "fixture_manifest_templates=1" in captured.out
@@ -866,3 +868,57 @@ def test_evidence_package_rejects_production_decision(tmp_path):
         assert "not_production_decision" in str(exc)
     else:
         raise AssertionError("production-decision evidence package should fail validation")
+
+
+def _musicnn_onnx_parity_spike_report_path():
+    return SERVICE_ROOT / "docs/lightweight/evaluation/parity-scaffold/musicnn-onnx-parity-spike-report.json"
+
+
+def test_musicnn_onnx_parity_spike_report_is_validated():
+    validator = load_validator()
+    report_path = _musicnn_onnx_parity_spike_report_path()
+
+    validator._validate_musicnn_onnx_parity_spike_report(report_path)
+    data = validator._load_json(report_path)
+
+    assert data["roadmap_step"] == "4.39"
+    assert data["report_type"] == "local_musicnn_tensorflow_vs_onnx_runtime_parity_spike"
+    assert data["not_production_decision"] is True
+    assert data["approved_for_production"] is False
+    assert data["approved_for_provider_implementation"] is False
+    assert data["approved_for_default_provider_switch"] is False
+    assert data["approved_for_inference_beyond_local_spike"] is False
+
+
+def test_blocked_musicnn_onnx_parity_spike_report_rejects_fake_metrics(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_musicnn_onnx_parity_spike_report_path())
+    data["decision_status"] = "blocked"
+    data["parity_run_executed"] = False
+    data["max_abs_diff"] = 0.0
+
+    report_path = tmp_path / "musicnn-onnx-parity-spike-report.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_musicnn_onnx_parity_spike_report(report_path)
+    except validator.ValidationError as exc:
+        assert "max_abs_diff" in str(exc)
+    else:
+        raise AssertionError("blocked parity spike report with fake metrics should fail validation")
+
+
+def test_musicnn_onnx_parity_spike_report_rejects_production_approval(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_musicnn_onnx_parity_spike_report_path())
+    data["approved_for_production"] = True
+
+    report_path = tmp_path / "musicnn-onnx-parity-spike-report.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_musicnn_onnx_parity_spike_report(report_path)
+    except validator.ValidationError as exc:
+        assert "approved_for_production" in str(exc)
+    else:
+        raise AssertionError("production-approved parity spike report should fail validation")
