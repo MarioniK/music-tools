@@ -18,6 +18,52 @@
   },
   "artifacts": [
     {
+      "artifact_role": "current_bundled_pb",
+      "artifact_name": "msd-musicnn-1.pb",
+      "source_url": null,
+      "source_reference_type": null,
+      "local_path": null,
+      "local_only": false,
+      "artifact_downloaded": false,
+      "artifact_in_repo": false,
+      "committed_to_repo": false,
+      "file_size_bytes": null,
+      "sha256": null,
+      "provenance_notes": "Sample-only entry for the current bundled TensorFlow frozen model artifact. This report does not measure or assert hash or file size.",
+      "license_notes": null,
+      "verification_commands": [],
+      "verification_results": {
+        "file_size_measured": false,
+        "sha256_measured": false,
+        "outside_repo_verified": false,
+        "not_staged_verified": false,
+        "not_committed_verified": false
+      }
+    },
+    {
+      "artifact_role": "current_bundled_json",
+      "artifact_name": "msd-musicnn-1.json",
+      "source_url": null,
+      "source_reference_type": null,
+      "local_path": null,
+      "local_only": false,
+      "artifact_downloaded": false,
+      "artifact_in_repo": false,
+      "committed_to_repo": false,
+      "file_size_bytes": null,
+      "sha256": null,
+      "provenance_notes": "Sample-only entry for the current bundled metadata artifact. This report does not measure or assert hash or file size.",
+      "license_notes": null,
+      "verification_commands": [],
+      "verification_results": {
+        "file_size_measured": false,
+        "sha256_measured": false,
+        "outside_repo_verified": false,
+        "not_staged_verified": false,
+        "not_committed_verified": false
+      }
+    },
+    {
       "artifact_role": "official_local_onnx",
       "artifact_name": "msd-musicnn-1.onnx",
       "source_url": null,
@@ -30,6 +76,29 @@
       "file_size_bytes": null,
       "sha256": null,
       "provenance_notes": "Sample-only entry. A real report must record reviewed provenance notes after the artifact is separately approved and prepared outside the repository.",
+      "license_notes": null,
+      "verification_commands": [],
+      "verification_results": {
+        "file_size_measured": false,
+        "sha256_measured": false,
+        "outside_repo_verified": false,
+        "not_staged_verified": false,
+        "not_committed_verified": false
+      }
+    },
+    {
+      "artifact_role": "optional_official_local_pb",
+      "artifact_name": "msd-musicnn-1.pb",
+      "source_url": null,
+      "source_reference_type": null,
+      "local_path": null,
+      "local_only": true,
+      "artifact_downloaded": false,
+      "artifact_in_repo": false,
+      "committed_to_repo": false,
+      "file_size_bytes": null,
+      "sha256": null,
+      "provenance_notes": "Sample-only entry for an optional future official/local PB artifact. A real artifact must be separately approved and remain outside the repository.",
       "license_notes": null,
       "verification_commands": [],
       "verification_results": {

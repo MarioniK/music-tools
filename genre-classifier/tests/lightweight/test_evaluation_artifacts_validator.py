@@ -24,6 +24,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.fixture_results_checked == 16
     assert summary.model_provenance_checked == 1
     assert summary.local_artifact_metadata_checked == 1
+    assert summary.local_artifact_evidence_reports_checked == 1
     assert summary.label_mapping_checked == 1
     assert summary.evidence_packages_checked == 1
 
@@ -103,6 +104,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "fixture_results=16" in captured.out
     assert "model_provenance=1" in captured.out
     assert "local_artifact_metadata=1" in captured.out
+    assert "local_artifact_evidence_reports=1" in captured.out
     assert "label_mapping=1" in captured.out
     assert "evidence_packages=1" in captured.out
     assert captured.err == ""
@@ -298,6 +300,173 @@ def test_local_artifact_metadata_rejects_approved_validation_status(tmp_path):
     data["validation_status"]["approved_for_inference"] = True
 
     _assert_local_artifact_metadata_fails(tmp_path, validator, data, "approved state")
+
+
+def _local_artifact_evidence_report_path():
+    return (
+        SERVICE_ROOT
+        / "docs/lightweight/evaluation/model-provenance/example-local-musicnn-onnx-artifact-metadata-evidence-report.json"
+    )
+
+
+def _write_local_artifact_evidence_report(tmp_path, validator, data):
+    report_path = tmp_path / "local-artifact-evidence-report.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+    return report_path
+
+
+def _evidence_artifact_by_role(data, role):
+    for artifact in data["artifacts"]:
+        if artifact["artifact_role"] == role:
+            return artifact
+    raise AssertionError(f"missing artifact role in fixture: {role}")
+
+
+def _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, expected):
+    report_path = _write_local_artifact_evidence_report(tmp_path, validator, data)
+
+    try:
+        validator._validate_local_artifact_evidence_report(report_path)
+    except validator.ValidationError as exc:
+        assert expected in str(exc)
+    else:
+        raise AssertionError("local artifact evidence report should fail validation")
+
+
+def test_local_artifact_evidence_report_sample_is_validated():
+    validator = load_validator()
+
+    validator._validate_local_artifact_evidence_report(_local_artifact_evidence_report_path())
+
+
+def test_local_artifact_evidence_report_rejects_sample_only_false(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    data["sample_only"] = False
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "sample_only")
+
+
+def test_local_artifact_evidence_report_rejects_production_decision(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    data["not_production_decision"] = False
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "not_production_decision")
+
+
+def test_local_artifact_evidence_report_rejects_inference_approval(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    data["approved_for_inference"] = True
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "approved_for_inference")
+
+
+def test_local_artifact_evidence_report_rejects_production_approval(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    data["approved_for_production"] = True
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "approved_for_production")
+
+
+def test_local_artifact_evidence_report_rejects_approved_review_status(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    data["review_status"] = "approved"
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "review_status")
+
+
+def test_local_artifact_evidence_report_requires_required_artifact_roles(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    data["artifacts"] = [
+        artifact for artifact in data["artifacts"] if artifact["artifact_role"] != "optional_official_local_pb"
+    ]
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "optional_official_local_pb")
+
+
+def test_local_artifact_evidence_report_rejects_sha256_placeholder_string(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    _evidence_artifact_by_role(data, "official_local_onnx")["sha256"] = "TODO-placeholder"
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "fake placeholder hash")
+
+
+def test_local_artifact_evidence_report_rejects_sha256_all_zero_string(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    _evidence_artifact_by_role(data, "official_local_onnx")["sha256"] = "0" * 64
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "fake placeholder hash")
+
+
+def test_local_artifact_evidence_report_rejects_fake_file_size(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    _evidence_artifact_by_role(data, "official_local_onnx")["file_size_bytes"] = 123
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "file_size_bytes")
+
+
+def test_local_artifact_evidence_report_rejects_artifact_downloaded(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    _evidence_artifact_by_role(data, "official_local_onnx")["artifact_downloaded"] = True
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "artifact_downloaded")
+
+
+def test_local_artifact_evidence_report_rejects_artifact_in_repo(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    _evidence_artifact_by_role(data, "official_local_onnx")["artifact_in_repo"] = True
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "artifact_in_repo")
+
+
+def test_local_artifact_evidence_report_rejects_committed_to_repo(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    _evidence_artifact_by_role(data, "official_local_onnx")["committed_to_repo"] = True
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "committed_to_repo")
+
+
+def test_local_artifact_evidence_report_rejects_local_path(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    _evidence_artifact_by_role(data, "official_local_onnx")["local_path"] = "/tmp/music-tools-onnx-parity/msd-musicnn-1.onnx"
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "local_path")
+
+
+def test_local_artifact_evidence_report_requires_warnings_container(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    del data["warnings"]
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "warnings")
+
+
+def test_local_artifact_evidence_report_requires_no_go_items_container(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    del data["no_go_items"]
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "no_go_items")
+
+
+def test_local_artifact_evidence_report_requires_next_step_recommendation(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_local_artifact_evidence_report_path())
+    del data["next_step_recommendation"]
+
+    _assert_local_artifact_evidence_report_fails(tmp_path, validator, data, "next_step_recommendation")
 
 
 def test_label_mapping_sample_is_validated():
