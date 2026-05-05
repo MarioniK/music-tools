@@ -82,31 +82,26 @@ def assert_no_forbidden_claims(output):
 
 
 def test_default_parity_spike_writes_safe_report(tmp_path):
-    report_path = tmp_path / "musicnn-onnx-parity-spike-report.json"
+    report_path = tmp_path / "musicnn-onnx-parity-environment-preparation-report.json"
     result, output = run_scaffold("--report", str(report_path))
 
     assert result.returncode == 0
-    assert output["roadmap"] == "4.40"
-    assert output["report_type"] == "musicnn_onnx_parity_spike_report"
+    assert output["roadmap"] == "4.41"
+    assert output["report_type"] == "musicnn_onnx_parity_environment_preparation_report"
     assert output["not_production_decision"] is True
     assert output["approved_for_production"] is False
     assert output["approved_for_provider_implementation"] is False
     assert output["approved_for_default_provider_switch"] is False
-    assert output["onnxruntime_added_to_production_requirements"] is False
     assert output["approved_for_inference_beyond_local_spike"] is False
     assert output["no_classify_calls"] is True
-    assert output["baseline_capture_attempted"] is False
-    assert output["onnx_capture_attempted"] is False
-    assert set(output["metrics"]) >= {
+    assert output["no_venv_committed"] is True
+    assert output["metrics_simulated"] is False
+    assert set(output["prerequisites"]) >= {
         "fixture_count",
         "baseline_runtime_available",
-        "onnx_runtime_available",
-        "max_abs_diff",
-        "mean_abs_diff",
-        "top_1_match",
-        "top_3_overlap",
-        "top_5_overlap",
-        "preprocessing_alignment_status",
+        "onnxruntime_available",
+        "isolated_env_created",
+        "isolated_env_path_sanitized",
     }
     assert report_path.exists()
     assert json.loads(report_path.read_text(encoding="utf-8")) == output

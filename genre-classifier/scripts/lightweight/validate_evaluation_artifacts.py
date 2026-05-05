@@ -56,6 +56,10 @@ MUSICNN_ONNX_PARITY_SPIKE_REPORT_FILES = (
     Path("parity-scaffold/musicnn-onnx-parity-spike-report.json"),
 )
 
+MUSICNN_ONNX_PARITY_ENVIRONMENT_PREPARATION_REPORT_FILES = (
+    Path("parity-scaffold/musicnn-onnx-parity-environment-preparation-report.json"),
+)
+
 REQUIRED_LOCAL_ARTIFACT_METADATA_FIELDS = (
     "schema_version",
     "report_type",
@@ -488,6 +492,9 @@ EVIDENCE_PACKAGE_LIST_FIELDS = (
 )
 
 MUSICNN_ONNX_PARITY_SPIKE_REPORT_TYPE = "musicnn_onnx_parity_spike_report"
+MUSICNN_ONNX_PARITY_ENVIRONMENT_PREPARATION_REPORT_TYPE = (
+    "musicnn_onnx_parity_environment_preparation_report"
+)
 
 MUSICNN_ONNX_PARITY_SPIKE_DECISION_STATUSES = {
     "viable",
@@ -541,6 +548,62 @@ REQUIRED_MUSICNN_ONNX_PARITY_SPIKE_FIELDS = (
     "metrics",
     "warnings",
     "next_step_recommendation",
+)
+
+MUSICNN_ONNX_PARITY_ENVIRONMENT_STATUSES = {
+    "ready_for_local_parity_run",
+    "partially_ready",
+    "blocked",
+}
+
+MUSICNN_ONNX_PARITY_ENVIRONMENT_BLOCKERS = {
+    "FIXTURE_DIR_MISSING",
+    "FIXTURE_FILES_MISSING",
+    "FIXTURE_PROVENANCE_UNCLEAR",
+    "ONNXRUNTIME_UNAVAILABLE",
+    "ONNXRUNTIME_LOCAL_INSTALL_FAILED",
+    "BASELINE_RUNTIME_UNAVAILABLE",
+    "BASELINE_ENVIRONMENT_NOT_REPRODUCIBLE",
+    "ESSENTIA_UNAVAILABLE",
+    "TENSORFLOW_UNAVAILABLE",
+    "MODEL_ARTIFACTS_MISSING",
+    "UNSAFE_TO_IMPORT_BASELINE_PROVIDER",
+    "LOCAL_ENV_NOT_CREATED",
+    "LOCAL_PATHS_NOT_PUBLISHABLE",
+    "PARITY_RUN_NOT_EXECUTED",
+}
+
+REQUIRED_MUSICNN_ONNX_PARITY_ENVIRONMENT_PREPARATION_FIELDS = (
+    "report_type",
+    "roadmap",
+    "not_production_decision",
+    "approved_for_production",
+    "approved_for_provider_implementation",
+    "approved_for_default_provider_switch",
+    "approved_for_inference_beyond_local_spike",
+    "no_audio_files_committed",
+    "no_model_files_committed",
+    "no_venv_committed",
+    "no_dependency_changes",
+    "no_docker_changes",
+    "no_classify_calls",
+    "legacy_musicnn_remains_baseline",
+    "environment_status",
+    "blockers",
+    "prerequisites",
+    "next_step_recommendation",
+)
+
+REQUIRED_MUSICNN_ONNX_PARITY_ENVIRONMENT_PREREQUISITES = (
+    "model_artifacts_available",
+    "fixture_dir_available",
+    "fixture_count",
+    "onnxruntime_available",
+    "tensorflow_available",
+    "essentia_available",
+    "baseline_runtime_available",
+    "isolated_env_created",
+    "isolated_env_path_sanitized",
 )
 
 MANIFEST_MARKERS = (
@@ -618,6 +681,7 @@ class ValidationSummary(NamedTuple):
     real_local_artifact_evidence_reports_checked: int = 0
     parity_scaffold_dry_run_outputs_checked: int = 0
     musicnn_onnx_parity_spike_reports_checked: int = 0
+    musicnn_onnx_parity_environment_preparation_reports_checked: int = 0
     label_mapping_checked: int = 0
     evidence_packages_checked: int = 0
     fixture_manifest_templates_checked: int = 0
@@ -1119,6 +1183,113 @@ def _validate_musicnn_onnx_parity_spike_report(path: Path) -> None:
         or not metrics["preprocessing_alignment_status"].strip()
     ):
         raise ValidationError(f"{path}.metrics.preprocessing_alignment_status must be a non-empty string")
+
+    _validate_required_list_container(data, path, "warnings")
+    _validate_warnings(data, str(path))
+    _validate_no_inference_or_production_approval_claims(data, str(path))
+    _validate_no_parity_or_runtime_approval_claims(data, path)
+
+
+def _validate_musicnn_onnx_parity_environment_preparation_report(path: Path) -> None:
+    data = _load_json(path)
+
+    for field in REQUIRED_MUSICNN_ONNX_PARITY_ENVIRONMENT_PREPARATION_FIELDS:
+        if field not in data:
+            raise ValidationError(f"{path} is missing required Roadmap 4.41 environment field: {field}")
+
+    if data["roadmap"] != "4.41":
+        raise ValidationError(f'{path}.roadmap must be "4.41"')
+    if data["report_type"] != MUSICNN_ONNX_PARITY_ENVIRONMENT_PREPARATION_REPORT_TYPE:
+        raise ValidationError(
+            f'{path}.report_type must be "{MUSICNN_ONNX_PARITY_ENVIRONMENT_PREPARATION_REPORT_TYPE}"'
+        )
+
+    for field in (
+        "approved_for_production",
+        "approved_for_provider_implementation",
+        "approved_for_default_provider_switch",
+        "approved_for_inference_beyond_local_spike",
+    ):
+        _require_bool_value(data[field], False, f"{path}.{field}")
+
+    for field in (
+        "not_production_decision",
+        "no_audio_files_committed",
+        "no_model_files_committed",
+        "no_venv_committed",
+        "no_dependency_changes",
+        "no_docker_changes",
+        "no_classify_calls",
+        "legacy_musicnn_remains_baseline",
+    ):
+        _require_bool_value(data[field], True, f"{path}.{field}")
+
+    status = data["environment_status"]
+    if status not in MUSICNN_ONNX_PARITY_ENVIRONMENT_STATUSES:
+        raise ValidationError(f"{path}.environment_status is not allowed: {status!r}")
+
+    prerequisites = _validate_required_object(data, path, "prerequisites")
+    for field in REQUIRED_MUSICNN_ONNX_PARITY_ENVIRONMENT_PREREQUISITES:
+        if field not in prerequisites:
+            raise ValidationError(f"{path}.prerequisites is missing required field: {field}")
+    for field in REQUIRED_MUSICNN_ONNX_PARITY_ENVIRONMENT_PREREQUISITES:
+        if field == "fixture_count":
+            continue
+        if not isinstance(prerequisites[field], bool):
+            raise ValidationError(f"{path}.prerequisites.{field} must be a bool")
+    fixture_count = prerequisites["fixture_count"]
+    if not isinstance(fixture_count, int) or isinstance(fixture_count, bool) or fixture_count < 0:
+        raise ValidationError(f"{path}.prerequisites.fixture_count must be a non-negative integer")
+
+    blockers = data["blockers"]
+    if not isinstance(blockers, list):
+        raise ValidationError(f"{path}.blockers must be a list")
+    blocker_codes: set[str] = set()
+    for index, blocker in enumerate(blockers):
+        context = f"{path}.blockers[{index}]"
+        if not isinstance(blocker, dict):
+            raise ValidationError(f"{context} must be an object")
+        code = blocker.get("code")
+        message = blocker.get("message")
+        if code not in MUSICNN_ONNX_PARITY_ENVIRONMENT_BLOCKERS:
+            raise ValidationError(f"{context}.code is not allowed: {code!r}")
+        if not isinstance(message, str) or not message.strip():
+            raise ValidationError(f"{context}.message must be a non-empty string")
+        blocker_codes.add(code)
+
+    if status == "ready_for_local_parity_run":
+        for field in (
+            "model_artifacts_available",
+            "onnxruntime_available",
+            "tensorflow_available",
+            "essentia_available",
+            "baseline_runtime_available",
+        ):
+            _require_bool_value(prerequisites[field], True, f"{path}.prerequisites.{field}")
+        if fixture_count <= 0:
+            raise ValidationError(f"{path}.prerequisites.fixture_count must be positive when ready")
+    elif status == "blocked":
+        if "MODEL_ARTIFACTS_MISSING" not in blocker_codes and "LOCAL_ENV_NOT_CREATED" not in blocker_codes:
+            raise ValidationError(f"{path}.blockers must explain blocked status")
+    elif not blockers:
+        raise ValidationError(f"{path}.blockers must be non-empty when partially_ready")
+
+    sanitized_locations = data.get("sanitized_locations")
+    if sanitized_locations is not None:
+        if not isinstance(sanitized_locations, dict):
+            raise ValidationError(f"{path}.sanitized_locations must be an object")
+        if sanitized_locations.get("full_local_paths_published") is not False:
+            raise ValidationError(f"{path}.sanitized_locations.full_local_paths_published must be false")
+
+    serialized = json.dumps(data)
+    for forbidden_path in ("/tmp/music-tools-onnx-parity", "/opt/music-tools"):
+        if forbidden_path in serialized:
+            raise ValidationError(f"{path} must not publish private full local path: {forbidden_path}")
+
+    if data.get("parity_run_executed") is not None:
+        _require_bool_value(data["parity_run_executed"], False, f"{path}.parity_run_executed")
+    if data.get("metrics_simulated") is not None:
+        _require_bool_value(data["metrics_simulated"], False, f"{path}.metrics_simulated")
 
     _validate_required_list_container(data, path, "warnings")
     _validate_warnings(data, str(path))
@@ -1815,6 +1986,11 @@ def validate_all(root: Path) -> ValidationSummary:
         _validate_musicnn_onnx_parity_spike_report(evaluation_root / relative_path)
         musicnn_onnx_parity_spike_report_count += 1
 
+    musicnn_onnx_parity_environment_preparation_report_count = 0
+    for relative_path in MUSICNN_ONNX_PARITY_ENVIRONMENT_PREPARATION_REPORT_FILES:
+        _validate_musicnn_onnx_parity_environment_preparation_report(evaluation_root / relative_path)
+        musicnn_onnx_parity_environment_preparation_report_count += 1
+
     label_mapping_count = 0
     for relative_path in LABEL_MAPPING_FILES:
         _validate_label_mapping(evaluation_root / relative_path)
@@ -1835,6 +2011,9 @@ def validate_all(root: Path) -> ValidationSummary:
         real_local_artifact_evidence_reports_checked=real_local_artifact_evidence_report_count,
         parity_scaffold_dry_run_outputs_checked=parity_scaffold_dry_run_output_count,
         musicnn_onnx_parity_spike_reports_checked=musicnn_onnx_parity_spike_report_count,
+        musicnn_onnx_parity_environment_preparation_reports_checked=(
+            musicnn_onnx_parity_environment_preparation_report_count
+        ),
         label_mapping_checked=label_mapping_count,
         evidence_packages_checked=evidence_package_count,
         fixture_manifest_templates_checked=fixture_manifest_template_count,
@@ -1873,6 +2052,8 @@ def main(argv: list[str] | None = None) -> int:
         f"real_local_artifact_evidence_reports={summary.real_local_artifact_evidence_reports_checked}, "
         f"parity_scaffold_dry_run_outputs={summary.parity_scaffold_dry_run_outputs_checked}, "
         f"musicnn_onnx_parity_spike_reports={summary.musicnn_onnx_parity_spike_reports_checked}, "
+        "musicnn_onnx_parity_environment_preparation_reports="
+        f"{summary.musicnn_onnx_parity_environment_preparation_reports_checked}, "
         f"label_mapping={summary.label_mapping_checked}, "
         f"evidence_packages={summary.evidence_packages_checked}, "
         f"fixture_manifest_templates={summary.fixture_manifest_templates_checked}"

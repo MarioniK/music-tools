@@ -874,6 +874,13 @@ def _musicnn_onnx_parity_spike_report_path():
     return SERVICE_ROOT / "docs/lightweight/evaluation/parity-scaffold/musicnn-onnx-parity-spike-report.json"
 
 
+def _musicnn_onnx_parity_environment_preparation_report_path():
+    return (
+        SERVICE_ROOT
+        / "docs/lightweight/evaluation/parity-scaffold/musicnn-onnx-parity-environment-preparation-report.json"
+    )
+
+
 def test_musicnn_onnx_parity_spike_report_is_validated():
     validator = load_validator()
     report_path = _musicnn_onnx_parity_spike_report_path()
@@ -924,3 +931,36 @@ def test_musicnn_onnx_parity_spike_report_rejects_production_approval(tmp_path):
         assert "approved_for_production" in str(exc)
     else:
         raise AssertionError("production-approved parity spike report should fail validation")
+
+
+def test_musicnn_onnx_parity_environment_preparation_report_is_validated():
+    validator = load_validator()
+    report_path = _musicnn_onnx_parity_environment_preparation_report_path()
+
+    validator._validate_musicnn_onnx_parity_environment_preparation_report(report_path)
+    data = validator._load_json(report_path)
+
+    assert data["roadmap"] == "4.41"
+    assert data["report_type"] == "musicnn_onnx_parity_environment_preparation_report"
+    assert data["approved_for_production"] is False
+    assert data["approved_for_provider_implementation"] is False
+    assert data["approved_for_default_provider_switch"] is False
+    assert data["approved_for_inference_beyond_local_spike"] is False
+    assert data["no_venv_committed"] is True
+    assert data["prerequisites"]["isolated_env_path_sanitized"] is True
+
+
+def test_musicnn_onnx_parity_environment_preparation_report_rejects_private_paths(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_musicnn_onnx_parity_environment_preparation_report_path())
+    data["sanitized_locations"]["isolated_env"] = "/tmp/music-tools-onnx-parity/venv"
+
+    report_path = tmp_path / "musicnn-onnx-parity-environment-preparation-report.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_musicnn_onnx_parity_environment_preparation_report(report_path)
+    except validator.ValidationError as exc:
+        assert "full local path" in str(exc)
+    else:
+        raise AssertionError("environment preparation report with private paths should fail validation")

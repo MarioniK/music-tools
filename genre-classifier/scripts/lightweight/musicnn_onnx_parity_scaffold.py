@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Roadmap 4.40 local-only MusiCNN TensorFlow vs ONNX Runtime parity scaffold.
+"""Roadmap 4.40/4.41 local-only MusiCNN TensorFlow vs ONNX Runtime parity scaffold.
 
 This CLI is intentionally stdlib-only. The default mode performs a local-only
 preflight and writes a sanitized Roadmap 4.40 evidence report. It does not
@@ -12,6 +12,7 @@ import argparse
 import importlib.util
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,10 @@ DEFAULT_PARITY_SPIKE_REPORT = (
     SERVICE_ROOT
     / "docs/lightweight/evaluation/parity-scaffold/musicnn-onnx-parity-spike-report.json"
 )
+DEFAULT_ENVIRONMENT_PREPARATION_REPORT = (
+    SERVICE_ROOT
+    / "docs/lightweight/evaluation/parity-scaffold/musicnn-onnx-parity-environment-preparation-report.json"
+)
 ROADMAP_4_32_DOC = (
     SERVICE_ROOT / "docs/lightweight/roadmap-4.32-musicnn-json-metadata-diff-review-parity-readiness-gate.md"
 )
@@ -35,6 +40,8 @@ NEXT_STEP_RECOMMENDATION = "review dry-run metadata-validation output before any
 TMP_ARTIFACT_ROOT_PATH = Path("/tmp/music-tools-onnx-parity")
 TMP_ARTIFACT_ROOT = f"{TMP_ARTIFACT_ROOT_PATH}/"
 TMP_FIXTURE_ROOT_PATH = TMP_ARTIFACT_ROOT_PATH / "fixtures"
+TMP_ISOLATED_VENV_PATH = TMP_ARTIFACT_ROOT_PATH / "venv"
+TMP_ISOLATED_VENV_PYTHON = TMP_ISOLATED_VENV_PATH / "bin/python"
 AUDIO_FIXTURE_EXTENSIONS = {
     ".aif",
     ".aiff",
@@ -51,6 +58,24 @@ LOCAL_ONLY_MODEL_ARTIFACTS = (
     "msd-musicnn-1.json",
 )
 PARITY_REPORT_TYPE = "musicnn_onnx_parity_spike_report"
+ENVIRONMENT_PREPARATION_REPORT_TYPE = "musicnn_onnx_parity_environment_preparation_report"
+
+ALLOWED_ENVIRONMENT_BLOCKERS = {
+    "FIXTURE_DIR_MISSING",
+    "FIXTURE_FILES_MISSING",
+    "FIXTURE_PROVENANCE_UNCLEAR",
+    "ONNXRUNTIME_UNAVAILABLE",
+    "ONNXRUNTIME_LOCAL_INSTALL_FAILED",
+    "BASELINE_RUNTIME_UNAVAILABLE",
+    "BASELINE_ENVIRONMENT_NOT_REPRODUCIBLE",
+    "ESSENTIA_UNAVAILABLE",
+    "TENSORFLOW_UNAVAILABLE",
+    "MODEL_ARTIFACTS_MISSING",
+    "UNSAFE_TO_IMPORT_BASELINE_PROVIDER",
+    "LOCAL_ENV_NOT_CREATED",
+    "LOCAL_PATHS_NOT_PUBLISHABLE",
+    "PARITY_RUN_NOT_EXECUTED",
+}
 
 EXPECTED_ARTIFACTS = {
     "official_local_onnx": {
@@ -389,6 +414,18 @@ def _module_available(name: str) -> bool:
         return False
 
 
+def _module_available_with_python(python_path: Path, name: str) -> bool:
+    if not python_path.is_file():
+        return False
+    result = subprocess.run(
+        [str(python_path), "-c", f"import {name}"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
 def _artifact_status() -> tuple[list[dict[str, Any]], bool]:
     records = []
     for name in LOCAL_ONLY_MODEL_ARTIFACTS:
@@ -417,6 +454,14 @@ def _audio_fixture_count() -> tuple[bool, int]:
     return True, count
 
 
+def _ensure_fixture_dir() -> bool:
+    try:
+        TMP_FIXTURE_ROOT_PATH.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return False
+    return TMP_FIXTURE_ROOT_PATH.is_dir()
+
+
 def _blocked_decision_status(blockers: list[dict[str, str]]) -> str:
     blocker_codes = {blocker["code"] for blocker in blockers}
     if "MODEL_ARTIFACTS_MISSING" in blocker_codes:
@@ -430,6 +475,166 @@ def _blocked_decision_status(blockers: list[dict[str, str]]) -> str:
 
 def _blocker(code: str, message: str) -> dict[str, str]:
     return {"code": code, "message": message}
+
+
+def _environment_status(
+    *,
+    model_artifacts_available: bool,
+    fixture_count: int,
+    onnxruntime_available: bool,
+    tensorflow_available: bool,
+    essentia_available: bool,
+    baseline_runtime_available: bool,
+    isolated_env_created: bool,
+    blockers: list[dict[str, str]],
+) -> str:
+    if not model_artifacts_available or not isolated_env_created:
+        return "blocked"
+    if (
+        fixture_count > 0
+        and onnxruntime_available
+        and tensorflow_available
+        and essentia_available
+        and baseline_runtime_available
+    ):
+        return "ready_for_local_parity_run"
+    if blockers:
+        return "partially_ready"
+    return "partially_ready"
+
+
+def run_environment_preparation(report_path: Path) -> dict[str, Any]:
+    _ensure_fixture_dir()
+    artifact_records, model_artifacts_available = _artifact_status()
+    fixture_dir_available, fixture_count = _audio_fixture_count()
+
+    isolated_env_created = TMP_ISOLATED_VENV_PYTHON.is_file()
+    onnxruntime_available = _module_available_with_python(TMP_ISOLATED_VENV_PYTHON, "onnxruntime")
+    if not onnxruntime_available:
+        onnxruntime_available = _module_available("onnxruntime")
+
+    tensorflow_available = _module_available("tensorflow")
+    essentia_module_available = _module_available("essentia")
+    essentia_standard_available = _module_available("essentia.standard")
+    essentia_available = essentia_module_available and essentia_standard_available
+    baseline_runtime_available = tensorflow_available and essentia_available
+
+    blockers: list[dict[str, str]] = []
+    if not model_artifacts_available:
+        missing = [record["artifact_name"] for record in artifact_records if not record["exists"]]
+        blockers.append(_blocker("MODEL_ARTIFACTS_MISSING", f"Missing local-only model artifacts: {missing}"))
+    if not fixture_dir_available:
+        blockers.append(_blocker("FIXTURE_DIR_MISSING", "fixture_workspace is unavailable."))
+    elif fixture_count == 0:
+        blockers.append(_blocker("FIXTURE_FILES_MISSING", "fixture_workspace has no audio fixture files."))
+    if not isolated_env_created:
+        blockers.append(_blocker("LOCAL_ENV_NOT_CREATED", "isolated_venv is unavailable or incomplete."))
+    if not onnxruntime_available:
+        blockers.append(_blocker("ONNXRUNTIME_UNAVAILABLE", "onnxruntime is unavailable in isolated/local dev env."))
+    if not tensorflow_available:
+        blockers.append(_blocker("TENSORFLOW_UNAVAILABLE", "tensorflow is unavailable in the local baseline env."))
+    if not essentia_available:
+        blockers.append(_blocker("ESSENTIA_UNAVAILABLE", "essentia and/or essentia.standard is unavailable locally."))
+    if not baseline_runtime_available:
+        blockers.append(
+            _blocker(
+                "BASELINE_RUNTIME_UNAVAILABLE",
+                "TensorFlow/Essentia baseline runtime is unavailable without production mutation.",
+            )
+        )
+    blockers.append(_blocker("PARITY_RUN_NOT_EXECUTED", "Roadmap 4.41 prepares environment only; parity was not run."))
+
+    for blocker in blockers:
+        if blocker["code"] not in ALLOWED_ENVIRONMENT_BLOCKERS:
+            raise RuntimeError(f"unexpected environment preparation blocker: {blocker['code']}")
+
+    prerequisites = {
+        "model_artifacts_available": model_artifacts_available,
+        "fixture_dir_available": fixture_dir_available,
+        "fixture_count": fixture_count,
+        "onnxruntime_available": onnxruntime_available,
+        "tensorflow_available": tensorflow_available,
+        "essentia_available": essentia_available,
+        "baseline_runtime_available": baseline_runtime_available,
+        "isolated_env_created": isolated_env_created,
+        "isolated_env_path_sanitized": True,
+    }
+    environment_status = _environment_status(
+        model_artifacts_available=model_artifacts_available,
+        fixture_count=fixture_count,
+        onnxruntime_available=onnxruntime_available,
+        tensorflow_available=tensorflow_available,
+        essentia_available=essentia_available,
+        baseline_runtime_available=baseline_runtime_available,
+        isolated_env_created=isolated_env_created,
+        blockers=blockers,
+    )
+
+    report = {
+        "schema_version": "0.1",
+        "report_type": ENVIRONMENT_PREPARATION_REPORT_TYPE,
+        "roadmap": "4.41",
+        "report_id": "roadmap_4_41_isolated_local_parity_execution_environment_preparation",
+        "generated_by": "scripts/lightweight/musicnn_onnx_parity_scaffold.py",
+        "not_production_decision": True,
+        "approved_for_production": False,
+        "approved_for_provider_implementation": False,
+        "approved_for_default_provider_switch": False,
+        "approved_for_inference_beyond_local_spike": False,
+        "no_audio_files_committed": True,
+        "no_model_files_committed": True,
+        "no_venv_committed": True,
+        "no_dependency_changes": True,
+        "no_docker_changes": True,
+        "no_classify_calls": True,
+        "legacy_musicnn_remains_baseline": True,
+        "environment_status": environment_status,
+        "blockers": blockers,
+        "prerequisites": prerequisites,
+        "sanitized_locations": {
+            "model_artifact_workspace": "local_parity_workspace",
+            "isolated_env": "isolated_venv",
+            "fixture_workspace": "fixture_workspace",
+            "full_local_paths_published": False,
+        },
+        "runtime_checks": {
+            "onnxruntime_checked_in": "isolated_venv",
+            "tensorflow_checked_in": "local_baseline_env",
+            "essentia_checked_in": "local_baseline_env",
+            "essentia_standard_available": essentia_standard_available,
+            "baseline_provider_import_attempted": False,
+            "baseline_provider_import_skipped_reason": (
+                "baseline TensorFlow/Essentia modules are unavailable; provider import is unnecessary for 4.41"
+            ),
+        },
+        "local_model_artifacts": [
+            {
+                "artifact_name": record["artifact_name"],
+                "exists": record["exists"],
+                "file_size_bytes": record["file_size_bytes"],
+                "local_only": True,
+                "artifact_in_repo": False,
+                "committed_to_repo": False,
+                "path_label": "local_parity_workspace",
+            }
+            for record in artifact_records
+        ],
+        "parity_run_executed": False,
+        "metrics_simulated": False,
+        "warnings": [
+            "No fake audio fixtures were created.",
+            "No parity metrics were simulated.",
+            "This report does not approve production migration, provider implementation, or a default provider switch.",
+        ],
+        "next_step_recommendation": (
+            "Add real local-only audio fixtures with clear provenance, then make TensorFlow/Essentia baseline runtime "
+            "available in an isolated local environment before executing numeric parity."
+        ),
+    }
+
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return report
 
 
 def run_parity_spike(report_path: Path) -> dict[str, Any]:
@@ -573,9 +778,13 @@ def run_parity_spike(report_path: Path) -> dict[str, Any]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Local-only MusiCNN TensorFlow vs ONNX Runtime parity scaffold")
-    parser.add_argument("--mode", choices=("parity-spike", "dry-run"), default="parity-spike")
+    parser.add_argument(
+        "--mode",
+        choices=("environment-preparation", "parity-spike", "dry-run"),
+        default="environment-preparation",
+    )
     parser.add_argument("--evidence-report", type=Path, default=DEFAULT_EVIDENCE_REPORT)
-    parser.add_argument("--report", type=Path, default=DEFAULT_PARITY_SPIKE_REPORT)
+    parser.add_argument("--report", type=Path, default=DEFAULT_ENVIRONMENT_PREPARATION_REPORT)
     return parser
 
 
@@ -583,6 +792,8 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.mode == "dry-run":
         result = run_dry_run(args.evidence_report)
+    elif args.mode == "environment-preparation":
+        result = run_environment_preparation(args.report)
     else:
         result = run_parity_spike(args.report)
     print(json.dumps(result, indent=2, sort_keys=True))
