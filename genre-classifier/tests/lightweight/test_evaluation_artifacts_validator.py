@@ -35,6 +35,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_reports_checked == 1
     assert summary.musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports_checked == 1
     assert summary.musicnn_legacy_baseline_capture_reports_checked == 1
+    assert summary.musicnn_onnx_preprocessing_alignment_reports_checked == 1
     assert summary.musicnn_onnx_output_capture_reports_checked == 1
     assert summary.musicnn_onnx_fixture_visibility_strategy_reports_checked == 1
     assert summary.musicnn_legacy_baseline_import_order_diagnostic_reports_checked == 1
@@ -118,6 +119,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "fixture_results=16" in captured.out
     assert "model_provenance=1" in captured.out
     assert "local_artifact_metadata=1" in captured.out
+    assert "musicnn_onnx_preprocessing_alignment_reports=1" in captured.out
     assert "local_artifact_evidence_reports=1" in captured.out
     assert "real_local_artifact_evidence_reports=1" in captured.out
     assert "parity_scaffold_dry_run_outputs=1" in captured.out
@@ -309,6 +311,85 @@ def test_onnx_output_capture_report_records_blocked_preprocessing_alignment():
     assert len(data["sanitized_fixtures"]) == 3
     assert "/tmp/music-tools-onnx-parity" not in serialized
     assert "/opt/music-tools" not in serialized
+
+
+def _onnx_preprocessing_alignment_report_path():
+    return (
+        SERVICE_ROOT
+        / "docs/lightweight/evaluation/parity-scaffold/"
+        / "musicnn-onnx-preprocessing-alignment-report.json"
+    )
+
+
+def test_onnx_preprocessing_alignment_report_is_validated():
+    validator = load_validator()
+
+    validator._validate_musicnn_onnx_preprocessing_alignment_report(
+        _onnx_preprocessing_alignment_report_path()
+    )
+
+
+def test_onnx_preprocessing_alignment_report_records_blocked_alignment_gate():
+    validator = load_validator()
+    data = validator._load_json(_onnx_preprocessing_alignment_report_path())
+    serialized = validator.json.dumps(data)
+
+    assert data["roadmap"] == "4.52"
+    assert data["report_type"] == "musicnn_onnx_preprocessing_alignment_report"
+    assert data["agents_md_read"] is True
+    assert data["approved_for_production"] is False
+    assert data["approved_for_provider_implementation"] is False
+    assert data["approved_for_default_provider_switch"] is False
+    assert data["approved_for_full_numeric_parity_run"] is False
+    assert data["approved_for_final_parity_decision"] is False
+    assert data["approved_for_classify_contract_change"] is False
+    assert data["approved_for_onnx_fixture_output_capture"] is False
+    assert data["alignment_status"]["candidate_alignment_path_found"] is False
+    assert data["alignment_status"]["blocked"] is True
+    assert data["alignment_status"]["inconclusive"] is False
+    assert data["onnx_model_metadata"]["input_name"] == "melspectrogram"
+    assert data["onnx_model_metadata"]["input_shape_tail"] == [187, 96]
+    assert data["legacy_preprocessing_path"]["uses_tensorflow_predict_musiccnn"] is True
+    assert data["legacy_preprocessing_path"]["uses_monoloader"] is True
+    assert data["legacy_preprocessing_path"]["uses_ffmpeg"] is True
+    assert data["legacy_preprocessing_path"]["preprocessing_exposed_as_intermediate"] is False
+    assert data["blockers"][0]["code"] == "LEGACY_INTERMEDIATE_NOT_EXPOSED"
+    assert "onnx_outputs" not in data
+    assert "onnx_capture_succeeded" not in data
+    assert "/tmp/music-tools-onnx-parity" not in serialized
+    assert "/opt/music-tools" not in serialized
+
+
+def test_onnx_preprocessing_alignment_report_rejects_fake_onnx_output_claims(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_onnx_preprocessing_alignment_report_path())
+    data["onnx_outputs"] = [{"fixture_id": "fake", "output_shape": [1, 2], "warnings": []}]
+
+    report_path = tmp_path / "musicnn-onnx-preprocessing-alignment-report.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_musicnn_onnx_preprocessing_alignment_report(report_path)
+    except validator.ValidationError as exc:
+        assert "ONNX output claims" in str(exc)
+    else:
+        raise AssertionError("alignment report with fake ONNX outputs should fail validation")
+
+
+def test_onnx_preprocessing_alignment_report_rejects_production_approval(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_onnx_preprocessing_alignment_report_path())
+    data["approved_for_production"] = True
+
+    report_path = tmp_path / "musicnn-onnx-preprocessing-alignment-report.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_musicnn_onnx_preprocessing_alignment_report(report_path)
+    except validator.ValidationError as exc:
+        assert "approved_for_production" in str(exc)
+    else:
+        raise AssertionError("alignment report with production approval should fail validation")
 
 
 def _fixture_visibility_strategy_path():

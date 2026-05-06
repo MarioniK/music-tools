@@ -86,6 +86,10 @@ MUSICNN_LEGACY_BASELINE_CAPTURE_REPORT_FILES = (
     Path("parity-scaffold/musicnn-legacy-baseline-capture-report.json"),
 )
 
+MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_REPORT_FILES = (
+    Path("parity-scaffold/musicnn-onnx-preprocessing-alignment-report.json"),
+)
+
 MUSICNN_ONNX_OUTPUT_CAPTURE_REPORT_FILES = (
     Path("parity-scaffold/musicnn-onnx-output-capture-report.json"),
 )
@@ -546,6 +550,7 @@ MUSICNN_ONNX_FIXTURE_PLACEMENT_AND_SCOPED_BASELINE_READINESS_REPORT_TYPE = (
     "musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_report"
 )
 MUSICNN_LEGACY_BASELINE_CAPTURE_REPORT_TYPE = "musicnn_legacy_baseline_capture_report"
+MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_REPORT_TYPE = "musicnn_onnx_preprocessing_alignment_report"
 MUSICNN_ONNX_OUTPUT_CAPTURE_REPORT_TYPE = "musicnn_onnx_output_capture_report"
 MUSICNN_ONNX_FIXTURE_VISIBILITY_STRATEGY_REPORT_TYPE = (
     "musicnn_onnx_fixture_visibility_strategy_report"
@@ -571,6 +576,30 @@ MUSICNN_ONNX_OUTPUT_CAPTURE_BLOCKERS = {
     "AUDIO_FILE_IN_REPO_NOT_ALLOWED",
     "VENV_IN_REPO_NOT_ALLOWED",
     "NUMERIC_PARITY_DECISION_NOT_APPROVED",
+    "LOCAL_PATHS_NOT_PUBLISHABLE",
+    "TIDAL_PARSER_SCOPE_VIOLATION",
+}
+
+MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_BLOCKERS = {
+    "AGENTS_MD_NOT_READ",
+    "BASELINE_EVIDENCE_MISSING",
+    "ONNX_ARTIFACT_MISSING",
+    "ONNX_METADATA_MISSING",
+    "LEGACY_METADATA_MISSING",
+    "PREPROCESSING_PARAMETERS_MISSING",
+    "MEL_INPUT_GENERATION_UNKNOWN",
+    "LEGACY_INTERMEDIATE_NOT_EXPOSED",
+    "TENSOR_LAYOUT_UNKNOWN",
+    "NORMALIZATION_UNKNOWN",
+    "ESSENTIA_PREPROCESSING_CHAIN_UNCONFIRMED",
+    "ONNX_INPUT_SHAPE_UNSUPPORTED",
+    "ONNX_FIXTURE_CAPTURE_NOT_APPROVED",
+    "CLASSIFY_CALL_NOT_ALLOWED",
+    "PRODUCTION_DEPENDENCY_CHANGE_NOT_ALLOWED",
+    "MODEL_FILE_IN_REPO_NOT_ALLOWED",
+    "AUDIO_FILE_IN_REPO_NOT_ALLOWED",
+    "VENV_IN_REPO_NOT_ALLOWED",
+    "FINAL_PARITY_DECISION_NOT_APPROVED",
     "LOCAL_PATHS_NOT_PUBLISHABLE",
     "TIDAL_PARSER_SCOPE_VIOLATION",
 }
@@ -608,6 +637,42 @@ REQUIRED_MUSICNN_ONNX_OUTPUT_CAPTURE_FIELDS = (
     "onnx_capture_succeeded",
     "onnx_capture_status",
     "onnx_outputs",
+    "blockers",
+    "warnings",
+    "next_step_recommendation",
+)
+
+REQUIRED_MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_FIELDS = (
+    "report_type",
+    "roadmap",
+    "report_id",
+    "generated_by",
+    "agents_md_read",
+    "not_production_decision",
+    "approved_for_production",
+    "approved_for_provider_implementation",
+    "approved_for_default_provider_switch",
+    "approved_for_full_numeric_parity_run",
+    "approved_for_final_parity_decision",
+    "approved_for_classify_contract_change",
+    "approved_for_onnx_fixture_output_capture",
+    "no_audio_files_committed",
+    "no_model_files_committed",
+    "no_venv_committed",
+    "no_dependency_changes",
+    "no_dockerfile_changes",
+    "no_compose_file_changes",
+    "no_docker_rebuild",
+    "no_classify_calls",
+    "no_provider_changes",
+    "no_tidal_parser_changes",
+    "legacy_musicnn_remains_baseline",
+    "baseline_evidence",
+    "onnx_model_metadata",
+    "preprocessing_metadata",
+    "legacy_preprocessing_path",
+    "alignment_status",
+    "candidate_alignment_path",
     "blockers",
     "warnings",
     "next_step_recommendation",
@@ -1192,6 +1257,7 @@ class ValidationSummary(NamedTuple):
     musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_reports_checked: int = 0
     musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports_checked: int = 0
     musicnn_legacy_baseline_capture_reports_checked: int = 0
+    musicnn_onnx_preprocessing_alignment_reports_checked: int = 0
     musicnn_onnx_output_capture_reports_checked: int = 0
     musicnn_onnx_fixture_visibility_strategy_reports_checked: int = 0
     musicnn_legacy_baseline_import_order_diagnostic_reports_checked: int = 0
@@ -2466,6 +2532,170 @@ def _validate_musicnn_legacy_baseline_capture_report(path: Path) -> None:
     _validate_no_parity_or_runtime_approval_claims(data, path)
 
 
+def _validate_musicnn_onnx_preprocessing_alignment_report(path: Path) -> None:
+    data = _load_json(path)
+
+    for field in REQUIRED_MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_FIELDS:
+        if field not in data:
+            raise ValidationError(f"{path} is missing required Roadmap 4.52 field: {field}")
+
+    if data["roadmap"] != "4.52":
+        raise ValidationError(f'{path}.roadmap must be "4.52"')
+    if data["report_type"] != MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_REPORT_TYPE:
+        raise ValidationError(
+            f'{path}.report_type must be "{MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_REPORT_TYPE}"'
+        )
+    if data["generated_by"] != "scripts/lightweight/musicnn_preprocessing_alignment_probe.py":
+        raise ValidationError(f"{path}.generated_by must reference the local-only alignment probe")
+
+    _require_bool_value(data["agents_md_read"], True, f"{path}.agents_md_read")
+    _require_bool_value(data["not_production_decision"], True, f"{path}.not_production_decision")
+    for field in (
+        "approved_for_production",
+        "approved_for_provider_implementation",
+        "approved_for_default_provider_switch",
+        "approved_for_full_numeric_parity_run",
+        "approved_for_final_parity_decision",
+        "approved_for_classify_contract_change",
+        "approved_for_onnx_fixture_output_capture",
+    ):
+        _require_bool_value(data[field], False, f"{path}.{field}")
+    for field in (
+        "no_audio_files_committed",
+        "no_model_files_committed",
+        "no_venv_committed",
+        "no_dependency_changes",
+        "no_dockerfile_changes",
+        "no_compose_file_changes",
+        "no_docker_rebuild",
+        "no_classify_calls",
+        "no_provider_changes",
+        "no_tidal_parser_changes",
+        "legacy_musicnn_remains_baseline",
+    ):
+        _require_bool_value(data[field], True, f"{path}.{field}")
+
+    baseline_evidence = _validate_required_object(data, path, "baseline_evidence")
+    if baseline_evidence.get("available") is not True:
+        raise ValidationError(f"{path}.baseline_evidence.available must be true")
+    if baseline_evidence.get("fixture_count") != 3:
+        raise ValidationError(f"{path}.baseline_evidence.fixture_count must be 3")
+    if baseline_evidence.get("expected_output_shapes") != [[30, 50], [35, 50], [86, 50]]:
+        raise ValidationError(f"{path}.baseline_evidence.expected_output_shapes must record the committed shapes")
+    if baseline_evidence.get("report_path") != (
+        "docs/lightweight/evaluation/parity-scaffold/musicnn-legacy-baseline-capture-report.json"
+    ):
+        raise ValidationError(f"{path}.baseline_evidence.report_path must reference the committed baseline report")
+
+    onnx_model_metadata = _validate_required_object(data, path, "onnx_model_metadata")
+    if onnx_model_metadata.get("input_name") != "melspectrogram":
+        raise ValidationError(f"{path}.onnx_model_metadata.input_name must be melspectrogram")
+    if onnx_model_metadata.get("input_shape_tail") != [187, 96]:
+        raise ValidationError(f"{path}.onnx_model_metadata.input_shape_tail must be [187, 96]")
+    if onnx_model_metadata.get("output_names") != ["activations", "embeddings"]:
+        raise ValidationError(f"{path}.onnx_model_metadata.output_names must record the committed ONNX outputs")
+    if onnx_model_metadata.get("output_shape_tails") != [[50], [200]]:
+        raise ValidationError(f"{path}.onnx_model_metadata.output_shape_tails must record the committed ONNX shapes")
+
+    preprocessing_metadata = _validate_required_object(data, path, "preprocessing_metadata")
+    if preprocessing_metadata.get("sample_rate") != 16000:
+        raise ValidationError(f"{path}.preprocessing_metadata.sample_rate must be 16000")
+    for field in ("frame_size", "hop_size", "mel_bands", "patch_length", "tensor_layout", "normalization"):
+        if field not in preprocessing_metadata:
+            raise ValidationError(f"{path}.preprocessing_metadata is missing required field: {field}")
+    if preprocessing_metadata.get("source_of_truth") != [
+        "app/services/classify.py",
+        "app/providers/legacy_musicnn.py",
+        "app/core/settings.py",
+        "app/models/msd-musicnn-1.json",
+        "docs/lightweight/evaluation/parity-scaffold/musicnn-legacy-baseline-capture-report.json",
+        "docs/lightweight/evaluation/parity-scaffold/musicnn-onnx-output-capture-report.json",
+    ]:
+        raise ValidationError(f"{path}.preprocessing_metadata.source_of_truth must remain sanitized and scoped")
+    unknown_fields = preprocessing_metadata.get("unknown_fields")
+    if not isinstance(unknown_fields, list) or not unknown_fields:
+        raise ValidationError(f"{path}.preprocessing_metadata.unknown_fields must be a non-empty list")
+    for index, field in enumerate(unknown_fields):
+        if not isinstance(field, str) or not field.strip():
+            raise ValidationError(f"{path}.preprocessing_metadata.unknown_fields[{index}] must be a non-empty string")
+
+    legacy_preprocessing_path = _validate_required_object(data, path, "legacy_preprocessing_path")
+    _require_bool_value(
+        legacy_preprocessing_path.get("uses_tensorflow_predict_musiccnn"),
+        True,
+        f"{path}.legacy_preprocessing_path.uses_tensorflow_predict_musiccnn",
+    )
+    _require_bool_value(
+        legacy_preprocessing_path.get("uses_monoloader"),
+        True,
+        f"{path}.legacy_preprocessing_path.uses_monoloader",
+    )
+    _require_bool_value(
+        legacy_preprocessing_path.get("uses_ffmpeg"),
+        True,
+        f"{path}.legacy_preprocessing_path.uses_ffmpeg",
+    )
+    _require_bool_value(
+        legacy_preprocessing_path.get("preprocessing_exposed_as_intermediate"),
+        False,
+        f"{path}.legacy_preprocessing_path.preprocessing_exposed_as_intermediate",
+    )
+
+    alignment_status = _validate_required_object(data, path, "alignment_status")
+    for field in ("candidate_alignment_path_found", "blocked", "inconclusive"):
+        if not isinstance(alignment_status.get(field), bool):
+            raise ValidationError(f"{path}.alignment_status.{field} must be a bool")
+    if alignment_status["candidate_alignment_path_found"] is not False:
+        raise ValidationError(f"{path}.alignment_status.candidate_alignment_path_found must be false")
+    if alignment_status["blocked"] is not True:
+        raise ValidationError(f"{path}.alignment_status.blocked must be true")
+    if alignment_status["inconclusive"] is not False:
+        raise ValidationError(f"{path}.alignment_status.inconclusive must be false")
+
+    candidate_alignment_path = _validate_required_object(data, path, "candidate_alignment_path")
+    if not isinstance(candidate_alignment_path.get("method"), str) or not candidate_alignment_path["method"].strip():
+        raise ValidationError(f"{path}.candidate_alignment_path.method must be a non-empty string")
+    for field in ("required_algorithms", "evidence", "risks"):
+        value = candidate_alignment_path.get(field)
+        if not isinstance(value, list) or not value:
+            raise ValidationError(f"{path}.candidate_alignment_path.{field} must be a non-empty list")
+        for index, item in enumerate(value):
+            if not isinstance(item, str) or not item.strip():
+                raise ValidationError(f"{path}.candidate_alignment_path.{field}[{index}] must be a non-empty string")
+
+    blockers = data["blockers"]
+    if not isinstance(blockers, list) or not blockers:
+        raise ValidationError(f"{path}.blockers must be a non-empty list")
+    blocker_codes: set[str] = set()
+    for index, blocker in enumerate(blockers):
+        context = f"{path}.blockers[{index}]"
+        if not isinstance(blocker, dict):
+            raise ValidationError(f"{context} must be an object")
+        code = blocker.get("code")
+        message = blocker.get("message")
+        if code not in MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_BLOCKERS:
+            raise ValidationError(f"{context}.code is not allowed: {code!r}")
+        if not isinstance(message, str) or not message.strip():
+            raise ValidationError(f"{context}.message must be a non-empty string")
+        blocker_codes.add(code)
+
+    for required_code in (
+        "LEGACY_INTERMEDIATE_NOT_EXPOSED",
+        "MEL_INPUT_GENERATION_UNKNOWN",
+        "ESSENTIA_PREPROCESSING_CHAIN_UNCONFIRMED",
+    ):
+        if required_code not in blocker_codes:
+            raise ValidationError(f"{path}.blockers must include {required_code}")
+
+    if "onnx_outputs" in data:
+        raise ValidationError(f"{path} must not include ONNX output claims in the alignment gate")
+    if "onnx_capture_succeeded" in data:
+        raise ValidationError(f"{path} must not include ONNX capture success claims in the alignment gate")
+
+    _validate_no_inference_or_production_approval_claims(data, str(path))
+    _validate_no_parity_or_runtime_approval_claims(data, path)
+
+
 def _validate_musicnn_onnx_output_capture_report(path: Path) -> None:
     data = _load_json(path)
 
@@ -3601,6 +3831,11 @@ def validate_all(root: Path) -> ValidationSummary:
         _validate_musicnn_legacy_baseline_capture_report(evaluation_root / relative_path)
         musicnn_legacy_baseline_capture_report_count += 1
 
+    musicnn_onnx_preprocessing_alignment_report_count = 0
+    for relative_path in MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_REPORT_FILES:
+        _validate_musicnn_onnx_preprocessing_alignment_report(evaluation_root / relative_path)
+        musicnn_onnx_preprocessing_alignment_report_count += 1
+
     musicnn_onnx_output_capture_report_count = 0
     for relative_path in MUSICNN_ONNX_OUTPUT_CAPTURE_REPORT_FILES:
         _validate_musicnn_onnx_output_capture_report(evaluation_root / relative_path)
@@ -3652,6 +3887,9 @@ def validate_all(root: Path) -> ValidationSummary:
             musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_report_count
         ),
         musicnn_legacy_baseline_capture_reports_checked=musicnn_legacy_baseline_capture_report_count,
+        musicnn_onnx_preprocessing_alignment_reports_checked=(
+            musicnn_onnx_preprocessing_alignment_report_count
+        ),
         musicnn_onnx_output_capture_reports_checked=musicnn_onnx_output_capture_report_count,
         musicnn_onnx_fixture_visibility_strategy_reports_checked=(
             musicnn_onnx_fixture_visibility_strategy_report_count
@@ -3709,6 +3947,8 @@ def main(argv: list[str] | None = None) -> int:
         f"{summary.musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports_checked}, "
         "musicnn_legacy_baseline_capture_reports="
         f"{summary.musicnn_legacy_baseline_capture_reports_checked}, "
+        "musicnn_onnx_preprocessing_alignment_reports="
+        f"{summary.musicnn_onnx_preprocessing_alignment_reports_checked}, "
         "musicnn_onnx_output_capture_reports="
         f"{summary.musicnn_onnx_output_capture_reports_checked}, "
         "musicnn_onnx_fixture_visibility_strategy_reports="

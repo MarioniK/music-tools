@@ -1,0 +1,189 @@
+{
+    "report_type": "musicnn_onnx_preprocessing_alignment_report",
+    "roadmap": "4.52",
+    "report_id": "roadmap_4_52_onnx_preprocessing_alignment_investigation_gate",
+    "generated_by": "scripts/lightweight/musicnn_preprocessing_alignment_probe.py",
+    "agents_md_read": true,
+    "not_production_decision": true,
+    "approved_for_production": false,
+    "approved_for_provider_implementation": false,
+    "approved_for_default_provider_switch": false,
+    "approved_for_full_numeric_parity_run": false,
+    "approved_for_final_parity_decision": false,
+    "approved_for_classify_contract_change": false,
+    "approved_for_onnx_fixture_output_capture": false,
+    "no_audio_files_committed": true,
+    "no_model_files_committed": true,
+    "no_venv_committed": true,
+    "no_dependency_changes": true,
+    "no_dockerfile_changes": true,
+    "no_compose_file_changes": true,
+    "no_docker_rebuild": true,
+    "no_classify_calls": true,
+    "no_provider_changes": true,
+    "no_tidal_parser_changes": true,
+    "legacy_musicnn_remains_baseline": true,
+    "baseline_evidence": {
+        "report_path": "docs/lightweight/evaluation/parity-scaffold/musicnn-legacy-baseline-capture-report.json",
+        "available": true,
+        "fixture_count": 3,
+        "fixture_ids": [
+            "john_bartmann_earning_happiness_cc0",
+            "john_bartmann_happy_clappy_cc0",
+            "john_bartmann_home_at_last_cc0"
+        ],
+        "expected_output_shapes": [
+            [
+                30,
+                50
+            ],
+            [
+                35,
+                50
+            ],
+            [
+                86,
+                50
+            ]
+        ]
+    },
+    "onnx_model_metadata": {
+        "input_name": "melspectrogram",
+        "input_shape_tail": [
+            187,
+            96
+        ],
+        "output_names": [
+            "activations",
+            "embeddings"
+        ],
+        "output_shape_tails": [
+            [
+                50
+            ],
+            [
+                200
+            ]
+        ]
+    },
+    "preprocessing_metadata": {
+        "uses_tensorflow_predict_musiccnn": true,
+        "uses_monoloader": true,
+        "uses_ffmpeg": true,
+        "preprocessing_exposed_as_intermediate": false,
+        "sample_rate": 16000,
+        "frame_size": null,
+        "hop_size": null,
+        "mel_bands": null,
+        "patch_length": null,
+        "tensor_layout": null,
+        "normalization": null,
+        "source_of_truth": [
+            "app/services/classify.py",
+            "app/providers/legacy_musicnn.py",
+            "app/core/settings.py",
+            "app/models/msd-musicnn-1.json",
+            "docs/lightweight/evaluation/parity-scaffold/musicnn-legacy-baseline-capture-report.json",
+            "docs/lightweight/evaluation/parity-scaffold/musicnn-onnx-output-capture-report.json"
+        ],
+        "unknown_fields": [
+            "frame_size",
+            "hop_size",
+            "mel_bands",
+            "patch_length",
+            "tensor_layout",
+            "normalization"
+        ]
+    },
+    "legacy_preprocessing_path": {
+        "uses_tensorflow_predict_musiccnn": true,
+        "uses_monoloader": true,
+        "uses_ffmpeg": true,
+        "preprocessing_exposed_as_intermediate": false,
+        "sample_rate": 16000,
+        "frame_size": null,
+        "hop_size": null,
+        "mel_bands": null,
+        "patch_length": null,
+        "tensor_layout": null,
+        "normalization": null,
+        "source_of_truth": [
+            "app/services/classify.py",
+            "app/providers/legacy_musicnn.py",
+            "app/core/settings.py",
+            "app/models/msd-musicnn-1.json",
+            "docs/lightweight/evaluation/parity-scaffold/musicnn-legacy-baseline-capture-report.json",
+            "docs/lightweight/evaluation/parity-scaffold/musicnn-onnx-output-capture-report.json"
+        ],
+        "unknown_fields": [
+            "frame_size",
+            "hop_size",
+            "mel_bands",
+            "patch_length",
+            "tensor_layout",
+            "normalization"
+        ]
+    },
+    "alignment_status": {
+        "candidate_alignment_path_found": false,
+        "blocked": true,
+        "inconclusive": false
+    },
+    "candidate_alignment_path": {
+        "method": "Static legacy MusicNN path audit only; no reproducible intermediate melspectrogram producer is evidenced in the current repo code.",
+        "required_algorithms": [
+            "ffmpeg",
+            "MonoLoader",
+            "TensorflowPredictMusiCNN",
+            "melspectrogram frontend"
+        ],
+        "evidence": [
+            "legacy path normalizes uploads to mono WAV at 16000 Hz before classification",
+            "legacy provider delegates directly to the shared classification service",
+            "ONNX metadata exposes input melspectrogram with tail shape [187, 96]",
+            "committed legacy baseline evidence remains available and valid"
+        ],
+        "risks": [
+            "the intermediate mel frontend is not exposed in repository code",
+            "frame size, hop size, mel bands, patch length, tensor layout, and normalization are not evidenced",
+            "local Essentia runtime inspection did not provide confirmed preprocessing algorithm names"
+        ]
+    },
+    "essentia_probe": {
+        "available": false,
+        "error": "ModuleNotFoundError: No module named 'essentia'",
+        "algorithm_names": []
+    },
+    "blockers": [
+        {
+            "code": "LEGACY_INTERMEDIATE_NOT_EXPOSED",
+            "message": "legacy MusicNN path does not expose an intermediate melspectrogram tensor in repo code"
+        },
+        {
+            "code": "MEL_INPUT_GENERATION_UNKNOWN",
+            "message": "a reproducible producer for the ONNX melspectrogram input is not yet evidenced"
+        },
+        {
+            "code": "PREPROCESSING_PARAMETERS_MISSING",
+            "message": "frame size, hop size, mel bands, patch length, tensor layout, and normalization remain unconfirmed"
+        },
+        {
+            "code": "ESSENTIA_PREPROCESSING_CHAIN_UNCONFIRMED",
+            "message": "no local Essentia runtime evidence confirms the preprocessing chain names or parameters"
+        },
+        {
+            "code": "TENSOR_LAYOUT_UNKNOWN",
+            "message": "the legacy-to-ONNX tensor layout mapping is not evidenced"
+        },
+        {
+            "code": "NORMALIZATION_UNKNOWN",
+            "message": "normalization details for the candidate preprocessing path are not evidenced"
+        }
+    ],
+    "warnings": [
+        "No ONNX inference was executed.",
+        "No fake outputs are recorded.",
+        "No production migration or provider switch was approved."
+    ],
+    "next_step_recommendation": "Keep ONNX fixture output capture blocked until a reproducible melspectrogram producer is evidenced for the legacy MusiCNN path or a safe Essentia preprocessing chain probe can confirm the missing parameters without touching production runtime."
+}
