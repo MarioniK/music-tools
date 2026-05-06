@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import platform
 import shutil
 import subprocess
 import sys
@@ -51,8 +52,16 @@ DEFAULT_BASELINE_PROTOTYPE_REPORT = (
     / "docs/lightweight/evaluation/evidence/"
     / "roadmap-4.56-onnx-musicnn-pragmatic-preprocessing-prototype-report.json"
 )
+DEFAULT_PREPROCESSING_PROBE_REPORT = (
+    SERVICE_ROOT
+    / "docs/lightweight/evaluation/parity-scaffold/"
+    / "tensorflow-input-musicnn-preprocessing-probe-report.json"
+)
 DEFAULT_FIXTURE_DIR = Path("/tmp/music-tools-onnx-parity/fixtures")
 DEFAULT_ISOLATED_PYTHON = Path("/tmp/music-tools-onnx-parity/venv/bin/python")
+DEFAULT_SAMPLE_RATE = 16000
+DEFAULT_FRAME_SIZE = 512
+DEFAULT_HOP_SIZE = 256
 EXPECTED_SHAPE = [187, 96]
 EXPECTED_FIXTURES = (
     {
@@ -86,6 +95,10 @@ ALLOWED_BLOCKER_CODES = {
     "TENSORFLOW_INPUT_MUSICNN_UNAVAILABLE",
     "TENSORFLOW_INPUT_MUSICNN_IMPORT_FAILED",
     "TENSORFLOW_INPUT_MUSICNN_PROBE_FAILED",
+    "TENSORFLOW_INPUT_MUSICNN_PATCH_NOT_GENERATED",
+    "TENSORFLOW_INPUT_MUSICNN_PATCH_NOT_STABLE",
+    "REPEATED_RUN_STABILITY_NOT_CHECKED",
+    "APPROVED_LEGAL_FIXTURE_NOT_AVAILABLE",
     "MUSICNN_MEL_PATCH_SHAPE_NOT_PRODUCED",
     "MUSICNN_MEL_PATCH_SHAPE_UNSTABLE",
     "GENERIC_MELBANDS_FALLBACK_USED",
@@ -283,6 +296,82 @@ def _probe_onnxruntime_version(python_executable: Path) -> dict[str, Any]:
     payload = json.loads(probe.stdout.strip() or "{}")
     if not isinstance(payload, dict):
         raise ProbeError("onnxruntime probe returned invalid JSON")
+    return payload
+
+
+def _probe_essentia_runtime(python_executable: Path) -> dict[str, Any]:
+    """Собирает безопасные import-level сведения об Essentia runtime."""
+
+    if not python_executable.is_file():
+        return {
+            "python_available": False,
+            "import_essentia": False,
+            "import_essentia_standard": False,
+            "tensorflow_input_musicnn_available": False,
+            "essentia_runtime_version": None,
+            "essentia_tensorflow_package_version": None,
+            "import_error_category": "FileNotFoundError",
+            "import_error_message": "python executable is missing",
+            "warnings": [],
+        }
+
+    probe = subprocess.run(
+        [
+            str(python_executable),
+            "-c",
+            (
+                "import importlib.metadata\n"
+                "import json\n"
+                "try:\n"
+                "    import essentia\n"
+                "    import essentia.standard as es\n"
+                "except Exception as exc:\n"
+                "    print(json.dumps({"
+                "        'python_available': True,"
+                "        'import_essentia': False,"
+                "        'import_essentia_standard': False,"
+                "        'tensorflow_input_musiccnn_available': False,"
+                "        'essentia_runtime_version': None,"
+                "        'essentia_tensorflow_package_version': importlib.metadata.version('essentia-tensorflow'),"
+                "        'import_error_category': type(exc).__name__,"
+                "        'import_error_message': str(exc),"
+                "    }, ensure_ascii=False))\n"
+                "else:\n"
+                "    print(json.dumps({"
+                "        'python_available': True,"
+                "        'import_essentia': True,"
+                "        'import_essentia_standard': True,"
+                "        'tensorflow_input_musicnn_available': hasattr(es, 'TensorflowInputMusiCNN'),"
+                "        'essentia_runtime_version': getattr(essentia, '__version__', None),"
+                "        'essentia_tensorflow_package_version': importlib.metadata.version('essentia-tensorflow'),"
+                "        'import_error_category': None,"
+                "        'import_error_message': None,"
+                "    }, ensure_ascii=False))\n"
+            ),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    warnings = [line.strip() for line in (probe.stderr or "").splitlines() if line.strip()]
+    if probe.returncode != 0:
+        return {
+            "python_available": True,
+            "import_essentia": False,
+            "import_essentia_standard": False,
+            "tensorflow_input_musicnn_available": False,
+            "essentia_runtime_version": None,
+            "essentia_tensorflow_package_version": None,
+            "import_error_category": "SubprocessError",
+            "import_error_message": (probe.stderr or probe.stdout or "essentia probe failed").strip(),
+            "warnings": warnings,
+        }
+
+    payload = json.loads(probe.stdout.strip() or "{}")
+    if not isinstance(payload, dict):
+        raise ProbeError("essentia probe returned invalid JSON")
+    payload["warnings"] = warnings
     return payload
 
 
@@ -519,9 +608,404 @@ def _probe_generic_melbands_fallback(*, availability: dict[str, Any]) -> dict[st
         "fallback_status": "blocked",
         "fallback_risks": [
             "Fallback не доказывает gate для TensorflowInputMusiCNN-specific preprocessing.",
-            "Fallback повышает риск ухода от pragmatic ONNX lane.",
+        "Fallback повышает риск ухода от pragmatic ONNX lane.",
         ],
     }
+
+
+def _classify_warnings(warnings: list[str]) -> dict[str, Any]:
+    observed = [warning for warning in warnings if warning]
+    if any("libcudart.so.11.0" in warning for warning in observed) or any(
+        "libcuda.so.1" in warning for warning in observed
+    ) or any("CUDA driver unavailable" in warning for warning in observed):
+        return {
+            "category": "cuda_libraries_missing_but_cpu_import_available",
+            "observed": observed,
+            "blocking": False,
+            "reason": "CPU import-level availability evidence does not require CUDA runtime availability.",
+        }
+    return {
+        "category": "none",
+        "observed": observed,
+        "blocking": False,
+        "reason": "No blocking warnings were observed during the import probe.",
+    }
+
+
+def _load_fixture_provenance_notes(path: Path) -> dict[str, Any]:
+    data = _load_json(path)
+    if data.get("fixture_set") != "musicnn_onnx_parity_local_legal_fixtures_roadmap_4_45":
+        raise ProbeError(f"Unexpected fixture provenance set: {path}")
+    fixtures = data.get("fixtures")
+    if not isinstance(fixtures, list) or not fixtures:
+        raise ProbeError(f"Fixture provenance is missing fixture entries: {path}")
+    sanitized = []
+    for item in fixtures:
+        if not isinstance(item, dict):
+            raise ProbeError(f"Fixture provenance entry must be an object: {path}")
+        sanitized.append(
+            {
+                "fixture_id": item.get("fixture_id"),
+                "title": item.get("title"),
+                "artist": item.get("artist"),
+                "license_status": item.get("license_status"),
+                "usage_permission": item.get("usage_permission"),
+            }
+        )
+    return {
+        "path": path.relative_to(Path("/tmp")).as_posix() if str(path).startswith("/tmp/") else path.name,
+        "fixtures": sanitized,
+    }
+
+
+def _normalize_patch_rows(
+    rows: list[list[float]],
+    *,
+    expected_frames: int,
+    expected_bands: int,
+) -> list[list[float]]:
+    if not rows:
+        raise ProbeError("no mel-bands were produced")
+
+    normalized_rows: list[list[float]] = []
+    for row in rows:
+        if len(row) != expected_bands:
+            raise ProbeError(f"expected {expected_bands} bands but received {len(row)}")
+        normalized_rows.append([float(value) for value in row])
+
+    if len(normalized_rows) < expected_frames:
+        last_row = list(normalized_rows[-1])
+        while len(normalized_rows) < expected_frames:
+            normalized_rows.append(list(last_row))
+    else:
+        normalized_rows = normalized_rows[:expected_frames]
+
+    if len(normalized_rows) != expected_frames or any(len(row) != expected_bands for row in normalized_rows):
+        raise ProbeError("normalized mel patch does not match the expected shape")
+    return normalized_rows
+
+
+def _sha256_json_payload(payload: list[list[float]]) -> str:
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _run_tensorflow_input_musiccnn_patch(
+    *,
+    fixture_path: Path,
+    sample_rate: int,
+    frame_size: int,
+    hop_size: int,
+    expected_frames: int,
+    expected_bands: int,
+) -> dict[str, Any]:
+    try:
+        import essentia.standard as es
+    except Exception as exc:  # pragma: no cover - executed only in an approved env
+        raise ProbeError(_safe_error(exc)) from exc
+
+    audio = es.MonoLoader(filename=str(fixture_path), sampleRate=sample_rate)()
+    tensor = es.TensorflowInputMusiCNN()
+    rows: list[list[float]] = []
+
+    for frame in es.FrameGenerator(
+        audio,
+        frameSize=frame_size,
+        hopSize=hop_size,
+        startFromZero=True,
+        lastFrameToEndOfFile=True,
+    ):
+        bands = [float(value) for value in tensor(frame)]
+        rows.append(bands)
+
+    normalized_patch = _normalize_patch_rows(
+        rows,
+        expected_frames=expected_frames,
+        expected_bands=expected_bands,
+    )
+    return {
+        "raw_observed_shape": [len(rows), len(rows[0]) if rows else 0],
+        "raw_first_row_shape": len(rows[0]) if rows else 0,
+        "final_patch_shape": [len(normalized_patch), len(normalized_patch[0])],
+        "patch_digest": _sha256_json_payload(normalized_patch),
+        "normalized_patch": normalized_patch,
+    }
+
+
+def build_preprocessing_probe_report(args: argparse.Namespace) -> dict[str, Any]:
+    blockers: list[dict[str, str]] = []
+
+    if not args.agents_md_read:
+        blockers.append(_blocker("AGENTS_MD_NOT_READ", "AGENTS.md was not confirmed as read."))
+
+    fixture_path = getattr(args, "fixture", None)
+    if fixture_path is None:
+        blockers.append(
+            _blocker(
+                "APPROVED_LEGAL_FIXTURE_NOT_AVAILABLE",
+                "Approved legal fixture path was not provided.",
+            )
+        )
+        fixture_exists = False
+    else:
+        fixture_exists = fixture_path.is_file()
+        if not fixture_exists:
+            blockers.append(
+                _blocker(
+                    "APPROVED_LEGAL_FIXTURE_NOT_AVAILABLE",
+                    f"Approved legal fixture is unavailable: {fixture_path}",
+                )
+            )
+
+    provenance_path = args.fixtures_dir / "fixture-provenance-notes.json"
+    try:
+        fixture_provenance = _load_fixture_provenance_notes(provenance_path)
+    except ProbeError as exc:
+        blockers.append(_blocker("FIXTURE_FILES_MISSING", str(exc)))
+        fixture_provenance = {
+            "path": "fixture-provenance-notes.json",
+            "fixtures": [],
+        }
+
+    runtime_probe = _probe_essentia_runtime(args.isolated_python)
+    import_error_category = runtime_probe.get("import_error_category")
+    import_error_message = runtime_probe.get("import_error_message")
+    try:
+        import importlib.metadata
+        import essentia
+        import essentia.standard as es
+    except Exception as exc:  # pragma: no cover - executed only in an approved env
+        import_essentia = False
+        import_essentia_standard = False
+        tensorflow_input_musiccnn_available = False
+        essentia_runtime_version = None
+        essentia_tensorflow_package_version = runtime_probe.get("essentia_tensorflow_package_version")
+        import_error_category = type(exc).__name__
+        import_error_message = str(exc)
+        blockers.append(
+            _blocker(
+                "ESSENTIA_IMPORT_FAILED",
+                "Essentia runtime is unavailable in the approved isolated environment.",
+            )
+        )
+    else:
+        import_essentia = True
+        import_essentia_standard = True
+        tensorflow_input_musiccnn_available = hasattr(es, "TensorflowInputMusiCNN")
+        essentia_runtime_version = getattr(essentia, "__version__", None)
+        essentia_tensorflow_package_version = importlib.metadata.version("essentia-tensorflow")
+        if not tensorflow_input_musiccnn_available:
+            blockers.append(
+                _blocker(
+                    "TENSORFLOW_INPUT_MUSICNN_PATCH_NOT_GENERATED",
+                    "essentia.standard imported, but TensorflowInputMusiCNN is not exposed.",
+                )
+            )
+
+    if not fixture_exists or not import_essentia_standard or not tensorflow_input_musiccnn_available:
+        status = "blocked"
+        repeated_run_stability = {
+            "checked": False,
+            "shape_equal": None,
+            "stable": None,
+            "max_abs_diff": None,
+            "mean_abs_diff": None,
+            "comparison_reason": "Preprocessing probe was not executable to completion.",
+        }
+        patch_result = {
+            "raw_observed_shape": None,
+            "final_patch_shape": None,
+            "patch_produced": False,
+        }
+    else:
+        run_results: list[dict[str, Any]] = []
+        run_patches: list[list[list[float]]] = []
+        for _index in range(args.repeat_runs):
+            try:
+                run_result = _run_tensorflow_input_musiccnn_patch(
+                    fixture_path=fixture_path,
+                    sample_rate=args.sample_rate,
+                    frame_size=args.frame_size,
+                    hop_size=args.hop_size,
+                    expected_frames=args.expected_frames,
+                    expected_bands=args.expected_bands,
+                )
+            except ProbeError as exc:
+                blockers.append(
+                    _blocker(
+                        "TENSORFLOW_INPUT_MUSICNN_PATCH_NOT_GENERATED",
+                        str(exc),
+                    )
+                )
+                status = "blocked"
+                repeated_run_stability = {
+                    "checked": False,
+                    "shape_equal": None,
+                    "stable": None,
+                    "max_abs_diff": None,
+                    "mean_abs_diff": None,
+                    "comparison_reason": "TensorflowInputMusiCNN patch could not be generated.",
+                }
+                patch_result = {
+                    "raw_observed_shape": None,
+                    "final_patch_shape": None,
+                    "patch_produced": False,
+                }
+                break
+            run_results.append(run_result)
+            run_patches.append(run_result["normalized_patch"])
+        else:
+            patch_result = {
+                "raw_observed_shape": run_results[0]["raw_observed_shape"],
+                "final_patch_shape": run_results[0]["final_patch_shape"],
+                "patch_produced": True,
+            }
+            repeated_run_stability = {
+                "checked": len(run_patches) >= 2,
+                "shape_equal": None,
+                "stable": None,
+                "max_abs_diff": None,
+                "mean_abs_diff": None,
+                "comparison_reason": None,
+            }
+            if len(run_patches) >= 2:
+                first_patch = run_patches[0]
+                second_patch = run_patches[1]
+                shape_equal = (
+                    len(first_patch) == len(second_patch)
+                    and all(len(row_a) == len(row_b) for row_a, row_b in zip(first_patch, second_patch))
+                )
+                diffs: list[float] = []
+                if shape_equal:
+                    for row_a, row_b in zip(first_patch, second_patch):
+                        diffs.extend(abs(value_a - value_b) for value_a, value_b in zip(row_a, row_b))
+                    repeated_run_stability = {
+                        "checked": True,
+                        "shape_equal": True,
+                        "stable": max(diffs, default=0.0) == 0.0,
+                        "max_abs_diff": max(diffs, default=0.0),
+                        "mean_abs_diff": (sum(diffs) / len(diffs)) if diffs else 0.0,
+                        "comparison_reason": None,
+                    }
+                else:
+                    repeated_run_stability = {
+                        "checked": True,
+                        "shape_equal": False,
+                        "stable": False,
+                        "max_abs_diff": None,
+                        "mean_abs_diff": None,
+                        "comparison_reason": "The repeated runs produced patches with different shapes.",
+                    }
+                    blockers.append(
+                        _blocker(
+                            "REPEATED_RUN_STABILITY_NOT_CHECKED",
+                            "Repeated run comparison could not be completed because patch shapes differ.",
+                        )
+                    )
+            else:
+                repeated_run_stability = {
+                    "checked": False,
+                    "shape_equal": None,
+                    "stable": None,
+                    "max_abs_diff": None,
+                    "mean_abs_diff": None,
+                    "comparison_reason": "repeat-runs was set below 2, so stability could not be checked.",
+                }
+                blockers.append(
+                    _blocker(
+                        "REPEATED_RUN_STABILITY_NOT_CHECKED",
+                        "Repeated run stability was not checked because fewer than two runs were requested.",
+                    )
+                )
+            status = "completed" if not blockers and repeated_run_stability.get("stable") is not False else "blocked"
+            if repeated_run_stability.get("stable") is False and not any(
+                blocker["code"] == "REPEATED_RUN_STABILITY_NOT_CHECKED" for blocker in blockers
+            ):
+                blockers.append(
+                    _blocker(
+                        "TENSORFLOW_INPUT_MUSICNN_PATCH_NOT_STABLE",
+                        "Repeated runs over the same fixture produced different patches.",
+                    )
+                )
+
+    warnings = _classify_warnings(list(runtime_probe.get("warnings", [])))
+
+    unique_blockers: list[dict[str, str]] = []
+    seen_codes: set[str] = set()
+    for item in blockers:
+        code = item["code"]
+        if code not in seen_codes:
+            unique_blockers.append(item)
+            seen_codes.add(code)
+
+    report = {
+        "schema_version": "0.1",
+        "report_type": "tensorflow_input_musiccnn_preprocessing_probe_report",
+        "report_id": "roadmap_4_64_tensorflow_input_musiccnn_preprocessing_probe",
+        "generated_by": "scripts/lightweight/musicnn_tensorflow_input_probe.py",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "roadmap_step": "4.64",
+        "status": status if "status" in locals() else "blocked",
+        "service": "genre-classifier",
+        "production_touched": False,
+        "tidal_parser_touched": False,
+        "isolated_venv_path": str(args.isolated_python.parent.parent),
+        "python_version": f"Python {platform.python_version()}",
+        "essentia_tensorflow_package_version": essentia_tensorflow_package_version,
+        "essentia_runtime_version": essentia_runtime_version,
+        "import_essentia": import_essentia,
+        "import_essentia_standard": import_essentia_standard,
+        "tensorflow_input_musiccnn_available": tensorflow_input_musiccnn_available,
+        "fixture": {
+            "approved_legal_marker": bool(fixture_exists and fixture_provenance.get("fixtures")),
+            "sanitized_path_policy": "outside_repo:/tmp/music-tools-onnx-parity/fixtures",
+            "path": str(fixture_path) if fixture_path is not None else None,
+            "sha256": _sha256(fixture_path) if fixture_exists and fixture_path is not None else None,
+            "sample_rate_requested": args.sample_rate,
+            "fixture_id": EXPECTED_FIXTURES[0]["fixture_id"] if fixture_exists else None,
+            "provenance": fixture_provenance,
+        },
+        "preprocessing_parameters": {
+            "sampleRate": args.sample_rate,
+            "frameSize": args.frame_size,
+            "numberBands_expected": args.expected_bands,
+            "hopSize": args.hop_size,
+        },
+        "raw_observed_shape": patch_result["raw_observed_shape"],
+        "final_patch_shape": patch_result["final_patch_shape"],
+        "patch_shape_expected": [args.expected_frames, args.expected_bands],
+        "patch_produced": patch_result["patch_produced"],
+        "repeated_run_stability": repeated_run_stability,
+        "blockers": unique_blockers,
+        "warnings": warnings,
+        "non_goals": [
+            "TensorflowPredictMusiCNN oracle was not used.",
+            "Strict legacy parity was not claimed.",
+            "ONNX output capture was not run.",
+            "/classify was not called.",
+            "Docker Compose was not run.",
+            "Dockerfile or Compose files were not changed.",
+            "Production dependencies were not changed.",
+            "Provider/default logic was not changed.",
+            "tidal-parser was not touched.",
+        ],
+        "fake_output_created": False,
+        "tensorflow_predict_musicnn_used": False,
+        "generic_melbands_fallback_used": False,
+        "onnx_output_capture_run": False,
+        "classify_called": False,
+        "docker_compose_run": False,
+        "production_dependency_changes": False,
+        "dockerfile_compose_changes": False,
+        "provider_default_changes": False,
+        "next_step_recommendation": (
+            "Если patch [187, 96] produced и repeated-run stability подтверждена, "
+            "следующий шаг Roadmap 4.65 может переходить к ONNX output capture; "
+            "иначе удерживать lane blocked и не менять production provider/default logic."
+        ),
+    }
+    return report
 
 
 def build_report(args: argparse.Namespace) -> dict[str, Any]:
@@ -742,11 +1226,18 @@ def _build_parser() -> argparse.ArgumentParser:
         default="availability",
         help="availability собирает только статус окружений; preprocessing-probe пытается подтвердить mel path без fake output.",
     )
-    parser.add_argument("--report", type=Path, default=DEFAULT_REPORT_PATH)
+    parser.add_argument("--output", "--report", dest="report", type=Path, default=None)
     parser.add_argument("--fixtures-dir", type=Path, default=DEFAULT_FIXTURE_DIR)
     parser.add_argument("--isolated-python", type=Path, default=DEFAULT_ISOLATED_PYTHON)
     parser.add_argument("--strategy-report", type=Path, default=DEFAULT_BASELINE_STRATEGY_REPORT)
     parser.add_argument("--prototype-report", type=Path, default=DEFAULT_BASELINE_PROTOTYPE_REPORT)
+    parser.add_argument("--fixture", type=Path, default=None)
+    parser.add_argument("--sample-rate", type=int, default=DEFAULT_SAMPLE_RATE)
+    parser.add_argument("--expected-frames", type=int, default=EXPECTED_SHAPE[0])
+    parser.add_argument("--expected-bands", type=int, default=EXPECTED_SHAPE[1])
+    parser.add_argument("--repeat-runs", type=int, default=2)
+    parser.add_argument("--frame-size", type=int, default=DEFAULT_FRAME_SIZE)
+    parser.add_argument("--hop-size", type=int, default=DEFAULT_HOP_SIZE)
     parser.add_argument(
         "--agents-md-read",
         action="store_true",
@@ -758,7 +1249,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
-    report = build_report(args)
+    if args.report is None:
+        args.report = DEFAULT_REPORT_PATH if args.mode == "availability" else DEFAULT_PREPROCESSING_PROBE_REPORT
+    if args.mode == "preprocessing-probe":
+        report = build_preprocessing_probe_report(args)
+    else:
+        report = build_report(args)
     _write_report(report, args.report)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0

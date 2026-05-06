@@ -1,0 +1,117 @@
+{
+  "schema_version": "0.1",
+  "report_type": "tensorflow_input_musiccnn_preprocessing_probe_report",
+  "report_id": "roadmap_4_64_tensorflow_input_musiccnn_preprocessing_probe",
+  "generated_by": "scripts/lightweight/musicnn_tensorflow_input_probe.py",
+  "created_at": "2026-05-06T20:53:53.568354+00:00",
+  "roadmap_step": "4.64",
+  "status": "completed",
+  "service": "genre-classifier",
+  "production_touched": false,
+  "tidal_parser_touched": false,
+  "isolated_venv_path": "/tmp/music-tools-onnx-parity/venv",
+  "python_version": "Python 3.11.2",
+  "essentia_tensorflow_package_version": "2.1b6.dev1389",
+  "essentia_runtime_version": "2.1-beta6-dev",
+  "import_essentia": true,
+  "import_essentia_standard": true,
+  "tensorflow_input_musiccnn_available": true,
+  "fixture": {
+    "approved_legal_marker": true,
+    "sanitized_path_policy": "outside_repo:/tmp/music-tools-onnx-parity/fixtures",
+    "path": "/tmp/music-tools-onnx-parity/fixtures/john_bartmann__earning_happiness__cc0.mp3",
+    "sha256": "d75937b87f8ad440d7655d33b5ffbd36e374ac71ad794976fdebd325541ae628",
+    "sample_rate_requested": 16000,
+    "fixture_id": "john_bartmann_earning_happiness_cc0",
+    "provenance": {
+      "path": "music-tools-onnx-parity/fixtures/fixture-provenance-notes.json",
+      "fixtures": [
+        {
+          "fixture_id": "john_bartmann_happy_clappy_cc0",
+          "title": "Happy Clappy",
+          "artist": "John Bartmann",
+          "license_status": "CC0 1.0 Universal / public domain",
+          "usage_permission": "local_evaluation_only"
+        },
+        {
+          "fixture_id": "john_bartmann_earning_happiness_cc0",
+          "title": "Earning Happiness",
+          "artist": "John Bartmann",
+          "license_status": "CC0 1.0 Universal / public domain",
+          "usage_permission": "local_evaluation_only"
+        },
+        {
+          "fixture_id": "john_bartmann_home_at_last_cc0",
+          "title": "Home At Last",
+          "artist": "John Bartmann",
+          "license_status": "CC0 1.0 Universal / public domain",
+          "usage_permission": "local_evaluation_only"
+        }
+      ]
+    }
+  },
+  "preprocessing_parameters": {
+    "sampleRate": 16000,
+    "frameSize": 512,
+    "numberBands_expected": 96,
+    "hopSize": 256
+  },
+  "raw_observed_shape": [
+    2948,
+    96
+  ],
+  "final_patch_shape": [
+    187,
+    96
+  ],
+  "patch_shape_expected": [
+    187,
+    96
+  ],
+  "patch_produced": true,
+  "repeated_run_stability": {
+    "checked": true,
+    "shape_equal": true,
+    "stable": true,
+    "max_abs_diff": 0.0,
+    "mean_abs_diff": 0.0,
+    "comparison_reason": null
+  },
+  "blockers": [],
+  "warnings": {
+    "category": "cuda_libraries_missing_but_cpu_import_available",
+    "observed": [
+      "2026-05-06 23:53:50.576496: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory",
+      "2026-05-06 23:53:50.576513: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.",
+      "[   INFO   ] MusicExtractorSVM: no classifier models were configured by default",
+      "2026-05-06 23:53:51.049392: I tensorflow/core/platform/cpu_feature_guard.cc:142] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  SSE3 SSE4.1 SSE4.2 AVX AVX2 FMA",
+      "To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.",
+      "2026-05-06 23:53:51.049642: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory",
+      "2026-05-06 23:53:51.049653: W tensorflow/stream_executor/cuda/cuda_driver.cc:326] failed call to cuInit: UNKNOWN ERROR (303)",
+      "2026-05-06 23:53:51.049671: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (docker): /proc/driver/nvidia/version does not exist"
+    ],
+    "blocking": false,
+    "reason": "CPU import-level availability evidence does not require CUDA runtime availability."
+  },
+  "non_goals": [
+    "TensorflowPredictMusiCNN oracle was not used.",
+    "Strict legacy parity was not claimed.",
+    "ONNX output capture was not run.",
+    "/classify was not called.",
+    "Docker Compose was not run.",
+    "Dockerfile or Compose files were not changed.",
+    "Production dependencies were not changed.",
+    "Provider/default logic was not changed.",
+    "tidal-parser was not touched."
+  ],
+  "fake_output_created": false,
+  "tensorflow_predict_musicnn_used": false,
+  "generic_melbands_fallback_used": false,
+  "onnx_output_capture_run": false,
+  "classify_called": false,
+  "docker_compose_run": false,
+  "production_dependency_changes": false,
+  "dockerfile_compose_changes": false,
+  "provider_default_changes": false,
+  "next_step_recommendation": "Если patch [187, 96] produced и repeated-run stability подтверждена, следующий шаг Roadmap 4.65 может переходить к ONNX output capture; иначе удерживать lane blocked и не менять production provider/default logic."
+}
