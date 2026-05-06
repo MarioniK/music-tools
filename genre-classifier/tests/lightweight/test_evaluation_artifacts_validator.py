@@ -215,14 +215,20 @@ def test_legacy_baseline_capture_report_is_validated():
     validator._validate_musicnn_legacy_baseline_capture_report(_legacy_baseline_capture_report_path())
 
 
-def test_legacy_baseline_capture_report_records_4_48_non_production_safety_flags():
+def test_legacy_baseline_capture_report_records_4_50_non_production_safety_flags():
     validator = load_validator()
     data = validator._load_json(_legacy_baseline_capture_report_path())
     serialized = validator.json.dumps(data)
 
-    assert data["roadmap"] == "4.48"
+    assert data["roadmap"] == "4.50"
     assert data["baseline_capture_scope"] == "one_off_compose_run_bind_mount"
     assert data["selected_fixture_visibility_strategy"] == "one_off_compose_run_bind_mount"
+    assert data["import_policy"] == [
+        "essentia_first",
+        "no_explicit_tensorflow_before_essentia",
+        "production_like_legacy_musicnn_path",
+        "fresh_python_process",
+    ]
     assert data["not_production_decision"] is True
     assert data["approved_for_production"] is False
     assert data["approved_for_provider_implementation"] is False
@@ -231,16 +237,17 @@ def test_legacy_baseline_capture_report_records_4_48_non_production_safety_flags
     assert data["approved_for_onnx_execution"] is False
     assert data["no_onnx_execution"] is True
     assert data["no_tensorflow_vs_onnx_comparison"] is True
-    assert data["baseline_capture_status"]["succeeded"] is False
-    assert data["baseline_outputs"] == []
+    assert data["baseline_capture_succeeded"] is True
+    assert data["baseline_capture_status"]["succeeded"] is True
+    assert len(data["baseline_outputs"]) == 3
     assert "/tmp/music-tools-onnx-parity" not in serialized
     assert "/opt/music-tools" not in serialized
 
 
-def test_legacy_baseline_capture_report_requires_mount_blockers(tmp_path):
+def test_legacy_baseline_capture_report_requires_outputs_when_successful(tmp_path):
     validator = load_validator()
     data = validator._load_json(_legacy_baseline_capture_report_path())
-    data["blockers"] = []
+    data["baseline_outputs"] = []
 
     report_path = tmp_path / "baseline-capture-report.json"
     report_path.write_text(validator.json.dumps(data), encoding="utf-8")
@@ -248,9 +255,25 @@ def test_legacy_baseline_capture_report_requires_mount_blockers(tmp_path):
     try:
         validator._validate_musicnn_legacy_baseline_capture_report(report_path)
     except validator.ValidationError as exc:
-        assert "blockers must be non-empty" in str(exc)
+        assert "baseline_outputs must match fixture_count" in str(exc)
     else:
-        raise AssertionError("blocked baseline capture report should require blockers")
+        raise AssertionError("successful baseline capture report should require outputs")
+
+
+def test_legacy_baseline_capture_report_rejects_onnx_approval(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_legacy_baseline_capture_report_path())
+    data["approved_for_onnx_execution"] = True
+
+    report_path = tmp_path / "baseline-capture-report.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_musicnn_legacy_baseline_capture_report(report_path)
+    except validator.ValidationError as exc:
+        assert "approved_for_onnx_execution" in str(exc)
+    else:
+        raise AssertionError("baseline capture report should reject ONNX approval")
 
 
 def _fixture_visibility_strategy_path():

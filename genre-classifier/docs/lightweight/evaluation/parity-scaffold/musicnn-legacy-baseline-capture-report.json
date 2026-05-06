@@ -1,6 +1,6 @@
 {
   "report_type": "musicnn_legacy_baseline_capture_report",
-  "roadmap": "4.48",
+  "roadmap": "4.50",
   "not_production_decision": true,
   "approved_for_production": false,
   "approved_for_provider_implementation": false,
@@ -9,6 +9,12 @@
   "approved_for_onnx_execution": false,
   "baseline_capture_scope": "one_off_compose_run_bind_mount",
   "selected_fixture_visibility_strategy": "one_off_compose_run_bind_mount",
+  "import_policy": [
+    "essentia_first",
+    "no_explicit_tensorflow_before_essentia",
+    "production_like_legacy_musicnn_path",
+    "fresh_python_process"
+  ],
   "no_audio_files_committed": true,
   "no_model_files_committed": true,
   "no_venv_committed": true,
@@ -50,26 +56,241 @@
     "one_off_container_used": true,
     "bind_mount_used": true,
     "running_service_mutated": false,
-    "tensorflow_import_ok": true,
-    "tensorflow_version": "2.21.0",
-    "essentia_import_ok": false,
-    "fixture_path_visible": true
+    "import_policy_used": [
+      "essentia_first",
+      "no_explicit_tensorflow_before_essentia",
+      "production_like_legacy_musicnn_path",
+      "fresh_python_process"
+    ],
+    "fixture_path_visible": true,
+    "expected_mp3_files_visible": true,
+    "essentia_standard_import_ok": true,
+    "tensorflow_predict_musicnn_available": true
   },
+  "baseline_capture_succeeded": true,
   "baseline_capture_status": {
-    "succeeded": false,
-    "status": "blocked",
-    "summary": "The approved one-off bind-mounted import check failed before legacy baseline capture could safely run."
+    "succeeded": true,
+    "status": "succeeded",
+    "summary": "Scoped legacy MusiCNN baseline-only capture completed for all legal CC0 fixtures in a one-off bind-mounted container."
   },
-  "baseline_outputs": [],
-  "blockers": [
+  "baseline_outputs": [
     {
-      "code": "ONE_OFF_COMPOSE_RUN_FAILED",
-      "message": "The required one-off compose run exited non-zero during runtime import checks."
+      "fixture_id": "john_bartmann_earning_happiness_cc0",
+      "output_shape": [
+        30,
+        50
+      ],
+      "top_labels": [
+        "electronic",
+        "dance",
+        "house",
+        "electro",
+        "electronica",
+        "chillout",
+        "pop",
+        "ambient"
+      ],
+      "top_scores": [
+        0.4535,
+        0.2151,
+        0.1634,
+        0.1173,
+        0.1169,
+        0.0931,
+        0.0763,
+        0.0753
+      ],
+      "genres": [
+        {
+          "tag": "electronic",
+          "prob": 0.4535
+        },
+        {
+          "tag": "dance",
+          "prob": 0.2151
+        },
+        {
+          "tag": "house",
+          "prob": 0.1634
+        },
+        {
+          "tag": "electro",
+          "prob": 0.1173
+        },
+        {
+          "tag": "electronica",
+          "prob": 0.1169
+        },
+        {
+          "tag": "chillout",
+          "prob": 0.0931
+        },
+        {
+          "tag": "pop",
+          "prob": 0.0763
+        },
+        {
+          "tag": "ambient",
+          "prob": 0.0753
+        }
+      ],
+      "genres_pretty": [
+        "electronic",
+        "dance",
+        "house",
+        "electro",
+        "electronica",
+        "chillout",
+        "pop",
+        "ambient"
+      ],
+      "warnings": []
     },
     {
-      "code": "ESSENTIA_IMPORT_FAILED",
-      "message": "Essentia import did not complete after TensorFlow import; the process aborted with duplicate TensorFlow op registration."
+      "fixture_id": "john_bartmann_happy_clappy_cc0",
+      "output_shape": [
+        35,
+        50
+      ],
+      "top_labels": [
+        "indie",
+        "folk",
+        "acoustic",
+        "rock",
+        "alternative",
+        "pop",
+        "female vocalists",
+        "indie pop"
+      ],
+      "top_scores": [
+        0.2637,
+        0.1747,
+        0.1128,
+        0.1096,
+        0.0892,
+        0.0852,
+        0.0836,
+        0.071
+      ],
+      "genres": [
+        {
+          "tag": "indie",
+          "prob": 0.2637
+        },
+        {
+          "tag": "folk",
+          "prob": 0.1747
+        },
+        {
+          "tag": "acoustic",
+          "prob": 0.1128
+        },
+        {
+          "tag": "rock",
+          "prob": 0.1096
+        },
+        {
+          "tag": "alternative",
+          "prob": 0.0892
+        },
+        {
+          "tag": "pop",
+          "prob": 0.0852
+        },
+        {
+          "tag": "female vocalists",
+          "prob": 0.0836
+        },
+        {
+          "tag": "indie pop",
+          "prob": 0.071
+        }
+      ],
+      "genres_pretty": [
+        "indie rock",
+        "alternative rock",
+        "indie",
+        "folk",
+        "acoustic",
+        "rock",
+        "alternative",
+        "pop"
+      ],
+      "warnings": []
+    },
+    {
+      "fixture_id": "john_bartmann_home_at_last_cc0",
+      "output_shape": [
+        86,
+        50
+      ],
+      "top_labels": [
+        "jazz",
+        "instrumental",
+        "rock",
+        "ambient",
+        "indie",
+        "alternative",
+        "female vocalists",
+        "electronic"
+      ],
+      "top_scores": [
+        0.2194,
+        0.1707,
+        0.1184,
+        0.105,
+        0.0922,
+        0.0725,
+        0.0641,
+        0.0628
+      ],
+      "genres": [
+        {
+          "tag": "jazz",
+          "prob": 0.2194
+        },
+        {
+          "tag": "instrumental",
+          "prob": 0.1707
+        },
+        {
+          "tag": "rock",
+          "prob": 0.1184
+        },
+        {
+          "tag": "ambient",
+          "prob": 0.105
+        },
+        {
+          "tag": "indie",
+          "prob": 0.0922
+        },
+        {
+          "tag": "alternative",
+          "prob": 0.0725
+        },
+        {
+          "tag": "female vocalists",
+          "prob": 0.0641
+        },
+        {
+          "tag": "electronic",
+          "prob": 0.0628
+        }
+      ],
+      "genres_pretty": [
+        "indie rock",
+        "jazz rock",
+        "alternative rock",
+        "instrumental rock",
+        "electronic",
+        "jazz",
+        "instrumental",
+        "rock"
+      ],
+      "warnings": []
     }
   ],
-  "next_step_recommendation": "Investigate a safe import order or runtime smoke path for the one-off baseline container, then rerun baseline-only capture with the same read-only fixture bind mount and without ONNX execution, /classify calls, or numeric parity."
+  "blockers": [],
+  "next_step_recommendation": "Use this sanitized legacy MusiCNN baseline as evidence for a separately approved future comparison step; keep ONNX execution, full numeric parity, provider implementation, default-provider switching, and /classify calls out of this baseline-only capture."
 }

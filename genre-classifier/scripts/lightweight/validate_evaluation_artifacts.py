@@ -739,8 +739,8 @@ MUSICNN_LEGACY_BASELINE_CAPTURE_BLOCKERS = {
     "FIXTURE_BIND_MOUNT_FAILED",
     "FIXTURE_PATH_NOT_VISIBLE_IN_ONE_OFF_CONTAINER",
     "BASELINE_IMPORT_FAILED",
-    "TENSORFLOW_IMPORT_FAILED",
     "ESSENTIA_IMPORT_FAILED",
+    "BITCAST_DUPLICATE_REGISTRATION",
     "BASELINE_CAPTURE_SCRIPT_UNSAFE",
     "BASELINE_CAPTURE_FAILED",
     "CLASSIFY_CALL_NOT_ALLOWED",
@@ -908,6 +908,7 @@ REQUIRED_MUSICNN_LEGACY_BASELINE_CAPTURE_FIELDS = (
     "approved_for_onnx_execution",
     "baseline_capture_scope",
     "selected_fixture_visibility_strategy",
+    "import_policy",
     "no_audio_files_committed",
     "no_model_files_committed",
     "no_venv_committed",
@@ -922,6 +923,7 @@ REQUIRED_MUSICNN_LEGACY_BASELINE_CAPTURE_FIELDS = (
     "fixture_count",
     "sanitized_fixtures",
     "container_execution",
+    "baseline_capture_succeeded",
     "baseline_capture_status",
     "baseline_outputs",
     "blockers",
@@ -2226,8 +2228,8 @@ def _validate_musicnn_legacy_baseline_capture_report(path: Path) -> None:
         if field not in data:
             raise ValidationError(f"{path} is missing required Roadmap 4.48 field: {field}")
 
-    if data["roadmap"] != "4.48":
-        raise ValidationError(f'{path}.roadmap must be "4.48"')
+    if data["roadmap"] != "4.50":
+        raise ValidationError(f'{path}.roadmap must be "4.50"')
     if data["report_type"] != MUSICNN_LEGACY_BASELINE_CAPTURE_REPORT_TYPE:
         raise ValidationError(f'{path}.report_type must be "{MUSICNN_LEGACY_BASELINE_CAPTURE_REPORT_TYPE}"')
 
@@ -2248,6 +2250,14 @@ def _validate_musicnn_legacy_baseline_capture_report(path: Path) -> None:
         raise ValidationError(
             f'{path}.selected_fixture_visibility_strategy must be "one_off_compose_run_bind_mount"'
         )
+    expected_import_policy = [
+        "essentia_first",
+        "no_explicit_tensorflow_before_essentia",
+        "production_like_legacy_musicnn_path",
+        "fresh_python_process",
+    ]
+    if data["import_policy"] != expected_import_policy:
+        raise ValidationError(f"{path}.import_policy must record the Essentia-first import policy")
 
     fixture_count = data["fixture_count"]
     if not isinstance(fixture_count, int) or isinstance(fixture_count, bool) or fixture_count < 0:
@@ -2279,9 +2289,10 @@ def _validate_musicnn_legacy_baseline_capture_report(path: Path) -> None:
         "one_off_container_used",
         "bind_mount_used",
         "running_service_mutated",
-        "tensorflow_import_ok",
-        "essentia_import_ok",
         "fixture_path_visible",
+        "expected_mp3_files_visible",
+        "essentia_standard_import_ok",
+        "tensorflow_predict_musicnn_available",
     ):
         if not isinstance(container_execution.get(field), bool):
             raise ValidationError(f"{path}.container_execution.{field} must be a bool")
@@ -2296,10 +2307,16 @@ def _validate_musicnn_legacy_baseline_capture_report(path: Path) -> None:
         value = container_execution.get(field)
         if not isinstance(value, str) or not value.strip():
             raise ValidationError(f"{path}.container_execution.{field} must be a non-empty string")
+    if container_execution.get("import_policy_used") != expected_import_policy:
+        raise ValidationError(f"{path}.container_execution.import_policy_used must record the Essentia-first policy")
 
     capture_status = _validate_required_object(data, path, "baseline_capture_status")
+    if not isinstance(data["baseline_capture_succeeded"], bool):
+        raise ValidationError(f"{path}.baseline_capture_succeeded must be a bool")
     if not isinstance(capture_status.get("succeeded"), bool):
         raise ValidationError(f"{path}.baseline_capture_status.succeeded must be a bool")
+    if data["baseline_capture_succeeded"] != capture_status["succeeded"]:
+        raise ValidationError(f"{path}.baseline_capture_succeeded must match baseline_capture_status.succeeded")
     for field, value in capture_status.items():
         if isinstance(value, bool):
             continue
@@ -2332,9 +2349,45 @@ def _validate_musicnn_legacy_baseline_capture_report(path: Path) -> None:
             context = f"{path}.baseline_outputs[{index}]"
             if not isinstance(output, dict):
                 raise ValidationError(f"{context} must be an object")
-            for field in ("fixture_id", "output_shape", "top_labels", "top_scores", "warnings"):
+            for field in (
+                "fixture_id",
+                "output_shape",
+                "top_labels",
+                "top_scores",
+                "genres",
+                "genres_pretty",
+                "warnings",
+            ):
                 if field not in output:
                     raise ValidationError(f"{context} is missing required field: {field}")
+            if not isinstance(output["fixture_id"], str) or not output["fixture_id"].strip():
+                raise ValidationError(f"{context}.fixture_id must be a non-empty string")
+            if not isinstance(output["output_shape"], list) or not output["output_shape"]:
+                raise ValidationError(f"{context}.output_shape must be a non-empty list")
+            if not all(isinstance(item, int) and not isinstance(item, bool) for item in output["output_shape"]):
+                raise ValidationError(f"{context}.output_shape must contain integers")
+            if not isinstance(output["top_labels"], list) or not output["top_labels"]:
+                raise ValidationError(f"{context}.top_labels must be a non-empty list")
+            if not all(isinstance(item, str) and item.strip() for item in output["top_labels"]):
+                raise ValidationError(f"{context}.top_labels must contain non-empty strings")
+            if not isinstance(output["top_scores"], list) or len(output["top_scores"]) != len(output["top_labels"]):
+                raise ValidationError(f"{context}.top_scores must match top_labels length")
+            if not all(_is_number(item) for item in output["top_scores"]):
+                raise ValidationError(f"{context}.top_scores must contain numbers")
+            if not isinstance(output["genres"], list) or not isinstance(output["genres_pretty"], list):
+                raise ValidationError(f"{context}.genres and genres_pretty must be lists")
+            for genre_index, genre in enumerate(output["genres"]):
+                genre_context = f"{context}.genres[{genre_index}]"
+                if not isinstance(genre, dict):
+                    raise ValidationError(f"{genre_context} must be an object")
+                if not isinstance(genre.get("tag"), str) or not genre["tag"].strip():
+                    raise ValidationError(f"{genre_context}.tag must be a non-empty string")
+                if not _is_number(genre.get("prob")):
+                    raise ValidationError(f"{genre_context}.prob must be a number")
+            if not all(isinstance(item, str) and item.strip() for item in output["genres_pretty"]):
+                raise ValidationError(f"{context}.genres_pretty must contain non-empty strings")
+            if not isinstance(output["warnings"], list):
+                raise ValidationError(f"{context}.warnings must be a list")
     else:
         if not blockers:
             raise ValidationError(f"{path}.blockers must be non-empty when baseline capture is blocked")
