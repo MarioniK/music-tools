@@ -1,0 +1,75 @@
+{
+  "schema_version": "0.1",
+  "report_type": "essentia_runtime_acquisition_report",
+  "report_id": "roadmap_4_62_isolated_essentia_runtime_acquisition",
+  "generated_by": "manual_codex_gate_check",
+  "created_at": "2026-05-06T00:00:00+00:00",
+  "roadmap": "4.62",
+  "status": "blocked",
+  "option_a": {
+    "status": "blocked",
+    "wheel_available": false,
+    "blocker": "OFFLINE_LOCAL_ESSENTIA_WHEEL_NOT_AVAILABLE",
+    "install_attempted": false
+  },
+  "option_b": {
+    "status": "blocked",
+    "safe_container_available": false,
+    "blocker": "DOCKER_CONTAINER_PROBE_UNAVAILABLE",
+    "container_changes": false,
+    "install_attempted": false
+  },
+  "venv_python_version": "Python 3.11.2",
+  "pip_version": "pip 23.0.1 from /tmp/music-tools-onnx-parity/venv/lib/python3.11/site-packages/pip (python 3.11)",
+  "wheel_metadata": null,
+  "install_target": "/tmp/music-tools-onnx-parity/venv",
+  "import_results": {
+    "import_essentia": false,
+    "import_essentia_standard": false,
+    "essentia_version": null,
+    "tensorflow_input_musicnn_available": null,
+    "probe_executed": false
+  },
+  "blockers": [
+    "OFFLINE_LOCAL_ESSENTIA_WHEEL_NOT_AVAILABLE",
+    "DOCKER_CONTAINER_PROBE_UNAVAILABLE",
+    "ESSENTIA_IMPORT_PROBE_NOT_EXECUTED"
+  ],
+  "safety_confirmations": {
+    "classify_called": false,
+    "production_inference_called": false,
+    "tensorflow_baseline_called": false,
+    "tensorflow_vs_onnx_comparison_called": false,
+    "full_onnx_capture_called": false,
+    "production_dependencies_changed": false,
+    "dockerfile_compose_changed": false,
+    "provider_default_changed": false,
+    "tidal_parser_touched": false,
+    "wheel_committed": false,
+    "venv_committed": false,
+    "audio_model_files_added": false
+  },
+  "non_goals": [
+    "no production dependency changes",
+    "no Dockerfile/Compose changes",
+    "no provider/default logic changes",
+    "no tidal-parser changes",
+    "no /classify calls",
+    "no production inference",
+    "no TensorFlow baseline",
+    "no TensorFlow vs ONNX comparison",
+    "no full ONNX output capture",
+    "no audio/model files",
+    "no wheel committed",
+    "no venv committed",
+    "no tag/release"
+  ],
+  "notes": [
+    "AGENTS.md read and followed",
+    "working tree was clean before changes",
+    "Roadmap 4.61 reviewed before executing this step",
+    "offline wheel search returned no usable local candidate",
+    "Docker API access was denied, so Option B could not be used safely",
+    "TensorflowInputMusiCNN availability remains unconfirmed because the import probe was not executed"
+  ]
+}
