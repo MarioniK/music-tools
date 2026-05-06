@@ -1,20 +1,24 @@
 {
   "report_type": "musicnn_legacy_baseline_capture_report",
-  "roadmap": "4.46",
+  "roadmap": "4.48",
   "not_production_decision": true,
   "approved_for_production": false,
   "approved_for_provider_implementation": false,
   "approved_for_default_provider_switch": false,
   "approved_for_full_numeric_parity_run": false,
   "approved_for_onnx_execution": false,
-  "baseline_capture_scope": "existing_container_local_only",
+  "baseline_capture_scope": "one_off_compose_run_bind_mount",
+  "selected_fixture_visibility_strategy": "one_off_compose_run_bind_mount",
   "no_audio_files_committed": true,
   "no_model_files_committed": true,
   "no_venv_committed": true,
   "no_dependency_changes": true,
-  "no_docker_changes": true,
+  "no_dockerfile_changes": true,
+  "no_compose_file_changes": true,
   "no_docker_rebuild": true,
   "no_classify_calls": true,
+  "no_onnx_execution": true,
+  "no_tensorflow_vs_onnx_comparison": true,
   "legacy_musicnn_remains_baseline": true,
   "fixture_count": 3,
   "sanitized_fixtures": [
@@ -40,34 +44,32 @@
       "license_status": "CC0"
     }
   ],
-  "container_status": {
+  "container_execution": {
+    "compose_directory": "genre-classifier",
     "service_name": "genre-classifier",
-    "service_name_known": true,
-    "compose_directory": "/opt/music-tools/genre-classifier",
-    "container_running": true,
+    "one_off_container_used": true,
+    "bind_mount_used": true,
+    "running_service_mutated": false,
     "tensorflow_import_ok": true,
     "tensorflow_version": "2.21.0",
-    "essentia_import_ok": true,
-    "fixture_path_accessible_in_container": false
+    "essentia_import_ok": false,
+    "fixture_path_visible": true
   },
   "baseline_capture_status": {
     "succeeded": false,
-    "blocked_container_unavailable": false,
-    "blocked_service_unknown": false,
-    "blocked_fixture_path_not_mounted": true,
-    "blocked_baseline_import_failed": false,
-    "blocked_capture_error": false
+    "status": "blocked",
+    "summary": "The approved one-off bind-mounted import check failed before legacy baseline capture could safely run."
   },
   "baseline_outputs": [],
   "blockers": [
     {
-      "code": "FIXTURE_PATH_NOT_AVAILABLE_IN_CONTAINER",
-      "message": "The external legal fixture directory was not visible inside the existing genre-classifier container."
+      "code": "ONE_OFF_COMPOSE_RUN_FAILED",
+      "message": "The required one-off compose run exited non-zero during runtime import checks."
     },
     {
-      "code": "BASELINE_CAPTURE_BLOCKED_BY_CONTAINER_MOUNT",
-      "message": "Baseline capture was not run because Roadmap 4.46 does not permit Compose mount changes, Docker rebuilds, or copying fixtures into the repository."
+      "code": "ESSENTIA_IMPORT_FAILED",
+      "message": "Essentia import did not complete after TensorFlow import; the process aborted with duplicate TensorFlow op registration."
     }
   ],
-  "next_step_recommendation": "Expose the approved external fixture directory to the existing local container through a separately approved non-production mount strategy, then rerun scoped baseline capture without ONNX execution or /classify calls."
+  "next_step_recommendation": "Investigate a safe import order or runtime smoke path for the one-off baseline container, then rerun baseline-only capture with the same read-only fixture bind mount and without ONNX execution, /classify calls, or numeric parity."
 }

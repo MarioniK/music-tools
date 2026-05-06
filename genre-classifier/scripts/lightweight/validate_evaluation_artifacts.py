@@ -727,13 +727,13 @@ MUSICNN_ONNX_FIXTURE_PLACEMENT_READINESS_BLOCKERS = {
 }
 
 MUSICNN_LEGACY_BASELINE_CAPTURE_BLOCKERS = {
-    "BASELINE_CONTAINER_UNAVAILABLE",
     "BASELINE_CONTAINER_SERVICE_UNKNOWN",
+    "ONE_OFF_COMPOSE_RUN_FAILED",
+    "FIXTURE_BIND_MOUNT_FAILED",
+    "FIXTURE_PATH_NOT_VISIBLE_IN_ONE_OFF_CONTAINER",
     "BASELINE_IMPORT_FAILED",
     "TENSORFLOW_IMPORT_FAILED",
     "ESSENTIA_IMPORT_FAILED",
-    "FIXTURE_PATH_NOT_AVAILABLE_IN_CONTAINER",
-    "BASELINE_CAPTURE_BLOCKED_BY_CONTAINER_MOUNT",
     "BASELINE_CAPTURE_SCRIPT_UNSAFE",
     "BASELINE_CAPTURE_FAILED",
     "CLASSIFY_CALL_NOT_ALLOWED",
@@ -811,21 +811,39 @@ REQUIRED_MUSICNN_LEGACY_BASELINE_CAPTURE_FIELDS = (
     "approved_for_full_numeric_parity_run",
     "approved_for_onnx_execution",
     "baseline_capture_scope",
+    "selected_fixture_visibility_strategy",
     "no_audio_files_committed",
     "no_model_files_committed",
     "no_venv_committed",
     "no_dependency_changes",
-    "no_docker_changes",
+    "no_dockerfile_changes",
+    "no_compose_file_changes",
     "no_docker_rebuild",
     "no_classify_calls",
+    "no_onnx_execution",
+    "no_tensorflow_vs_onnx_comparison",
     "legacy_musicnn_remains_baseline",
     "fixture_count",
     "sanitized_fixtures",
-    "container_status",
+    "container_execution",
     "baseline_capture_status",
     "baseline_outputs",
     "blockers",
     "next_step_recommendation",
+)
+
+LEGACY_MUSICNN_BASELINE_CAPTURE_REPORT_OPTIONAL_TRUE_FIELDS = (
+    "no_audio_files_committed",
+    "no_model_files_committed",
+    "no_venv_committed",
+    "no_dependency_changes",
+    "no_dockerfile_changes",
+    "no_compose_file_changes",
+    "no_docker_rebuild",
+    "no_classify_calls",
+    "no_onnx_execution",
+    "no_tensorflow_vs_onnx_comparison",
+    "legacy_musicnn_remains_baseline",
 )
 
 REQUIRED_MUSICNN_LEGACY_BASELINE_SANITIZED_FIXTURE_FIELDS = (
@@ -2109,10 +2127,10 @@ def _validate_musicnn_legacy_baseline_capture_report(path: Path) -> None:
 
     for field in REQUIRED_MUSICNN_LEGACY_BASELINE_CAPTURE_FIELDS:
         if field not in data:
-            raise ValidationError(f"{path} is missing required Roadmap 4.46 field: {field}")
+            raise ValidationError(f"{path} is missing required Roadmap 4.48 field: {field}")
 
-    if data["roadmap"] != "4.46":
-        raise ValidationError(f'{path}.roadmap must be "4.46"')
+    if data["roadmap"] != "4.48":
+        raise ValidationError(f'{path}.roadmap must be "4.48"')
     if data["report_type"] != MUSICNN_LEGACY_BASELINE_CAPTURE_REPORT_TYPE:
         raise ValidationError(f'{path}.report_type must be "{MUSICNN_LEGACY_BASELINE_CAPTURE_REPORT_TYPE}"')
 
@@ -2125,19 +2143,14 @@ def _validate_musicnn_legacy_baseline_capture_report(path: Path) -> None:
         "approved_for_onnx_execution",
     ):
         _require_bool_value(data[field], False, f"{path}.{field}")
-    for field in (
-        "no_audio_files_committed",
-        "no_model_files_committed",
-        "no_venv_committed",
-        "no_dependency_changes",
-        "no_docker_changes",
-        "no_docker_rebuild",
-        "no_classify_calls",
-        "legacy_musicnn_remains_baseline",
-    ):
+    for field in LEGACY_MUSICNN_BASELINE_CAPTURE_REPORT_OPTIONAL_TRUE_FIELDS:
         _require_bool_value(data[field], True, f"{path}.{field}")
-    if data["baseline_capture_scope"] != "existing_container_local_only":
-        raise ValidationError(f'{path}.baseline_capture_scope must be "existing_container_local_only"')
+    if data["baseline_capture_scope"] != "one_off_compose_run_bind_mount":
+        raise ValidationError(f'{path}.baseline_capture_scope must be "one_off_compose_run_bind_mount"')
+    if data["selected_fixture_visibility_strategy"] != "one_off_compose_run_bind_mount":
+        raise ValidationError(
+            f'{path}.selected_fixture_visibility_strategy must be "one_off_compose_run_bind_mount"'
+        )
 
     fixture_count = data["fixture_count"]
     if not isinstance(fixture_count, int) or isinstance(fixture_count, bool) or fixture_count < 0:
@@ -2164,31 +2177,36 @@ def _validate_musicnn_legacy_baseline_capture_report(path: Path) -> None:
         if fixture["license_status"] != "CC0":
             raise ValidationError(f'{context}.license_status must be "CC0"')
 
-    container_status = _validate_required_object(data, path, "container_status")
+    container_execution = _validate_required_object(data, path, "container_execution")
     for field in (
-        "service_name_known",
-        "container_running",
+        "one_off_container_used",
+        "bind_mount_used",
+        "running_service_mutated",
         "tensorflow_import_ok",
         "essentia_import_ok",
-        "fixture_path_accessible_in_container",
+        "fixture_path_visible",
     ):
-        if not isinstance(container_status.get(field), bool):
-            raise ValidationError(f"{path}.container_status.{field} must be a bool")
-    if container_status["service_name_known"]:
-        service_name = container_status.get("service_name")
-        if not isinstance(service_name, str) or not service_name.strip():
-            raise ValidationError(f"{path}.container_status.service_name must be a non-empty string")
+        if not isinstance(container_execution.get(field), bool):
+            raise ValidationError(f"{path}.container_execution.{field} must be a bool")
+    _require_bool_value(
+        container_execution["one_off_container_used"], True, f"{path}.container_execution.one_off_container_used"
+    )
+    _require_bool_value(container_execution["bind_mount_used"], True, f"{path}.container_execution.bind_mount_used")
+    _require_bool_value(
+        container_execution["running_service_mutated"], False, f"{path}.container_execution.running_service_mutated"
+    )
+    for field in ("compose_directory", "service_name"):
+        value = container_execution.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raise ValidationError(f"{path}.container_execution.{field} must be a non-empty string")
 
     capture_status = _validate_required_object(data, path, "baseline_capture_status")
-    for field in (
-        "succeeded",
-        "blocked_container_unavailable",
-        "blocked_service_unknown",
-        "blocked_fixture_path_not_mounted",
-        "blocked_baseline_import_failed",
-        "blocked_capture_error",
-    ):
-        if not isinstance(capture_status.get(field), bool):
+    if not isinstance(capture_status.get("succeeded"), bool):
+        raise ValidationError(f"{path}.baseline_capture_status.succeeded must be a bool")
+    for field, value in capture_status.items():
+        if isinstance(value, bool):
+            continue
+        if not isinstance(value, (str, list, dict, int, float)) or isinstance(value, bool):
             raise ValidationError(f"{path}.baseline_capture_status.{field} must be a bool")
 
     baseline_outputs = data["baseline_outputs"]
@@ -2209,24 +2227,26 @@ def _validate_musicnn_legacy_baseline_capture_report(path: Path) -> None:
         if len(baseline_outputs) != fixture_count:
             raise ValidationError(f"{path}.baseline_outputs must match fixture_count when capture succeeds")
         _require_bool_value(
-            container_status["fixture_path_accessible_in_container"],
+            container_execution["fixture_path_visible"],
             True,
-            f"{path}.container_status.fixture_path_accessible_in_container",
+            f"{path}.container_execution.fixture_path_visible",
         )
+        for index, output in enumerate(baseline_outputs):
+            context = f"{path}.baseline_outputs[{index}]"
+            if not isinstance(output, dict):
+                raise ValidationError(f"{context} must be an object")
+            for field in ("fixture_id", "output_shape", "top_labels", "top_scores", "warnings"):
+                if field not in output:
+                    raise ValidationError(f"{context} is missing required field: {field}")
     else:
         if not blockers:
             raise ValidationError(f"{path}.blockers must be non-empty when baseline capture is blocked")
-        if capture_status["blocked_fixture_path_not_mounted"]:
-            for code in (
-                "FIXTURE_PATH_NOT_AVAILABLE_IN_CONTAINER",
-                "BASELINE_CAPTURE_BLOCKED_BY_CONTAINER_MOUNT",
-            ):
-                if code not in blocker_codes:
-                    raise ValidationError(f"{path}.blockers must include {code} when fixture path is not mounted")
 
     serialized = json.dumps(data)
     if "/tmp/music-tools-onnx-parity" in serialized:
         raise ValidationError(f"{path} must not publish the external fixture workspace path")
+    if "/opt/music-tools" in serialized:
+        raise ValidationError(f"{path} must not publish private repository paths")
     _validate_no_inference_or_production_approval_claims(data, str(path))
     _validate_no_parity_or_runtime_approval_claims(data, path)
 
