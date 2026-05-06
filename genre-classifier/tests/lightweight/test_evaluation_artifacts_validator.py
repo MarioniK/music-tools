@@ -74,6 +74,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.musicnn_onnx_preprocessing_alignment_reports_checked == 1
     assert summary.musicnn_onnx_pragmatic_preprocessing_prototype_reports_checked == 1
     assert summary.musicnn_tensorflow_input_musiccnn_availability_probe_reports_checked == 1
+    assert summary.musicnn_onnx_isolated_essentia_runtime_approval_reports_checked == 1
     assert summary.musicnn_onnx_output_capture_reports_checked == 1
     assert summary.musicnn_onnx_fixture_visibility_strategy_reports_checked == 1
     assert summary.musicnn_legacy_baseline_import_order_diagnostic_reports_checked == 1
@@ -230,6 +231,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "musicnn_onnx_output_capture_reports=1" in captured.out
     assert "musicnn_onnx_pragmatic_preprocessing_prototype_reports=1" in captured.out
     assert "musicnn_tensorflow_input_musiccnn_availability_probe_reports=1" in captured.out
+    assert "musicnn_onnx_isolated_essentia_runtime_approval_reports=1" in captured.out
     assert "musicnn_onnx_fixture_visibility_strategy_reports=1" in captured.out
     assert "musicnn_legacy_baseline_import_order_diagnostic_reports=1" in captured.out
     assert "evidence_packages=1" in captured.out

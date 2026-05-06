@@ -110,6 +110,10 @@ MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_REPORT_FILES = (
     Path("evidence/roadmap-4.57-tensorflow-input-musicnn-availability-probe-report.json"),
 )
 
+MUSICNN_ONNX_ISOLATED_ESSENTIA_RUNTIME_APPROVAL_REPORT_FILES = (
+    Path("parity-scaffold/musicnn-onnx-isolated-essentia-runtime-approval-report.json"),
+)
+
 REQUIRED_LOCAL_ARTIFACT_METADATA_FIELDS = (
     "schema_version",
     "report_type",
@@ -565,6 +569,9 @@ MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_REPORT_TYPE = (
 MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_REPORT_TYPE = (
     "musicnn_tensorflow_input_musiccnn_availability_probe_report"
 )
+MUSICNN_ONNX_ISOLATED_ESSENTIA_RUNTIME_APPROVAL_REPORT_TYPE = (
+    "musicnn_onnx_isolated_essentia_runtime_approval_report"
+)
 MUSICNN_ONNX_OUTPUT_CAPTURE_REPORT_TYPE = "musicnn_onnx_output_capture_report"
 MUSICNN_ONNX_FIXTURE_VISIBILITY_STRATEGY_REPORT_TYPE = (
     "musicnn_onnx_fixture_visibility_strategy_report"
@@ -661,6 +668,23 @@ MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_BLOCKERS = {
     "DEFAULT_PROVIDER_SWITCH_NOT_APPROVED",
     "PRODUCTION_MIGRATION_NOT_APPROVED",
     "TIDAL_PARSER_SCOPE_VIOLATION",
+}
+
+MUSICNN_ONNX_ISOLATED_ESSENTIA_RUNTIME_APPROVAL_BLOCKERS = {
+    "AGENTS_MD_NOT_READ",
+    "ISOLATED_RUNTIME_PATH_NOT_APPROVED",
+    "ESSENTIA_INSTALL_CHECK_DEFERRED",
+    "PRODUCTION_DEPENDENCY_CHANGE_NOT_ALLOWED",
+    "DOCKER_CHANGE_NOT_ALLOWED",
+    "DEFAULT_PROVIDER_CHANGE_NOT_ALLOWED",
+    "CLASSIFY_CALL_NOT_ALLOWED",
+    "INFERENCE_NOT_RUN",
+    "ONNX_EXECUTION_NOT_RUN",
+    "TENSORFLOW_BASELINE_NOT_RUN",
+    "TENSORFLOW_VS_ONNX_COMPARISON_NOT_RUN",
+    "AUDIO_OR_MODEL_FILES_NOT_ADDED",
+    "TIDAL_PARSER_SCOPE_VIOLATION",
+    "LOCAL_PATHS_NOT_PUBLISHABLE",
 }
 
 REQUIRED_MUSICNN_ONNX_OUTPUT_CAPTURE_FIELDS = (
@@ -802,6 +826,41 @@ REQUIRED_MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_FIELDS = (
     "fallback",
     "blockers",
     "next_step_recommendation",
+)
+
+REQUIRED_MUSICNN_ONNX_ISOLATED_ESSENTIA_RUNTIME_APPROVAL_REPORT_FIELDS = (
+    "schema_version",
+    "report_type",
+    "report_id",
+    "generated_by",
+    "created_at",
+    "roadmap",
+    "title",
+    "agents_md_read",
+    "not_production_decision",
+    "selected_option",
+    "status",
+    "isolated_runtime_path",
+    "isolated_runtime_diagnostics",
+    "current_blockers",
+    "approved_next_step",
+    "production_changes",
+    "dependency_changes",
+    "docker_changes",
+    "provider_default_changes",
+    "classify_calls",
+    "inference_run",
+    "onnx_execution",
+    "tensorflow_baseline_run",
+    "tensorflow_vs_onnx_comparison",
+    "audio_or_model_files_added",
+    "tidal_parser_touched",
+    "legacy_musicnn_default_unchanged",
+    "classify_contract_unchanged",
+    "response_shape_unchanged",
+    "safety_confirmations",
+    "non_goals",
+    "notes",
 )
 
 MUSICNN_ONNX_PARITY_SPIKE_DECISION_STATUSES = {
@@ -1386,6 +1445,7 @@ class ValidationSummary(NamedTuple):
     musicnn_onnx_preprocessing_alignment_reports_checked: int = 0
     musicnn_onnx_pragmatic_preprocessing_prototype_reports_checked: int = 0
     musicnn_tensorflow_input_musiccnn_availability_probe_reports_checked: int = 0
+    musicnn_onnx_isolated_essentia_runtime_approval_reports_checked: int = 0
     musicnn_onnx_output_capture_reports_checked: int = 0
     musicnn_onnx_fixture_visibility_strategy_reports_checked: int = 0
     musicnn_legacy_baseline_import_order_diagnostic_reports_checked: int = 0
@@ -3322,6 +3382,137 @@ def _validate_musicnn_tensorflow_input_musiccnn_availability_probe_report(path: 
         raise ValidationError(f"{path} must not publish private repository paths")
 
 
+def _validate_musicnn_onnx_isolated_essentia_runtime_approval_report(path: Path) -> None:
+    data = _load_json(path)
+
+    for field in REQUIRED_MUSICNN_ONNX_ISOLATED_ESSENTIA_RUNTIME_APPROVAL_REPORT_FIELDS:
+        if field not in data:
+            raise ValidationError(
+                f"{path} is missing required Roadmap 4.58 field: {field}"
+            )
+
+    if data["schema_version"] != "0.1":
+        raise ValidationError(f'{path}.schema_version must be "0.1"')
+    if data["roadmap"] != "4.58":
+        raise ValidationError(f'{path}.roadmap must be "4.58"')
+    if data["report_type"] != MUSICNN_ONNX_ISOLATED_ESSENTIA_RUNTIME_APPROVAL_REPORT_TYPE:
+        raise ValidationError(
+            f'{path}.report_type must be "{MUSICNN_ONNX_ISOLATED_ESSENTIA_RUNTIME_APPROVAL_REPORT_TYPE}"'
+        )
+    if data["generated_by"] != "manual_approval_gate":
+        raise ValidationError(f"{path}.generated_by must be manual_approval_gate")
+
+    for field in ("created_at", "report_id", "title", "selected_option", "status", "isolated_runtime_path", "approved_next_step"):
+        value = data[field]
+        if not isinstance(value, str) or not value.strip():
+            raise ValidationError(f"{path}.{field} must be a non-empty string")
+
+    _require_bool_value(data["agents_md_read"], True, f"{path}.agents_md_read")
+    _require_bool_value(data["not_production_decision"], True, f"{path}.not_production_decision")
+    _require_bool_value(
+        data["legacy_musicnn_default_unchanged"],
+        True,
+        f"{path}.legacy_musicnn_default_unchanged",
+    )
+    _require_bool_value(
+        data["classify_contract_unchanged"],
+        True,
+        f"{path}.classify_contract_unchanged",
+    )
+    _require_bool_value(data["response_shape_unchanged"], True, f"{path}.response_shape_unchanged")
+
+    if data["selected_option"] != "A":
+        raise ValidationError(f"{path}.selected_option must be A")
+    if data["status"] != "approved_for_next_step":
+        raise ValidationError(f"{path}.status must be approved_for_next_step")
+    if data["isolated_runtime_path"] != "/tmp/music-tools-onnx-parity/venv":
+        raise ValidationError(f"{path}.isolated_runtime_path must be /tmp/music-tools-onnx-parity/venv")
+    if data["approved_next_step"] != "Roadmap 4.59 may perform isolated venv Essentia install/check":
+        raise ValidationError(f"{path}.approved_next_step must describe the approved next step")
+
+    for field in (
+        "production_changes",
+        "dependency_changes",
+        "docker_changes",
+        "provider_default_changes",
+        "classify_calls",
+        "inference_run",
+        "onnx_execution",
+        "tensorflow_baseline_run",
+        "tensorflow_vs_onnx_comparison",
+        "audio_or_model_files_added",
+        "tidal_parser_touched",
+    ):
+        _require_bool_value(data[field], False, f"{path}.{field}")
+
+    isolated_runtime_diagnostics = _validate_required_object(data, path, "isolated_runtime_diagnostics")
+    _require_bool_value(
+        isolated_runtime_diagnostics.get("venv_exists"),
+        True,
+        f"{path}.isolated_runtime_diagnostics.venv_exists",
+    )
+    if isolated_runtime_diagnostics.get("python_version") != "3.11.2":
+        raise ValidationError(f"{path}.isolated_runtime_diagnostics.python_version must be 3.11.2")
+    _require_bool_value(
+        isolated_runtime_diagnostics.get("pip_module_available"),
+        False,
+        f"{path}.isolated_runtime_diagnostics.pip_module_available",
+    )
+    if isolated_runtime_diagnostics.get("pip_version") is not None:
+        raise ValidationError(f"{path}.isolated_runtime_diagnostics.pip_version must be null")
+    _require_bool_value(
+        isolated_runtime_diagnostics.get("onnxruntime_pip_show_available"),
+        False,
+        f"{path}.isolated_runtime_diagnostics.onnxruntime_pip_show_available",
+    )
+    if isolated_runtime_diagnostics.get("onnxruntime_pip_show_result") is not None:
+        raise ValidationError(
+            f"{path}.isolated_runtime_diagnostics.onnxruntime_pip_show_result must be null"
+        )
+    pip_error = isolated_runtime_diagnostics.get("pip_error")
+    if not isinstance(pip_error, str) or "No module named pip" not in pip_error:
+        raise ValidationError(f"{path}.isolated_runtime_diagnostics.pip_error must record the missing pip module")
+
+    current_blockers = data["current_blockers"]
+    if current_blockers != [
+        "ESSENTIA_IMPORT_FAILED",
+        "TENSORFLOW_INPUT_MUSICNN_IMPORT_FAILED",
+        "TENSORFLOW_INPUT_MUSICNN_UNAVAILABLE",
+        "GENERIC_MELBANDS_FALLBACK_BLOCKED",
+    ]:
+        raise ValidationError(f"{path}.current_blockers must record the approved 4.57 blocker set")
+
+    safety_confirmations = _validate_required_object(data, path, "safety_confirmations")
+    for field in (
+        "production_dependency_files_unchanged",
+        "docker_files_unchanged",
+        "provider_factory_unchanged",
+        "default_provider_unchanged",
+        "response_shape_unchanged",
+        "cache_logic_unchanged",
+        "tidal_parser_untouched",
+        "audio_files_not_committed",
+        "model_files_not_committed",
+        "venv_not_committed",
+        "release_or_tag_not_created",
+    ):
+        _require_bool_value(
+            safety_confirmations.get(field),
+            True,
+            f"{path}.safety_confirmations.{field}",
+        )
+
+    non_goals = data["non_goals"]
+    if not isinstance(non_goals, list) or not non_goals:
+        raise ValidationError(f"{path}.non_goals must be a non-empty list")
+
+    serialized = json.dumps(data)
+    if "/opt/music-tools" in serialized:
+        raise ValidationError(f"{path} must not publish private repository paths")
+    _validate_no_inference_or_production_approval_claims(data, str(path))
+    _validate_no_parity_or_runtime_approval_claims(data, path)
+
+
 def _validate_musicnn_onnx_output_capture_report(path: Path) -> None:
     data = _load_json(path)
 
@@ -4472,6 +4663,13 @@ def validate_all(root: Path) -> ValidationSummary:
         _validate_musicnn_tensorflow_input_musiccnn_availability_probe_report(evaluation_root / relative_path)
         musicnn_tensorflow_input_musiccnn_availability_probe_report_count += 1
 
+    musicnn_onnx_isolated_essentia_runtime_approval_report_count = 0
+    for relative_path in MUSICNN_ONNX_ISOLATED_ESSENTIA_RUNTIME_APPROVAL_REPORT_FILES:
+        _validate_musicnn_onnx_isolated_essentia_runtime_approval_report(
+            evaluation_root / relative_path
+        )
+        musicnn_onnx_isolated_essentia_runtime_approval_report_count += 1
+
     musicnn_onnx_output_capture_report_count = 0
     for relative_path in MUSICNN_ONNX_OUTPUT_CAPTURE_REPORT_FILES:
         _validate_musicnn_onnx_output_capture_report(evaluation_root / relative_path)
@@ -4531,6 +4729,9 @@ def validate_all(root: Path) -> ValidationSummary:
         ),
         musicnn_tensorflow_input_musiccnn_availability_probe_reports_checked=(
             musicnn_tensorflow_input_musiccnn_availability_probe_report_count
+        ),
+        musicnn_onnx_isolated_essentia_runtime_approval_reports_checked=(
+            musicnn_onnx_isolated_essentia_runtime_approval_report_count
         ),
         musicnn_onnx_output_capture_reports_checked=musicnn_onnx_output_capture_report_count,
         musicnn_onnx_fixture_visibility_strategy_reports_checked=(
@@ -4595,6 +4796,8 @@ def main(argv: list[str] | None = None) -> int:
         f"{summary.musicnn_onnx_pragmatic_preprocessing_prototype_reports_checked}, "
         "musicnn_tensorflow_input_musiccnn_availability_probe_reports="
         f"{summary.musicnn_tensorflow_input_musiccnn_availability_probe_reports_checked}, "
+        "musicnn_onnx_isolated_essentia_runtime_approval_reports="
+        f"{summary.musicnn_onnx_isolated_essentia_runtime_approval_reports_checked}, "
         "musicnn_onnx_output_capture_reports="
         f"{summary.musicnn_onnx_output_capture_reports_checked}, "
         "musicnn_onnx_fixture_visibility_strategy_reports="
