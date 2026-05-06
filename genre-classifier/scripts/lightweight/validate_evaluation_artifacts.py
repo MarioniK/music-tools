@@ -90,6 +90,10 @@ MUSICNN_ONNX_FIXTURE_VISIBILITY_STRATEGY_REPORT_FILES = (
     Path("parity-scaffold/musicnn-onnx-fixture-visibility-strategy-report.json"),
 )
 
+MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_REPORT_FILES = (
+    Path("parity-scaffold/musicnn-legacy-baseline-import-order-diagnostic-report.json"),
+)
+
 REQUIRED_LOCAL_ARTIFACT_METADATA_FIELDS = (
     "schema_version",
     "report_type",
@@ -541,6 +545,9 @@ MUSICNN_LEGACY_BASELINE_CAPTURE_REPORT_TYPE = "musicnn_legacy_baseline_capture_r
 MUSICNN_ONNX_FIXTURE_VISIBILITY_STRATEGY_REPORT_TYPE = (
     "musicnn_onnx_fixture_visibility_strategy_report"
 )
+MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_REPORT_TYPE = (
+    "musicnn_legacy_baseline_import_order_diagnostic_report"
+)
 
 MUSICNN_ONNX_PARITY_SPIKE_DECISION_STATUSES = {
     "viable",
@@ -741,6 +748,95 @@ MUSICNN_LEGACY_BASELINE_CAPTURE_BLOCKERS = {
     "NUMERIC_PARITY_NOT_APPROVED",
     "LOCAL_PATHS_NOT_PUBLISHABLE",
 }
+
+MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_DECISION_STATUSES = {
+    "safe_import_order_found",
+    "blocked_import_order_unresolved",
+    "blocked_container_diagnostic_failed",
+    "blocked_service_unknown",
+}
+
+MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_BLOCKERS = {
+    "IMPORT_ORDER_UNRESOLVED",
+    "BITCAST_DUPLICATE_REGISTRATION",
+    "CONTAINER_DIAGNOSTIC_FAILED",
+    "SERVICE_UNKNOWN",
+}
+
+MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_ERROR_CATEGORIES = {
+    "none",
+    "tensorflow_import_failed",
+    "essentia_import_failed",
+    "duplicate_tensorflow_op_registration",
+    "bitcast_duplicate_registration",
+    "predictor_import_failed",
+    "container_execution_failed",
+    "unknown_runtime_error",
+}
+
+REQUIRED_MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_FIELDS = (
+    "report_type",
+    "roadmap",
+    "not_production_decision",
+    "approved_for_production",
+    "approved_for_provider_implementation",
+    "approved_for_default_provider_switch",
+    "approved_for_full_numeric_parity_run",
+    "approved_for_onnx_execution",
+    "approved_for_baseline_output_capture",
+    "no_audio_files_committed",
+    "no_model_files_committed",
+    "no_venv_committed",
+    "no_dependency_changes",
+    "no_dockerfile_changes",
+    "no_compose_file_changes",
+    "no_docker_rebuild",
+    "no_classify_calls",
+    "no_onnx_execution",
+    "no_tensorflow_vs_onnx_comparison",
+    "legacy_musicnn_remains_baseline",
+    "diagnostic_scope",
+    "observed_previous_blocker",
+    "diagnostic_cases",
+    "safe_import_order",
+    "decision_status",
+    "blockers",
+    "next_step_recommendation",
+)
+
+REQUIRED_MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_CASE_FIELDS = (
+    "case_id",
+    "import_order",
+    "exit_code",
+    "succeeded",
+    "error_category",
+    "bitcast_duplicate_seen",
+    "notes",
+)
+
+LEGACY_MUSICNN_IMPORT_ORDER_DIAGNOSTIC_TRUE_FIELDS = (
+    "not_production_decision",
+    "no_audio_files_committed",
+    "no_model_files_committed",
+    "no_venv_committed",
+    "no_dependency_changes",
+    "no_dockerfile_changes",
+    "no_compose_file_changes",
+    "no_docker_rebuild",
+    "no_classify_calls",
+    "no_onnx_execution",
+    "no_tensorflow_vs_onnx_comparison",
+    "legacy_musicnn_remains_baseline",
+)
+
+LEGACY_MUSICNN_IMPORT_ORDER_DIAGNOSTIC_FALSE_FIELDS = (
+    "approved_for_production",
+    "approved_for_provider_implementation",
+    "approved_for_default_provider_switch",
+    "approved_for_full_numeric_parity_run",
+    "approved_for_onnx_execution",
+    "approved_for_baseline_output_capture",
+)
 
 REQUIRED_MUSICNN_ONNX_SCOPED_BASELINE_CAPTURE_APPROVAL_FIELDS = (
     "report_type",
@@ -1031,6 +1127,7 @@ class ValidationSummary(NamedTuple):
     musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports_checked: int = 0
     musicnn_legacy_baseline_capture_reports_checked: int = 0
     musicnn_onnx_fixture_visibility_strategy_reports_checked: int = 0
+    musicnn_legacy_baseline_import_order_diagnostic_reports_checked: int = 0
     label_mapping_checked: int = 0
     evidence_packages_checked: int = 0
     fixture_manifest_templates_checked: int = 0
@@ -2362,6 +2459,145 @@ def _validate_musicnn_onnx_fixture_visibility_strategy_report(path: Path) -> Non
     _validate_no_parity_or_runtime_approval_claims(data, path)
 
 
+def _validate_musicnn_legacy_baseline_import_order_diagnostic_report(path: Path) -> None:
+    data = _load_json(path)
+
+    for field in REQUIRED_MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_FIELDS:
+        if field not in data:
+            raise ValidationError(f"{path} is missing required Roadmap 4.49 field: {field}")
+
+    if data["roadmap"] != "4.49":
+        raise ValidationError(f'{path}.roadmap must be "4.49"')
+    if data["report_type"] != MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_REPORT_TYPE:
+        raise ValidationError(
+            f'{path}.report_type must be "{MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_REPORT_TYPE}"'
+        )
+
+    for field in LEGACY_MUSICNN_IMPORT_ORDER_DIAGNOSTIC_TRUE_FIELDS:
+        _require_bool_value(data[field], True, f"{path}.{field}")
+    for field in LEGACY_MUSICNN_IMPORT_ORDER_DIAGNOSTIC_FALSE_FIELDS:
+        _require_bool_value(data[field], False, f"{path}.{field}")
+
+    if data["diagnostic_scope"] != ["import_order_only"]:
+        raise ValidationError(f'{path}.diagnostic_scope must be ["import_order_only"]')
+    if data["observed_previous_blocker"] != ["ALREADY_EXISTS: Op with name Bitcast"]:
+        raise ValidationError(f"{path}.observed_previous_blocker must record the Bitcast blocker")
+
+    diagnostic_cases = data["diagnostic_cases"]
+    if not isinstance(diagnostic_cases, list) or len(diagnostic_cases) != 5:
+        raise ValidationError(f"{path}.diagnostic_cases must contain the five required import-order cases")
+
+    seen_case_ids: set[str] = set()
+    bitcast_case_seen = False
+    successful_legacy_relevant_case_seen = False
+    for index, case in enumerate(diagnostic_cases):
+        context = f"{path}.diagnostic_cases[{index}]"
+        if not isinstance(case, dict):
+            raise ValidationError(f"{context} must be an object")
+        for field in REQUIRED_MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_CASE_FIELDS:
+            if field not in case:
+                raise ValidationError(f"{context} is missing required field: {field}")
+
+        case_id = case["case_id"]
+        if not isinstance(case_id, str) or not case_id.strip():
+            raise ValidationError(f"{context}.case_id must be a non-empty string")
+        seen_case_ids.add(case_id)
+
+        if not isinstance(case["import_order"], list) or not case["import_order"]:
+            raise ValidationError(f"{context}.import_order must be a non-empty list")
+        for order_index, import_step in enumerate(case["import_order"]):
+            if not isinstance(import_step, str) or not import_step.strip():
+                raise ValidationError(f"{context}.import_order[{order_index}] must be a non-empty string")
+
+        if not isinstance(case["exit_code"], int) or isinstance(case["exit_code"], bool):
+            raise ValidationError(f"{context}.exit_code must be an integer")
+        if not isinstance(case["succeeded"], bool):
+            raise ValidationError(f"{context}.succeeded must be a bool")
+        if case["error_category"] not in MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_ERROR_CATEGORIES:
+            raise ValidationError(f"{context}.error_category is not allowed: {case['error_category']!r}")
+        if not isinstance(case["bitcast_duplicate_seen"], bool):
+            raise ValidationError(f"{context}.bitcast_duplicate_seen must be a bool")
+        if not isinstance(case["notes"], str) or not case["notes"].strip():
+            raise ValidationError(f"{context}.notes must be a non-empty sanitized string")
+        if "\n" in case["notes"]:
+            raise ValidationError(f"{context}.notes must not contain raw multiline logs")
+
+        if case["succeeded"]:
+            if case["exit_code"] != 0 or case["error_category"] != "none":
+                raise ValidationError(f"{context} successful cases must have exit_code 0 and error_category none")
+            if case_id in {
+                "essentia_then_tensorflow",
+                "tensorflow_predict_musicnn_import_without_explicit_tensorflow",
+                "legacy_path_like_import_order",
+            }:
+                successful_legacy_relevant_case_seen = True
+        if case["bitcast_duplicate_seen"]:
+            bitcast_case_seen = True
+            if case["error_category"] != "bitcast_duplicate_registration":
+                raise ValidationError(f"{context} Bitcast cases must use bitcast_duplicate_registration")
+
+    required_case_ids = {
+        "tensorflow_then_essentia",
+        "essentia_then_tensorflow",
+        "essentia_standard_only",
+        "tensorflow_predict_musicnn_import_without_explicit_tensorflow",
+        "legacy_path_like_import_order",
+    }
+    if seen_case_ids != required_case_ids:
+        raise ValidationError(f"{path}.diagnostic_cases must include exactly the required case IDs")
+
+    safe_import_order = _validate_required_object(data, path, "safe_import_order")
+    if not isinstance(safe_import_order.get("found"), bool):
+        raise ValidationError(f"{path}.safe_import_order.found must be a bool")
+    for field in ("recommended_order", "recommended_helper_policy"):
+        value = safe_import_order.get(field)
+        if not isinstance(value, list):
+            raise ValidationError(f"{path}.safe_import_order.{field} must be a list")
+        for index, item in enumerate(value):
+            if not isinstance(item, str) or not item.strip():
+                raise ValidationError(f"{path}.safe_import_order.{field}[{index}] must be a non-empty string")
+
+    decision_status = data["decision_status"]
+    if decision_status not in MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_DECISION_STATUSES:
+        raise ValidationError(f"{path}.decision_status is not allowed: {decision_status!r}")
+    blockers = data["blockers"]
+    if not isinstance(blockers, list):
+        raise ValidationError(f"{path}.blockers must be a list")
+    blocker_codes = _collect_blocker_codes(
+        blockers,
+        MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_BLOCKERS,
+        f"{path}.blockers",
+    )
+
+    if decision_status == "safe_import_order_found":
+        _require_bool_value(safe_import_order["found"], True, f"{path}.safe_import_order.found")
+        if blockers:
+            raise ValidationError(f"{path}.blockers must be empty when a safe import order is found")
+        if not successful_legacy_relevant_case_seen:
+            raise ValidationError(f"{path} safe_import_order_found requires a successful legacy-relevant case")
+        if not safe_import_order["recommended_order"]:
+            raise ValidationError(f"{path}.safe_import_order.recommended_order must be non-empty when safe")
+    else:
+        _require_bool_value(safe_import_order["found"], False, f"{path}.safe_import_order.found")
+        if decision_status == "blocked_import_order_unresolved" and "IMPORT_ORDER_UNRESOLVED" not in blocker_codes:
+            raise ValidationError(f"{path}.blockers must include IMPORT_ORDER_UNRESOLVED when unresolved")
+        if bitcast_case_seen and decision_status == "blocked_import_order_unresolved":
+            if "BITCAST_DUPLICATE_REGISTRATION" not in blocker_codes:
+                raise ValidationError(f"{path}.blockers must include BITCAST_DUPLICATE_REGISTRATION when observed")
+
+    next_step = data["next_step_recommendation"]
+    if not isinstance(next_step, str) or not next_step.strip():
+        raise ValidationError(f"{path}.next_step_recommendation must be a non-empty string")
+
+    serialized = json.dumps(data)
+    for forbidden_path in ("/tmp/music-tools-onnx-parity", "/opt/music-tools", "tidal-parser"):
+        if forbidden_path in serialized:
+            raise ValidationError(f"{path} must not publish a forbidden local or repo path: {forbidden_path}")
+
+    _validate_no_inference_or_production_approval_claims(data, str(path))
+    _validate_no_parity_or_runtime_approval_claims(data, path)
+
+
 def _validate_no_inference_or_production_approval_claims(value: Any, context: str) -> None:
     if isinstance(value, dict):
         for key, item in value.items():
@@ -3090,6 +3326,11 @@ def validate_all(root: Path) -> ValidationSummary:
         _validate_musicnn_onnx_fixture_visibility_strategy_report(evaluation_root / relative_path)
         musicnn_onnx_fixture_visibility_strategy_report_count += 1
 
+    musicnn_legacy_baseline_import_order_diagnostic_report_count = 0
+    for relative_path in MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_REPORT_FILES:
+        _validate_musicnn_legacy_baseline_import_order_diagnostic_report(evaluation_root / relative_path)
+        musicnn_legacy_baseline_import_order_diagnostic_report_count += 1
+
     label_mapping_count = 0
     for relative_path in LABEL_MAPPING_FILES:
         _validate_label_mapping(evaluation_root / relative_path)
@@ -3128,6 +3369,9 @@ def validate_all(root: Path) -> ValidationSummary:
         musicnn_legacy_baseline_capture_reports_checked=musicnn_legacy_baseline_capture_report_count,
         musicnn_onnx_fixture_visibility_strategy_reports_checked=(
             musicnn_onnx_fixture_visibility_strategy_report_count
+        ),
+        musicnn_legacy_baseline_import_order_diagnostic_reports_checked=(
+            musicnn_legacy_baseline_import_order_diagnostic_report_count
         ),
         label_mapping_checked=label_mapping_count,
         evidence_packages_checked=evidence_package_count,
@@ -3181,6 +3425,8 @@ def main(argv: list[str] | None = None) -> int:
         f"{summary.musicnn_legacy_baseline_capture_reports_checked}, "
         "musicnn_onnx_fixture_visibility_strategy_reports="
         f"{summary.musicnn_onnx_fixture_visibility_strategy_reports_checked}, "
+        "musicnn_legacy_baseline_import_order_diagnostic_reports="
+        f"{summary.musicnn_legacy_baseline_import_order_diagnostic_reports_checked}, "
         f"label_mapping={summary.label_mapping_checked}, "
         f"evidence_packages={summary.evidence_packages_checked}, "
         f"fixture_manifest_templates={summary.fixture_manifest_templates_checked}"

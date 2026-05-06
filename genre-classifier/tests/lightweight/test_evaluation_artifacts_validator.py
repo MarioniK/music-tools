@@ -36,6 +36,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports_checked == 1
     assert summary.musicnn_legacy_baseline_capture_reports_checked == 1
     assert summary.musicnn_onnx_fixture_visibility_strategy_reports_checked == 1
+    assert summary.musicnn_legacy_baseline_import_order_diagnostic_reports_checked == 1
     assert summary.label_mapping_checked == 1
     assert summary.evidence_packages_checked == 1
     assert summary.fixture_manifest_templates_checked == 1
@@ -127,6 +128,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports=1" in captured.out
     assert "musicnn_legacy_baseline_capture_reports=1" in captured.out
     assert "musicnn_onnx_fixture_visibility_strategy_reports=1" in captured.out
+    assert "musicnn_legacy_baseline_import_order_diagnostic_reports=1" in captured.out
     assert "evidence_packages=1" in captured.out
     assert "fixture_manifest_templates=1" in captured.out
     assert captured.err == ""
@@ -279,6 +281,61 @@ def test_fixture_visibility_strategy_report_requires_selected_one_off_bind_mount
         assert "one_off_compose_run_bind_mount" in str(exc)
     else:
         raise AssertionError("fixture visibility strategy report should require the selected one-off bind mount")
+
+
+def _legacy_baseline_import_order_diagnostic_report_path():
+    return (
+        SERVICE_ROOT
+        / "docs/lightweight/evaluation/parity-scaffold/"
+        / "musicnn-legacy-baseline-import-order-diagnostic-report.json"
+    )
+
+
+def test_legacy_baseline_import_order_diagnostic_report_is_validated():
+    validator = load_validator()
+
+    validator._validate_musicnn_legacy_baseline_import_order_diagnostic_report(
+        _legacy_baseline_import_order_diagnostic_report_path()
+    )
+
+
+def test_legacy_baseline_import_order_diagnostic_records_4_49_safe_order():
+    validator = load_validator()
+    data = validator._load_json(_legacy_baseline_import_order_diagnostic_report_path())
+    serialized = validator.json.dumps(data)
+
+    assert data["roadmap"] == "4.49"
+    assert data["decision_status"] == "safe_import_order_found"
+    assert data["safe_import_order"]["found"] is True
+    assert data["blockers"] == []
+    assert data["approved_for_baseline_output_capture"] is False
+    assert data["no_classify_calls"] is True
+    assert data["no_onnx_execution"] is True
+    assert data["no_tensorflow_vs_onnx_comparison"] is True
+    prior = data["prior_import_order_knowledge"]
+    assert prior["known_before_roadmap_4_49"] is True
+    assert prior["source"] == "docs/runtime/roadmap-3.6-reproducible-modern-tensorflow-runtime-candidate.md"
+    assert "do_not_import_tensorflow_explicitly_before_essentia" in prior["known_safe_policy"]
+    assert "known Bitcast duplicate registration trap" in prior["roadmap_4_48_failure_interpretation"]
+    assert any(case["bitcast_duplicate_seen"] for case in data["diagnostic_cases"])
+    assert "/tmp/music-tools-onnx-parity" not in serialized
+    assert "/opt/music-tools" not in serialized
+
+
+def test_legacy_baseline_import_order_diagnostic_requires_bitcast_category(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_legacy_baseline_import_order_diagnostic_report_path())
+    data["diagnostic_cases"][0]["error_category"] = "duplicate_tensorflow_op_registration"
+
+    report_path = tmp_path / "import-order-diagnostic-report.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_musicnn_legacy_baseline_import_order_diagnostic_report(report_path)
+    except validator.ValidationError as exc:
+        assert "Bitcast cases must use bitcast_duplicate_registration" in str(exc)
+    else:
+        raise AssertionError("Bitcast observations should require the Bitcast-specific category")
 
 
 def test_model_provenance_sample_is_validated():
