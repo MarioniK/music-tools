@@ -1,0 +1,45 @@
+{
+  "roadmap": "4.71",
+  "not_production_decision": true,
+  "provider_default_unchanged": true,
+  "onnx_musicnn_disabled_by_default": true,
+  "classify_contract_unchanged": true,
+  "response_shape_unchanged": true,
+  "runtime_downloads_by_default": false,
+  "artifacts_committed_to_repo": false,
+  "model_artifact": {
+    "artifact_name": "msd-musicnn-1.onnx",
+    "local_path_sanitized_or_allowed_tmp_path": "/tmp/music-tools-onnx-parity/msd-musicnn-1.onnx",
+    "file_size_bytes": 3168334,
+    "sha256": "49668ffec47e52e94b96f45930bb46a28a1368d4bdfb5c05378fa834aca616e1",
+    "source_url_or_source_notes": "official Essentia MusiCNN artifact family; metadata link points to https://essentia.upf.edu/models/feature-extractors/musicnn/msd-musicnn-1.pb",
+    "provenance_notes": "metadata JSON contains name, release_date, link and citation for the MSD MusiCNN family; no new source of truth introduced",
+    "license_notes": "local JSON does not include a dedicated license field; prior local roadmap evidence documents CC BY-NC-SA 4.0 for MTG-created Essentia models with proprietary license available on request",
+    "committed_to_repo": false,
+    "approved_for_runtime_smoke": false,
+    "approved_for_production": false
+  },
+  "metadata_classes_artifact": {
+    "artifact_name": "msd-musicnn-1.json",
+    "local_path_sanitized_or_allowed_tmp_path": "/tmp/music-tools-onnx-parity/msd-musicnn-1.json",
+    "file_size_bytes": 3299,
+    "sha256": "8e6b3b509f0610c0e65dce467fd459d6777509388eaddb13ed138d8ac1341ffe",
+    "parsed_classes_count": 50,
+    "labels_order_status": "usable",
+    "source_url_or_source_notes": "official Essentia MusiCNN metadata artifact; JSON includes model link and citation",
+    "provenance_notes": "metadata is readable JSON and documents the MSD MusiCNN family with release_date, framework and citation",
+    "license_notes": "local JSON does not include a dedicated license field; license context is inherited from prior documented Essentia model-family evidence",
+    "committed_to_repo": false,
+    "approved_for_runtime_smoke": false,
+    "approved_for_production": false
+  },
+  "delivery_strategy": {
+    "preferred_initial_delivery": "explicit_mounted_artifacts",
+    "image_bundling_approved": false,
+    "runtime_downloads_approved": false,
+    "implicit_discovery_approved": false,
+    "tmp_defaults_approved": false
+  },
+  "blockers": [],
+  "next_step_recommendation": "Future disabled-by-default runtime smoke should be approved separately after explicit runtime dependency availability and mount wiring are confirmed."
+}
