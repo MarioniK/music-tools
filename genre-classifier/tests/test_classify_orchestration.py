@@ -1,5 +1,6 @@
 import sys
 import types
+import json
 import time
 import logging
 from pathlib import Path
@@ -30,6 +31,7 @@ if "essentia" not in sys.modules:
 
 from app.providers.base import ProviderGenreScore, ProviderResult
 from app.services import classify
+from app.api import routes
 
 
 def test_get_current_event_loop_prefers_running_loop(monkeypatch):
@@ -246,6 +248,31 @@ def test_classify_response_does_not_expose_shadow_diagnostics_when_enabled(
     assert status_code == 200
     for forbidden_key in ("shadow", "llm", "comparison", "diagnostics", "canary"):
         assert forbidden_key not in payload
+
+
+@pytest.mark.asyncio
+async def test_classify_route_preserves_existing_error_payload_shape_for_scaffold_failure(
+    monkeypatch,
+):
+    class _FakeUploadFile:
+        filename = "track.mp3"
+
+        async def read(self):
+            return b"audio-bytes"
+
+    async def fake_classify_upload(file_bytes, filename):
+        raise RuntimeError("onnx_musicnn provider scaffold unsupported")
+
+    monkeypatch.setattr(routes, "classify_upload", fake_classify_upload)
+
+    response = await routes.classify(_FakeUploadFile())
+    payload = json.loads(response.body)
+
+    assert response.status_code == 400
+    assert payload == {
+        "ok": False,
+        "error": "onnx_musicnn provider scaffold unsupported",
+    }
 
 
 def test_process_uploaded_audio_uses_provider_factory_and_preserves_result_shape(

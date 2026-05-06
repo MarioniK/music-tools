@@ -1,0 +1,31 @@
+{
+  "roadmap": "4.68",
+  "status": "completed",
+  "service": "genre-classifier",
+  "chosen_variant": "A",
+  "default_provider_unchanged": true,
+  "classify_contract_unchanged": true,
+  "success_response_shape_unchanged": true,
+  "existing_error_behavior_preserved": true,
+  "disabled_by_default": true,
+  "production_dependencies_changed": false,
+  "docker_changed": false,
+  "tidal_parser_touched": false,
+  "real_inference_run": false,
+  "classify_called": false,
+  "tests_run": [
+    "python3 -m pytest tests/test_settings.py tests/test_provider_factory.py tests/test_provider_validation.py tests/test_provider_compat.py tests/test_provider_llm.py tests/test_classify_orchestration.py tests/lightweight/test_onnx_musicnn_provider_scaffold.py"
+  ],
+  "changed_files": [
+    "app/core/settings.py",
+    "app/providers/factory.py",
+    "app/providers/__init__.py",
+    "app/providers/onnx_musicnn.py",
+    "tests/test_settings.py",
+    "tests/test_provider_factory.py",
+    "tests/test_classify_orchestration.py",
+    "tests/lightweight/test_onnx_musicnn_provider_scaffold.py",
+    "docs/lightweight/roadmap-4.68-disabled-by-default-onnx-musicnn-provider-scaffold.md",
+    "docs/lightweight/evaluation/parity-scaffold/onnx-musicnn-provider-scaffold-report.json"
+  ]
+}

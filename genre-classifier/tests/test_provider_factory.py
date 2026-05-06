@@ -1,3 +1,4 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -6,6 +7,7 @@ from app.providers.base import ProviderResult
 from app.providers.factory import get_genre_provider
 from app.providers.llm import LlmGenreProvider
 from app.providers.legacy_musicnn import LegacyMusiCNNProvider
+from app.providers.onnx_musicnn import OnnxMusiCNNProvider
 from app.providers.stub import StubGenreProvider
 
 
@@ -52,6 +54,20 @@ def test_factory_selects_llm_provider():
     assert isinstance(provider, LlmGenreProvider)
 
 
+def test_factory_selects_explicit_onnx_musicnn_provider():
+    settings = SimpleNamespace(
+        GENRE_PROVIDER_LEGACY="legacy_musicnn",
+        GENRE_PROVIDER_LLM="llm",
+        GENRE_PROVIDER_ONNX="onnx_musicnn",
+        get_configured_genre_provider_name=lambda: "onnx_musicnn",
+        MODELS_DIR=Path("/tmp"),
+    )
+
+    provider = get_genre_provider(settings)
+
+    assert isinstance(provider, OnnxMusiCNNProvider)
+
+
 def test_factory_logs_llm_provider_selection(caplog):
     settings = SimpleNamespace(
         GENRE_PROVIDER_LEGACY="legacy_musicnn",
@@ -64,6 +80,22 @@ def test_factory_logs_llm_provider_selection(caplog):
 
     assert isinstance(provider, LlmGenreProvider)
     assert "event=genre_provider_selected provider_name=llm provider_class=LlmGenreProvider" in caplog.text
+
+
+def test_factory_logs_onnx_provider_selection(caplog):
+    settings = SimpleNamespace(
+        GENRE_PROVIDER_LEGACY="legacy_musicnn",
+        GENRE_PROVIDER_LLM="llm",
+        GENRE_PROVIDER_ONNX="onnx_musicnn",
+        get_configured_genre_provider_name=lambda: "onnx_musicnn",
+        MODELS_DIR=Path("/tmp"),
+    )
+
+    with caplog.at_level("INFO", logger="genre_classifier"):
+        provider = get_genre_provider(settings)
+
+    assert isinstance(provider, OnnxMusiCNNProvider)
+    assert "event=genre_provider_selected provider_name=onnx_musicnn provider_class=OnnxMusiCNNProvider" in caplog.text
 
 
 def test_stub_provider_returns_expected_result_shape():

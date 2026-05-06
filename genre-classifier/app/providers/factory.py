@@ -2,6 +2,7 @@ import logging
 
 from app.providers.llm import LlmGenreProvider
 from app.providers.legacy_musicnn import LegacyMusiCNNProvider
+from app.providers.onnx_musicnn import OnnxMusiCNNProvider
 from app.providers.stub import StubGenreProvider
 
 
@@ -14,11 +15,21 @@ def get_genre_provider(settings):
 
 
 def get_genre_provider_by_name(provider_name, settings):
+    genre_provider_onnx = getattr(settings, "GENRE_PROVIDER_ONNX", "onnx_musicnn")
+
     if provider_name == "stub":
         return StubGenreProvider()
 
     if provider_name == settings.GENRE_PROVIDER_LEGACY:
         return LegacyMusiCNNProvider()
+
+    if provider_name == genre_provider_onnx:
+        logger.info(
+            "event=genre_provider_selected provider_name=%s provider_class=%s",
+            provider_name,
+            OnnxMusiCNNProvider.__name__,
+        )
+        return OnnxMusiCNNProvider(settings_module=settings)
 
     if provider_name == settings.GENRE_PROVIDER_LLM:
         logger.info(

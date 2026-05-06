@@ -15,6 +15,12 @@ def test_get_configured_genre_provider_name_accepts_explicit_llm(monkeypatch):
     assert settings.get_configured_genre_provider_name() == settings.GENRE_PROVIDER_LLM
 
 
+def test_supported_genre_providers_include_disabled_by_default_onnx():
+    assert settings.GENRE_PROVIDER_ONNX == "onnx_musicnn"
+    assert settings.GENRE_PROVIDER_ONNX in settings.SUPPORTED_GENRE_PROVIDERS
+    assert settings.DEFAULT_GENRE_PROVIDER == settings.GENRE_PROVIDER_LEGACY
+
+
 def test_get_configured_genre_provider_name_falls_back_to_default_for_blank_value(monkeypatch):
     monkeypatch.setenv("GENRE_PROVIDER", "   ")
 

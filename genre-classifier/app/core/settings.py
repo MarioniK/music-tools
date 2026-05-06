@@ -14,10 +14,12 @@ MODEL_PB = MODELS_DIR / "msd-musicnn-1.pb"
 MODEL_JSON = MODELS_DIR / "msd-musicnn-1.json"
 GENRE_PROVIDER_LEGACY = "legacy_musicnn"
 GENRE_PROVIDER_LLM = "llm"
+GENRE_PROVIDER_ONNX = "onnx_musicnn"
 DEFAULT_GENRE_PROVIDER = "legacy_musicnn"
 SUPPORTED_GENRE_PROVIDERS = (
     GENRE_PROVIDER_LEGACY,
     GENRE_PROVIDER_LLM,
+    GENRE_PROVIDER_ONNX,
     "stub",
 )
 LLM_CLIENT_STUB = "stub"
