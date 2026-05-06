@@ -35,6 +35,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_reports_checked == 1
     assert summary.musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports_checked == 1
     assert summary.musicnn_legacy_baseline_capture_reports_checked == 1
+    assert summary.musicnn_onnx_output_capture_reports_checked == 1
     assert summary.musicnn_onnx_fixture_visibility_strategy_reports_checked == 1
     assert summary.musicnn_legacy_baseline_import_order_diagnostic_reports_checked == 1
     assert summary.label_mapping_checked == 1
@@ -127,6 +128,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_reports=1" in captured.out
     assert "musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports=1" in captured.out
     assert "musicnn_legacy_baseline_capture_reports=1" in captured.out
+    assert "musicnn_onnx_output_capture_reports=1" in captured.out
     assert "musicnn_onnx_fixture_visibility_strategy_reports=1" in captured.out
     assert "musicnn_legacy_baseline_import_order_diagnostic_reports=1" in captured.out
     assert "evidence_packages=1" in captured.out
@@ -274,6 +276,39 @@ def test_legacy_baseline_capture_report_rejects_onnx_approval(tmp_path):
         assert "approved_for_onnx_execution" in str(exc)
     else:
         raise AssertionError("baseline capture report should reject ONNX approval")
+
+
+def _onnx_output_capture_report_path():
+    return (
+        SERVICE_ROOT
+        / "docs/lightweight/evaluation/parity-scaffold/"
+        / "musicnn-onnx-output-capture-report.json"
+    )
+
+
+def test_onnx_output_capture_report_is_validated():
+    validator = load_validator()
+
+    validator._validate_musicnn_onnx_output_capture_report(_onnx_output_capture_report_path())
+
+
+def test_onnx_output_capture_report_records_blocked_preprocessing_alignment():
+    validator = load_validator()
+    data = validator._load_json(_onnx_output_capture_report_path())
+    serialized = validator.json.dumps(data)
+
+    assert data["roadmap"] == "4.51"
+    assert data["agents_md_read"] is True
+    assert data["onnx_capture_succeeded"] is False
+    assert data["onnx_capture_status"]["blocked_preprocessing_unknown"] is True
+    assert data["onnx_outputs"] == []
+    assert data["blockers"][0]["code"] == "PREPROCESSING_ALIGNMENT_UNKNOWN"
+    assert data["baseline_evidence"]["fixture_count"] == 3
+    assert data["onnx_environment"]["onnxruntime_available"] is True
+    assert data["onnx_artifacts"]["artifact_in_repo"] is False
+    assert len(data["sanitized_fixtures"]) == 3
+    assert "/tmp/music-tools-onnx-parity" not in serialized
+    assert "/opt/music-tools" not in serialized
 
 
 def _fixture_visibility_strategy_path():

@@ -1,0 +1,143 @@
+{
+  "agents_md_read": true,
+  "approved_for_classify_contract_change": false,
+  "approved_for_default_provider_switch": false,
+  "approved_for_final_parity_decision": false,
+  "approved_for_full_numeric_parity_run": false,
+  "approved_for_production": false,
+  "approved_for_provider_implementation": false,
+  "baseline_evidence": {
+    "available": true,
+    "expected_output_shapes": [
+      [
+        30,
+        50
+      ],
+      [
+        35,
+        50
+      ],
+      [
+        86,
+        50
+      ]
+    ],
+    "fixture_count": 3,
+    "fixture_ids": [
+      "john_bartmann_earning_happiness_cc0",
+      "john_bartmann_happy_clappy_cc0",
+      "john_bartmann_home_at_last_cc0"
+    ],
+    "report_path": "docs/lightweight/evaluation/parity-scaffold/musicnn-legacy-baseline-capture-report.json"
+  },
+  "blockers": [
+    {
+      "code": "PREPROCESSING_ALIGNMENT_UNKNOWN",
+      "message": "The ONNX input preprocessing path is not evidenced yet, so execution approval is withheld."
+    }
+  ],
+  "fixture_count": 3,
+  "fixture_provenance_notes": {
+    "available": true,
+    "fixture_count": 3,
+    "storage_policy": {
+      "location": "outside_repo",
+      "public_report_paths_redacted": true,
+      "repo_committed_audio": false
+    }
+  },
+  "generated_by": "scripts/lightweight/musicnn_onnx_output_capture.py",
+  "legacy_musicnn_remains_baseline": true,
+  "next_step_recommendation": "Provide explicit preprocessing alignment evidence for the ONNX input path before any execution approval.",
+  "no_audio_files_committed": true,
+  "no_classify_calls": true,
+  "no_compose_file_changes": true,
+  "no_dependency_changes": true,
+  "no_docker_rebuild": true,
+  "no_dockerfile_changes": true,
+  "no_model_files_committed": true,
+  "no_provider_changes": true,
+  "no_tidal_parser_changes": true,
+  "no_venv_committed": true,
+  "not_production_decision": true,
+  "onnx_artifacts": {
+    "artifact_in_repo": false,
+    "metadata_available": true,
+    "metadata_sha256": "8e6b3b509f0610c0e65dce467fd459d6777509388eaddb13ed138d8ac1341ffe",
+    "model_available": true,
+    "model_sha256": "49668ffec47e52e94b96f45930bb46a28a1368d4bdfb5c05378fa834aca616e1"
+  },
+  "onnx_capture_status": {
+    "blocked_capture_error": false,
+    "blocked_missing_baseline_evidence": false,
+    "blocked_missing_onnx_artifact": false,
+    "blocked_onnxruntime_unavailable": false,
+    "blocked_preprocessing_unknown": true,
+    "succeeded": false
+  },
+  "onnx_capture_succeeded": false,
+  "onnx_environment": {
+    "isolated_env_used": true,
+    "onnxruntime_available": true,
+    "onnxruntime_version": "1.25.1"
+  },
+  "onnx_model_metadata": {
+    "input_names": [
+      "melspectrogram"
+    ],
+    "input_shapes": [
+      [
+        "unk__155",
+        187,
+        96
+      ]
+    ],
+    "output_names": [
+      "activations",
+      "embeddings"
+    ],
+    "output_shapes": [
+      [
+        "unk__156",
+        50
+      ],
+      [
+        "unk__157",
+        200
+      ]
+    ],
+    "preprocessing_alignment_status": "unknown"
+  },
+  "onnx_outputs": [],
+  "report_id": "roadmap_4_51_onnx_side_output_capture_preparation_execution_gate",
+  "report_type": "musicnn_onnx_output_capture_report",
+  "roadmap": "4.51",
+  "sanitized_fixtures": [
+    {
+      "audio_format": "mp3",
+      "fixture_id": "john_bartmann_earning_happiness_cc0",
+      "license_status": "CC0 1.0 Universal / public domain",
+      "sha256": "d75937b87f8ad440d7655d33b5ffbd36e374ac71ad794976fdebd325541ae628",
+      "source_artist": "John Bartmann"
+    },
+    {
+      "audio_format": "mp3",
+      "fixture_id": "john_bartmann_happy_clappy_cc0",
+      "license_status": "CC0 1.0 Universal / public domain",
+      "sha256": "4f21570f701c07696c6b05f051528241a82156b923ab4bb3071c3c4af4a3372e",
+      "source_artist": "John Bartmann"
+    },
+    {
+      "audio_format": "mp3",
+      "fixture_id": "john_bartmann_home_at_last_cc0",
+      "license_status": "CC0 1.0 Universal / public domain",
+      "sha256": "0146392a4ea96de074197b2622ebd707ff2560586152bbd1e901095f2ea01c75",
+      "source_artist": "John Bartmann"
+    }
+  ],
+  "warnings": [
+    "No ONNX inference was executed.",
+    "No fake outputs are recorded.",
+    "The report is sanitized for repository publication."
+  ]
+}
