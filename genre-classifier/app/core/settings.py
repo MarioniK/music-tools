@@ -22,6 +22,8 @@ SUPPORTED_GENRE_PROVIDERS = (
     GENRE_PROVIDER_ONNX,
     "stub",
 )
+DEFAULT_ONNX_MUSICNN_MODEL_PATH = None
+DEFAULT_ONNX_MUSICNN_METADATA_PATH = None
 LLM_CLIENT_STUB = "stub"
 LLM_CLIENT_LOCAL_HTTP = "local_http"
 DEFAULT_LLM_CLIENT = LLM_CLIENT_STUB
@@ -54,6 +56,28 @@ def get_configured_llm_client_name():
 
 def get_configured_llm_local_http_endpoint():
     return (os.getenv("LLM_LOCAL_HTTP_ENDPOINT", "") or "").strip()
+
+
+def _get_optional_path_from_env(env_name, default=None):
+    value = (os.getenv(env_name, "") or "").strip()
+    if not value:
+        return default
+
+    return Path(value)
+
+
+def get_configured_onnx_musicnn_model_path():
+    return _get_optional_path_from_env(
+        "ONNX_MUSICNN_MODEL_PATH",
+        DEFAULT_ONNX_MUSICNN_MODEL_PATH,
+    )
+
+
+def get_configured_onnx_musicnn_metadata_path():
+    return _get_optional_path_from_env(
+        "ONNX_MUSICNN_METADATA_PATH",
+        DEFAULT_ONNX_MUSICNN_METADATA_PATH,
+    )
 
 
 def get_configured_llm_local_http_timeout_seconds():

@@ -60,7 +60,8 @@ def test_factory_selects_explicit_onnx_musicnn_provider():
         GENRE_PROVIDER_LLM="llm",
         GENRE_PROVIDER_ONNX="onnx_musicnn",
         get_configured_genre_provider_name=lambda: "onnx_musicnn",
-        MODELS_DIR=Path("/tmp"),
+        get_configured_onnx_musicnn_model_path=lambda: Path("/opt/music-tools/models/msd-musicnn-1.onnx"),
+        get_configured_onnx_musicnn_metadata_path=lambda: Path("/opt/music-tools/models/msd-musicnn-1.json"),
     )
 
     provider = get_genre_provider(settings)
@@ -88,7 +89,8 @@ def test_factory_logs_onnx_provider_selection(caplog):
         GENRE_PROVIDER_LLM="llm",
         GENRE_PROVIDER_ONNX="onnx_musicnn",
         get_configured_genre_provider_name=lambda: "onnx_musicnn",
-        MODELS_DIR=Path("/tmp"),
+        get_configured_onnx_musicnn_model_path=lambda: Path("/opt/music-tools/models/msd-musicnn-1.onnx"),
+        get_configured_onnx_musicnn_metadata_path=lambda: Path("/opt/music-tools/models/msd-musicnn-1.json"),
     )
 
     with caplog.at_level("INFO", logger="genre_classifier"):

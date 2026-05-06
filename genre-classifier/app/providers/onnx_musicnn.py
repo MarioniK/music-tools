@@ -11,8 +11,8 @@ from app.providers.base import GenreProvider, ProviderGenreScore, ProviderResult
 ONNX_MUSICNN_PROVIDER_NAME = "onnx_musicnn"
 ONNX_MUSICNN_RUNTIME_MODEL_NAME = "onnx-musicnn-scaffold"
 ONNX_MUSICNN_DEFAULT_TOP_N = 8
-ONNX_MUSICNN_MODEL_FILENAME = "msd-musicnn-1.onnx"
-ONNX_MUSICNN_METADATA_FILENAME = "msd-musicnn-1.json"
+ONNX_MUSICNN_MODEL_PATH_SETTING = "get_configured_onnx_musicnn_model_path"
+ONNX_MUSICNN_METADATA_PATH_SETTING = "get_configured_onnx_musicnn_metadata_path"
 
 
 class OnnxMusiCNNProvider(GenreProvider):
@@ -41,12 +41,16 @@ class OnnxMusiCNNProvider(GenreProvider):
         metadata_path = self._get_metadata_path()
         reasons = []
 
-        if not model_path.exists():
-            reasons.append(f"model artifact missing: {model_path.name}")
+        if model_path is None:
+            reasons.append("onnx model path not configured")
+        elif not model_path.exists():
+            reasons.append("onnx model artifact missing")
 
         metadata = None
-        if not metadata_path.exists():
-            reasons.append(f"metadata artifact missing: {metadata_path.name}")
+        if metadata_path is None:
+            reasons.append("onnx metadata path not configured")
+        elif not metadata_path.exists():
+            reasons.append("onnx metadata artifact missing")
         else:
             try:
                 metadata = self._load_metadata(metadata_path)
@@ -59,21 +63,23 @@ class OnnxMusiCNNProvider(GenreProvider):
             except RuntimeError as exc:
                 reasons.append(str(exc))
 
-        try:
-            self._load_onnxruntime()
-        except RuntimeError as exc:
-            reasons.append(str(exc))
+        if not reasons:
+            try:
+                self._load_onnxruntime()
+            except RuntimeError as exc:
+                reasons.append(str(exc))
 
-        try:
-            self._load_essentia_standard()
-        except RuntimeError as exc:
-            reasons.append(str(exc))
+        if not reasons:
+            try:
+                self._load_essentia_standard()
+            except RuntimeError as exc:
+                reasons.append(str(exc))
 
         return {
             "provider_name": ONNX_MUSICNN_PROVIDER_NAME,
             "available": not reasons,
-            "model_path": str(model_path),
-            "metadata_path": str(metadata_path),
+            "model_path": str(model_path) if model_path is not None else None,
+            "metadata_path": str(metadata_path) if metadata_path is not None else None,
             "reasons": reasons,
         }
 
@@ -97,30 +103,49 @@ class OnnxMusiCNNProvider(GenreProvider):
         )
 
     def _get_model_path(self) -> Path:
-        return self._settings.MODELS_DIR / ONNX_MUSICNN_MODEL_FILENAME
+        return self._get_configured_path(ONNX_MUSICNN_MODEL_PATH_SETTING)
 
     def _get_metadata_path(self) -> Path:
-        return self._settings.MODELS_DIR / ONNX_MUSICNN_METADATA_FILENAME
+        return self._get_configured_path(ONNX_MUSICNN_METADATA_PATH_SETTING)
+
+    def _get_configured_path(self, getter_name: str):
+        getter = getattr(self._settings, getter_name, None)
+        if getter is None:
+            return None
+
+        configured_path = getter()
+        if configured_path in (None, ""):
+            return None
+
+        if isinstance(configured_path, Path):
+            return configured_path
+
+        return Path(configured_path)
 
     def _load_metadata(self, metadata_path: Path):
         try:
             with metadata_path.open("r", encoding="utf-8") as handle:
-                return json.load(handle)
+                metadata = json.load(handle)
         except FileNotFoundError as exc:
-            raise RuntimeError(f"metadata artifact missing: {metadata_path.name}") from exc
+            raise RuntimeError("onnx metadata artifact missing") from exc
         except json.JSONDecodeError as exc:
-            raise RuntimeError(f"metadata artifact is invalid JSON: {metadata_path.name}") from exc
+            raise RuntimeError("onnx metadata artifact is invalid JSON") from exc
+
+        if not isinstance(metadata, dict):
+            raise RuntimeError("onnx metadata artifact has invalid format")
+
+        return metadata
 
     def _extract_classes_from_metadata(self, metadata) -> List[str]:
         classes = metadata.get("classes")
         if not isinstance(classes, list) or not classes:
-            raise RuntimeError("metadata classes unavailable")
+            raise RuntimeError("onnx metadata classes unavailable")
 
         normalized_classes = []
         for label in classes:
             normalized_label = _normalize_candidate_label(label)
             if normalized_label is None:
-                raise RuntimeError("metadata classes contain invalid labels")
+                raise RuntimeError("onnx metadata classes contain invalid labels")
             normalized_classes.append(normalized_label)
 
         return normalized_classes

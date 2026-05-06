@@ -21,6 +21,32 @@ def test_supported_genre_providers_include_disabled_by_default_onnx():
     assert settings.DEFAULT_GENRE_PROVIDER == settings.GENRE_PROVIDER_LEGACY
 
 
+def test_onnx_musicnn_artifact_paths_default_to_unset(monkeypatch):
+    monkeypatch.delenv("ONNX_MUSICNN_MODEL_PATH", raising=False)
+    monkeypatch.delenv("ONNX_MUSICNN_METADATA_PATH", raising=False)
+
+    assert settings.DEFAULT_ONNX_MUSICNN_MODEL_PATH is None
+    assert settings.DEFAULT_ONNX_MUSICNN_METADATA_PATH is None
+    assert settings.get_configured_onnx_musicnn_model_path() is None
+    assert settings.get_configured_onnx_musicnn_metadata_path() is None
+
+
+def test_onnx_musicnn_artifact_paths_accept_explicit_values(monkeypatch):
+    monkeypatch.setenv("ONNX_MUSICNN_MODEL_PATH", "/opt/music-tools/models/msd-musicnn-1.onnx")
+    monkeypatch.setenv("ONNX_MUSICNN_METADATA_PATH", "/opt/music-tools/models/msd-musicnn-1.json")
+
+    assert str(settings.get_configured_onnx_musicnn_model_path()) == "/opt/music-tools/models/msd-musicnn-1.onnx"
+    assert str(settings.get_configured_onnx_musicnn_metadata_path()) == "/opt/music-tools/models/msd-musicnn-1.json"
+
+
+def test_onnx_musicnn_artifact_paths_do_not_default_to_tmp_locations(monkeypatch):
+    monkeypatch.delenv("ONNX_MUSICNN_MODEL_PATH", raising=False)
+    monkeypatch.delenv("ONNX_MUSICNN_METADATA_PATH", raising=False)
+
+    assert settings.get_configured_onnx_musicnn_model_path() is None
+    assert settings.get_configured_onnx_musicnn_metadata_path() is None
+
+
 def test_get_configured_genre_provider_name_falls_back_to_default_for_blank_value(monkeypatch):
     monkeypatch.setenv("GENRE_PROVIDER", "   ")
 

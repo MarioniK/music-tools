@@ -22,6 +22,15 @@ SERVICE_ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = SERVICE_ROOT / "app" / "providers" / "onnx_musicnn.py"
 
 
+def _build_provider(*, model_path=None, metadata_path=None):
+    return OnnxMusiCNNProvider(
+        settings_module=SimpleNamespace(
+            get_configured_onnx_musicnn_model_path=lambda: model_path,
+            get_configured_onnx_musicnn_metadata_path=lambda: metadata_path,
+        ),
+    )
+
+
 def test_provider_module_import_does_not_require_onnxruntime_or_essentia():
     before = set(sys.modules)
     spec = importlib.util.spec_from_file_location("onnx_musicnn_scaffold_test", MODULE_PATH)
@@ -77,18 +86,70 @@ def test_build_candidate_scores_rejects_invalid_inputs(activations, classes, exp
         build_candidate_scores(activations, classes)
 
 
-def test_provider_runtime_status_reports_missing_artifacts_without_crashing(tmp_path, monkeypatch):
-    model_dir = tmp_path / "models"
-    model_dir.mkdir()
-    metadata_path = model_dir / "msd-musicnn-1.json"
+def test_provider_runtime_status_reports_unconfigured_artifacts_without_crashing(monkeypatch):
+    provider = _build_provider()
+    monkeypatch.setattr(provider, "_load_onnxruntime", lambda: object())
+    monkeypatch.setattr(
+        provider,
+        "_load_essentia_standard",
+        lambda: SimpleNamespace(TensorflowInputMusiCNN=object()),
+    )
+
+    status = provider.describe_runtime_status()
+
+    assert status["available"] is False
+    assert "onnx model path not configured" in status["reasons"]
+    assert "onnx metadata path not configured" in status["reasons"]
+
+
+def test_provider_runtime_status_reports_missing_model_artifact_without_crashing(tmp_path, monkeypatch):
+    provider = _build_provider(
+        model_path=tmp_path / "msd-musicnn-1.onnx",
+        metadata_path=tmp_path / "msd-musicnn-1.json",
+    )
+    monkeypatch.setattr(provider, "_load_onnxruntime", lambda: object())
+    monkeypatch.setattr(
+        provider,
+        "_load_essentia_standard",
+        lambda: SimpleNamespace(TensorflowInputMusiCNN=object()),
+    )
+
+    status = provider.describe_runtime_status()
+
+    assert status["available"] is False
+    assert "onnx model artifact missing" in status["reasons"]
+
+
+def test_provider_runtime_status_reports_missing_metadata_artifact_without_crashing(tmp_path, monkeypatch):
+    model_path = tmp_path / "msd-musicnn-1.onnx"
+    model_path.write_bytes(b"stub model")
+    provider = _build_provider(
+        model_path=model_path,
+        metadata_path=tmp_path / "msd-musicnn-1.json",
+    )
+    monkeypatch.setattr(provider, "_load_onnxruntime", lambda: object())
+    monkeypatch.setattr(
+        provider,
+        "_load_essentia_standard",
+        lambda: SimpleNamespace(TensorflowInputMusiCNN=object()),
+    )
+
+    status = provider.describe_runtime_status()
+
+    assert status["available"] is False
+    assert "onnx metadata artifact missing" in status["reasons"]
+
+
+def test_provider_runtime_status_accepts_explicit_artifact_paths(tmp_path, monkeypatch):
+    model_path = tmp_path / "explicit-model.onnx"
+    metadata_path = tmp_path / "explicit-metadata.json"
+    model_path.write_bytes(b"stub model")
     metadata_path.write_text(
         json.dumps({"classes": ["dream-pop", "ambient"]}),
         encoding="utf-8",
     )
 
-    provider = OnnxMusiCNNProvider(
-        settings_module=SimpleNamespace(MODELS_DIR=model_dir),
-    )
+    provider = _build_provider(model_path=model_path, metadata_path=metadata_path)
     monkeypatch.setattr(provider, "_load_onnxruntime", lambda: object())
     monkeypatch.setattr(
         provider,
@@ -98,43 +159,22 @@ def test_provider_runtime_status_reports_missing_artifacts_without_crashing(tmp_
 
     status = provider.describe_runtime_status()
 
-    assert status["available"] is False
-    assert "model artifact missing: msd-musicnn-1.onnx" in status["reasons"]
-
-
-def test_provider_runtime_status_reports_missing_metadata_without_crashing(tmp_path, monkeypatch):
-    model_dir = tmp_path / "models"
-    model_dir.mkdir()
-    (model_dir / "msd-musicnn-1.onnx").write_bytes(b"stub model")
-
-    provider = OnnxMusiCNNProvider(
-        settings_module=SimpleNamespace(MODELS_DIR=model_dir),
-    )
-    monkeypatch.setattr(provider, "_load_onnxruntime", lambda: object())
-    monkeypatch.setattr(
-        provider,
-        "_load_essentia_standard",
-        lambda: SimpleNamespace(TensorflowInputMusiCNN=object()),
-    )
-
-    status = provider.describe_runtime_status()
-
-    assert status["available"] is False
-    assert "metadata artifact missing: msd-musicnn-1.json" in status["reasons"]
+    assert status["available"] is True
+    assert status["reasons"] == []
+    assert status["model_path"] == str(model_path)
+    assert status["metadata_path"] == str(metadata_path)
 
 
 def test_provider_runtime_status_reports_missing_dependency_without_crashing(tmp_path, monkeypatch):
-    model_dir = tmp_path / "models"
-    model_dir.mkdir()
-    (model_dir / "msd-musicnn-1.onnx").write_bytes(b"stub model")
-    (model_dir / "msd-musicnn-1.json").write_text(
+    model_path = tmp_path / "msd-musicnn-1.onnx"
+    metadata_path = tmp_path / "msd-musicnn-1.json"
+    model_path.write_bytes(b"stub model")
+    metadata_path.write_text(
         json.dumps({"classes": ["dream-pop", "ambient"]}),
         encoding="utf-8",
     )
 
-    provider = OnnxMusiCNNProvider(
-        settings_module=SimpleNamespace(MODELS_DIR=model_dir),
-    )
+    provider = _build_provider(model_path=model_path, metadata_path=metadata_path)
     monkeypatch.setattr(provider, "_load_onnxruntime", lambda: (_ for _ in ()).throw(RuntimeError("onnxruntime unavailable")))
     monkeypatch.setattr(
         provider,
@@ -149,17 +189,15 @@ def test_provider_runtime_status_reports_missing_dependency_without_crashing(tmp
 
 
 def test_provider_runtime_status_reports_missing_tensorflow_input_musiccnn_boundary(tmp_path, monkeypatch):
-    model_dir = tmp_path / "models"
-    model_dir.mkdir()
-    (model_dir / "msd-musicnn-1.onnx").write_bytes(b"stub model")
-    (model_dir / "msd-musicnn-1.json").write_text(
+    model_path = tmp_path / "msd-musicnn-1.onnx"
+    metadata_path = tmp_path / "msd-musicnn-1.json"
+    model_path.write_bytes(b"stub model")
+    metadata_path.write_text(
         json.dumps({"classes": ["dream-pop", "ambient"]}),
         encoding="utf-8",
     )
 
-    provider = OnnxMusiCNNProvider(
-        settings_module=SimpleNamespace(MODELS_DIR=model_dir),
-    )
+    provider = _build_provider(model_path=model_path, metadata_path=metadata_path)
     monkeypatch.setattr(provider, "_load_onnxruntime", lambda: object())
     monkeypatch.setattr(
         provider,
@@ -174,17 +212,15 @@ def test_provider_runtime_status_reports_missing_tensorflow_input_musiccnn_bound
 
 
 def test_provider_classify_reports_disabled_scaffold_state(tmp_path, monkeypatch):
-    model_dir = tmp_path / "models"
-    model_dir.mkdir()
-    (model_dir / "msd-musicnn-1.onnx").write_bytes(b"stub model")
-    (model_dir / "msd-musicnn-1.json").write_text(
+    model_path = tmp_path / "msd-musicnn-1.onnx"
+    metadata_path = tmp_path / "msd-musicnn-1.json"
+    model_path.write_bytes(b"stub model")
+    metadata_path.write_text(
         json.dumps({"classes": ["dream-pop", "ambient"]}),
         encoding="utf-8",
     )
 
-    provider = OnnxMusiCNNProvider(
-        settings_module=SimpleNamespace(MODELS_DIR=model_dir),
-    )
+    provider = _build_provider(model_path=model_path, metadata_path=metadata_path)
     monkeypatch.setattr(provider, "_load_onnxruntime", lambda: object())
     monkeypatch.setattr(
         provider,
@@ -197,17 +233,15 @@ def test_provider_classify_reports_disabled_scaffold_state(tmp_path, monkeypatch
 
 
 def test_provider_classify_reports_missing_onnxruntime_as_controlled_failure(tmp_path, monkeypatch):
-    model_dir = tmp_path / "models"
-    model_dir.mkdir()
-    (model_dir / "msd-musicnn-1.onnx").write_bytes(b"stub model")
-    (model_dir / "msd-musicnn-1.json").write_text(
+    model_path = tmp_path / "msd-musicnn-1.onnx"
+    metadata_path = tmp_path / "msd-musicnn-1.json"
+    model_path.write_bytes(b"stub model")
+    metadata_path.write_text(
         json.dumps({"classes": ["dream-pop", "ambient"]}),
         encoding="utf-8",
     )
 
-    provider = OnnxMusiCNNProvider(
-        settings_module=SimpleNamespace(MODELS_DIR=model_dir),
-    )
+    provider = _build_provider(model_path=model_path, metadata_path=metadata_path)
     monkeypatch.setattr(
         provider,
         "_load_onnxruntime",
@@ -221,6 +255,66 @@ def test_provider_classify_reports_missing_onnxruntime_as_controlled_failure(tmp
 
     with pytest.raises(RuntimeError, match="onnxruntime unavailable"):
         provider.classify("/tmp/audio.wav")
+
+
+def test_provider_runtime_status_reports_invalid_metadata_format(tmp_path, monkeypatch):
+    model_path = tmp_path / "msd-musicnn-1.onnx"
+    metadata_path = tmp_path / "msd-musicnn-1.json"
+    model_path.write_bytes(b"stub model")
+    metadata_path.write_text(json.dumps(["dream-pop", "ambient"]), encoding="utf-8")
+
+    provider = _build_provider(model_path=model_path, metadata_path=metadata_path)
+    monkeypatch.setattr(provider, "_load_onnxruntime", lambda: object())
+    monkeypatch.setattr(
+        provider,
+        "_load_essentia_standard",
+        lambda: SimpleNamespace(TensorflowInputMusiCNN=object()),
+    )
+
+    status = provider.describe_runtime_status()
+
+    assert status["available"] is False
+    assert "onnx metadata artifact has invalid format" in status["reasons"]
+
+
+def test_provider_runtime_status_reports_empty_classes_list(tmp_path, monkeypatch):
+    model_path = tmp_path / "msd-musicnn-1.onnx"
+    metadata_path = tmp_path / "msd-musicnn-1.json"
+    model_path.write_bytes(b"stub model")
+    metadata_path.write_text(json.dumps({"classes": []}), encoding="utf-8")
+
+    provider = _build_provider(model_path=model_path, metadata_path=metadata_path)
+    monkeypatch.setattr(provider, "_load_onnxruntime", lambda: object())
+    monkeypatch.setattr(
+        provider,
+        "_load_essentia_standard",
+        lambda: SimpleNamespace(TensorflowInputMusiCNN=object()),
+    )
+
+    status = provider.describe_runtime_status()
+
+    assert status["available"] is False
+    assert "onnx metadata classes unavailable" in status["reasons"]
+
+
+def test_provider_runtime_status_reports_invalid_class_labels(tmp_path, monkeypatch):
+    model_path = tmp_path / "msd-musicnn-1.onnx"
+    metadata_path = tmp_path / "msd-musicnn-1.json"
+    model_path.write_bytes(b"stub model")
+    metadata_path.write_text(json.dumps({"classes": ["", None]}), encoding="utf-8")
+
+    provider = _build_provider(model_path=model_path, metadata_path=metadata_path)
+    monkeypatch.setattr(provider, "_load_onnxruntime", lambda: object())
+    monkeypatch.setattr(
+        provider,
+        "_load_essentia_standard",
+        lambda: SimpleNamespace(TensorflowInputMusiCNN=object()),
+    )
+
+    status = provider.describe_runtime_status()
+
+    assert status["available"] is False
+    assert "onnx metadata classes contain invalid labels" in status["reasons"]
 
 
 def test_valid_mapping_result_is_compatible_with_existing_genres_contract():
