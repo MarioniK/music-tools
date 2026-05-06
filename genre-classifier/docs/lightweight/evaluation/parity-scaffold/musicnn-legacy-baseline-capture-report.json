@@ -1,0 +1,73 @@
+{
+  "report_type": "musicnn_legacy_baseline_capture_report",
+  "roadmap": "4.46",
+  "not_production_decision": true,
+  "approved_for_production": false,
+  "approved_for_provider_implementation": false,
+  "approved_for_default_provider_switch": false,
+  "approved_for_full_numeric_parity_run": false,
+  "approved_for_onnx_execution": false,
+  "baseline_capture_scope": "existing_container_local_only",
+  "no_audio_files_committed": true,
+  "no_model_files_committed": true,
+  "no_venv_committed": true,
+  "no_dependency_changes": true,
+  "no_docker_changes": true,
+  "no_docker_rebuild": true,
+  "no_classify_calls": true,
+  "legacy_musicnn_remains_baseline": true,
+  "fixture_count": 3,
+  "sanitized_fixtures": [
+    {
+      "fixture_id": "john_bartmann_earning_happiness_cc0",
+      "sha256": "d75937b87f8ad440d7655d33b5ffbd36e374ac71ad794976fdebd325541ae628",
+      "audio_format": "mp3",
+      "source_artist": "John Bartmann",
+      "license_status": "CC0"
+    },
+    {
+      "fixture_id": "john_bartmann_happy_clappy_cc0",
+      "sha256": "4f21570f701c07696c6b05f051528241a82156b923ab4bb3071c3c4af4a3372e",
+      "audio_format": "mp3",
+      "source_artist": "John Bartmann",
+      "license_status": "CC0"
+    },
+    {
+      "fixture_id": "john_bartmann_home_at_last_cc0",
+      "sha256": "0146392a4ea96de074197b2622ebd707ff2560586152bbd1e901095f2ea01c75",
+      "audio_format": "mp3",
+      "source_artist": "John Bartmann",
+      "license_status": "CC0"
+    }
+  ],
+  "container_status": {
+    "service_name": "genre-classifier",
+    "service_name_known": true,
+    "compose_directory": "/opt/music-tools/genre-classifier",
+    "container_running": true,
+    "tensorflow_import_ok": true,
+    "tensorflow_version": "2.21.0",
+    "essentia_import_ok": true,
+    "fixture_path_accessible_in_container": false
+  },
+  "baseline_capture_status": {
+    "succeeded": false,
+    "blocked_container_unavailable": false,
+    "blocked_service_unknown": false,
+    "blocked_fixture_path_not_mounted": true,
+    "blocked_baseline_import_failed": false,
+    "blocked_capture_error": false
+  },
+  "baseline_outputs": [],
+  "blockers": [
+    {
+      "code": "FIXTURE_PATH_NOT_AVAILABLE_IN_CONTAINER",
+      "message": "The external legal fixture directory was not visible inside the existing genre-classifier container."
+    },
+    {
+      "code": "BASELINE_CAPTURE_BLOCKED_BY_CONTAINER_MOUNT",
+      "message": "Baseline capture was not run because Roadmap 4.46 does not permit Compose mount changes, Docker rebuilds, or copying fixtures into the repository."
+    }
+  ],
+  "next_step_recommendation": "Expose the approved external fixture directory to the existing local container through a separately approved non-production mount strategy, then rerun scoped baseline capture without ONNX execution or /classify calls."
+}

@@ -34,6 +34,7 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.musicnn_onnx_fixture_set_and_baseline_runtime_strategy_reports_checked == 1
     assert summary.musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_reports_checked == 1
     assert summary.musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports_checked == 1
+    assert summary.musicnn_legacy_baseline_capture_reports_checked == 1
     assert summary.label_mapping_checked == 1
     assert summary.evidence_packages_checked == 1
     assert summary.fixture_manifest_templates_checked == 1
@@ -123,6 +124,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "musicnn_onnx_fixture_set_and_baseline_runtime_strategy_reports=1" in captured.out
     assert "musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_reports=1" in captured.out
     assert "musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports=1" in captured.out
+    assert "musicnn_legacy_baseline_capture_reports=1" in captured.out
     assert "evidence_packages=1" in captured.out
     assert "fixture_manifest_templates=1" in captured.out
     assert captured.err == ""
@@ -193,6 +195,36 @@ def test_fixture_placement_readiness_report_rejects_local_fixture_paths(tmp_path
         assert "forbidden local or repo path" in str(exc)
     else:
         raise AssertionError("fixture placement readiness report should reject local paths")
+
+
+def _legacy_baseline_capture_report_path():
+    return (
+        SERVICE_ROOT
+        / "docs/lightweight/evaluation/parity-scaffold/"
+        / "musicnn-legacy-baseline-capture-report.json"
+    )
+
+
+def test_legacy_baseline_capture_report_is_validated():
+    validator = load_validator()
+
+    validator._validate_musicnn_legacy_baseline_capture_report(_legacy_baseline_capture_report_path())
+
+
+def test_legacy_baseline_capture_report_requires_mount_blockers(tmp_path):
+    validator = load_validator()
+    data = validator._load_json(_legacy_baseline_capture_report_path())
+    data["blockers"] = []
+
+    report_path = tmp_path / "baseline-capture-report.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_musicnn_legacy_baseline_capture_report(report_path)
+    except validator.ValidationError as exc:
+        assert "blockers must be non-empty" in str(exc)
+    else:
+        raise AssertionError("blocked baseline capture report should require blockers")
 
 
 def test_model_provenance_sample_is_validated():
