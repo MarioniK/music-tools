@@ -1,0 +1,142 @@
+{
+  "schema_version": "0.1",
+  "report_type": "musicnn_onnx_pragmatic_preprocessing_prototype_report",
+  "report_id": "roadmap_4_56_onnx_musicnn_pragmatic_preprocessing_prototype_scaffold",
+  "generated_by": "scripts/lightweight/musicnn_pragmatic_preprocessing_prototype.py",
+  "created_at": "2026-05-06T17:57:48.375536+00:00",
+  "roadmap": "4.56",
+  "agents_md_read": true,
+  "not_production_decision": true,
+  "target_candidate": "official_onnx_musicnn",
+  "strategy_source": {
+    "roadmap": "4.55",
+    "strategy": "essentia_standard_audio_loading_plus_standalone_mel_spectrogram_generation"
+  },
+  "strict_legacy_parity_required": false,
+  "output_drift_allowed": true,
+  "preprocessing_identical_to_legacy_required": false,
+  "documented_reproducible_preprocessing_required": true,
+  "approved_for_provider_implementation": false,
+  "approved_for_default_provider_switch": false,
+  "approved_for_production": false,
+  "approved_for_dependency_changes": false,
+  "approved_for_classify_call": false,
+  "legacy_musicnn_default_unchanged": true,
+  "prototype_modes": [
+    "metadata_only",
+    "preprocessing_probe"
+  ],
+  "onnx_artifacts": {
+    "model_name": "msd-musicnn-1.onnx",
+    "model_sha256": "49668ffec47e52e94b96f45930bb46a28a1368d4bdfb5c05378fa834aca616e1",
+    "metadata_name": "msd-musicnn-1.json",
+    "metadata_sha256": "8e6b3b509f0610c0e65dce467fd459d6777509388eaddb13ed138d8ac1341ffe",
+    "external_workspace": true
+  },
+  "baseline_evidence": {
+    "report_path": "docs/lightweight/evaluation/parity-scaffold/musicnn-legacy-baseline-capture-report.json",
+    "available": true,
+    "fixture_count": 3,
+    "fixture_ids": [
+      "john_bartmann_earning_happiness_cc0",
+      "john_bartmann_happy_clappy_cc0",
+      "john_bartmann_home_at_last_cc0"
+    ],
+    "expected_output_shapes": [
+      [
+        30,
+        50
+      ],
+      [
+        35,
+        50
+      ],
+      [
+        86,
+        50
+      ]
+    ]
+  },
+  "onnx_input": {
+    "input_name": "melspectrogram",
+    "shape_tail": [
+      187,
+      96
+    ],
+    "output_names": [
+      "activations",
+      "embeddings"
+    ],
+    "output_shape_tails": [
+      [
+        50
+      ],
+      [
+        200
+      ]
+    ]
+  },
+  "expected_outputs": {
+    "activations": [
+      50
+    ],
+    "embeddings": [
+      200
+    ]
+  },
+  "local_environment": {
+    "onnxruntime_available": true,
+    "onnxruntime_version": "1.25.1",
+    "essentia_available": false,
+    "essentia_error": "ModuleNotFoundError: No module named 'essentia'",
+    "required_dependencies_missing": true,
+    "missing_dependencies": [
+      "essentia"
+    ]
+  },
+  "preprocessing_probe_result": {
+    "attempted": true,
+    "succeeded": false,
+    "produced_shape": null,
+    "fixture_count": 3,
+    "repeated_run_stability_checked": false,
+    "blockers": [
+      {
+        "code": "PRAGMATIC_PREPROCESSING_DEPENDENCY_UNAVAILABLE",
+        "message": "Essentia standard runtime is unavailable in the approved isolated environment."
+      },
+      {
+        "code": "ESSENTIA_STANDARD_MEL_PATH_UNAVAILABLE",
+        "message": "Essentia standard mel-spectrogram path cannot be exercised because the required runtime is unavailable."
+      }
+    ]
+  },
+  "sanitized_fixtures": [
+    {
+      "fixture_id": "john_bartmann_earning_happiness_cc0",
+      "sha256": "d75937b87f8ad440d7655d33b5ffbd36e374ac71ad794976fdebd325541ae628",
+      "license_status": "CC0 1.0 Universal / public domain"
+    },
+    {
+      "fixture_id": "john_bartmann_happy_clappy_cc0",
+      "sha256": "4f21570f701c07696c6b05f051528241a82156b923ab4bb3071c3c4af4a3372e",
+      "license_status": "CC0 1.0 Universal / public domain"
+    },
+    {
+      "fixture_id": "john_bartmann_home_at_last_cc0",
+      "sha256": "0146392a4ea96de074197b2622ebd707ff2560586152bbd1e901095f2ea01c75",
+      "license_status": "CC0 1.0 Universal / public domain"
+    }
+  ],
+  "blockers": [
+    {
+      "code": "PRAGMATIC_PREPROCESSING_DEPENDENCY_UNAVAILABLE",
+      "message": "Essentia standard runtime is unavailable in the approved isolated environment."
+    },
+    {
+      "code": "ESSENTIA_STANDARD_MEL_PATH_UNAVAILABLE",
+      "message": "Essentia standard mel-spectrogram path cannot be exercised because the required runtime is unavailable."
+    }
+  ],
+  "next_step_recommendation": "Если Essentia standard mel-путь станет доступен в локальном isolated env, повторить preprocessing-probe; иначе держать Roadmap 4.56 как local-only scaffold и не менять production provider/default logic."
+}

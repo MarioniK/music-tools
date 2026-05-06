@@ -102,6 +102,10 @@ MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_REPORT_FILES = (
     Path("parity-scaffold/musicnn-legacy-baseline-import-order-diagnostic-report.json"),
 )
 
+MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_REPORT_FILES = (
+    Path("evidence/roadmap-4.56-onnx-musicnn-pragmatic-preprocessing-prototype-report.json"),
+)
+
 REQUIRED_LOCAL_ARTIFACT_METADATA_FIELDS = (
     "schema_version",
     "report_type",
@@ -551,6 +555,9 @@ MUSICNN_ONNX_FIXTURE_PLACEMENT_AND_SCOPED_BASELINE_READINESS_REPORT_TYPE = (
 )
 MUSICNN_LEGACY_BASELINE_CAPTURE_REPORT_TYPE = "musicnn_legacy_baseline_capture_report"
 MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_REPORT_TYPE = "musicnn_onnx_preprocessing_alignment_report"
+MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_REPORT_TYPE = (
+    "musicnn_onnx_pragmatic_preprocessing_prototype_report"
+)
 MUSICNN_ONNX_OUTPUT_CAPTURE_REPORT_TYPE = "musicnn_onnx_output_capture_report"
 MUSICNN_ONNX_FIXTURE_VISIBILITY_STRATEGY_REPORT_TYPE = (
     "musicnn_onnx_fixture_visibility_strategy_report"
@@ -600,6 +607,25 @@ MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_BLOCKERS = {
     "AUDIO_FILE_IN_REPO_NOT_ALLOWED",
     "VENV_IN_REPO_NOT_ALLOWED",
     "FINAL_PARITY_DECISION_NOT_APPROVED",
+    "LOCAL_PATHS_NOT_PUBLISHABLE",
+    "TIDAL_PARSER_SCOPE_VIOLATION",
+}
+
+MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_BLOCKERS = {
+    "AGENTS_MD_NOT_READ",
+    "BASELINE_EVIDENCE_MISSING",
+    "ONNX_ARTIFACT_MISSING",
+    "ONNX_METADATA_MISSING",
+    "ONNXRUNTIME_UNAVAILABLE",
+    "FIXTURE_FILES_MISSING",
+    "PRAGMATIC_PREPROCESSING_DEPENDENCY_UNAVAILABLE",
+    "ESSENTIA_STANDARD_MEL_PATH_UNAVAILABLE",
+    "MEL_PATCH_SHAPE_NOT_PRODUCED",
+    "CLASSIFY_CALL_NOT_ALLOWED",
+    "PRODUCTION_DEPENDENCY_CHANGE_NOT_ALLOWED",
+    "MODEL_FILE_IN_REPO_NOT_ALLOWED",
+    "AUDIO_FILE_IN_REPO_NOT_ALLOWED",
+    "VENV_IN_REPO_NOT_ALLOWED",
     "LOCAL_PATHS_NOT_PUBLISHABLE",
     "TIDAL_PARSER_SCOPE_VIOLATION",
 }
@@ -675,6 +701,39 @@ REQUIRED_MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_FIELDS = (
     "candidate_alignment_path",
     "blockers",
     "warnings",
+    "next_step_recommendation",
+)
+
+REQUIRED_MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_FIELDS = (
+    "schema_version",
+    "report_type",
+    "report_id",
+    "generated_by",
+    "created_at",
+    "roadmap",
+    "agents_md_read",
+    "not_production_decision",
+    "target_candidate",
+    "strategy_source",
+    "strict_legacy_parity_required",
+    "output_drift_allowed",
+    "preprocessing_identical_to_legacy_required",
+    "documented_reproducible_preprocessing_required",
+    "approved_for_provider_implementation",
+    "approved_for_default_provider_switch",
+    "approved_for_production",
+    "approved_for_dependency_changes",
+    "approved_for_classify_call",
+    "legacy_musicnn_default_unchanged",
+    "prototype_modes",
+    "onnx_artifacts",
+    "baseline_evidence",
+    "onnx_input",
+    "expected_outputs",
+    "local_environment",
+    "preprocessing_probe_result",
+    "sanitized_fixtures",
+    "blockers",
     "next_step_recommendation",
 )
 
@@ -1258,6 +1317,7 @@ class ValidationSummary(NamedTuple):
     musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports_checked: int = 0
     musicnn_legacy_baseline_capture_reports_checked: int = 0
     musicnn_onnx_preprocessing_alignment_reports_checked: int = 0
+    musicnn_onnx_pragmatic_preprocessing_prototype_reports_checked: int = 0
     musicnn_onnx_output_capture_reports_checked: int = 0
     musicnn_onnx_fixture_visibility_strategy_reports_checked: int = 0
     musicnn_legacy_baseline_import_order_diagnostic_reports_checked: int = 0
@@ -2696,6 +2756,212 @@ def _validate_musicnn_onnx_preprocessing_alignment_report(path: Path) -> None:
     _validate_no_parity_or_runtime_approval_claims(data, path)
 
 
+def _validate_musicnn_onnx_pragmatic_preprocessing_prototype_report(path: Path) -> None:
+    data = _load_json(path)
+
+    for field in REQUIRED_MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_FIELDS:
+        if field not in data:
+            raise ValidationError(f"{path} is missing required Roadmap 4.56 field: {field}")
+
+    if data["schema_version"] != "0.1":
+        raise ValidationError(f'{path}.schema_version must be "0.1"')
+    if data["roadmap"] != "4.56":
+        raise ValidationError(f'{path}.roadmap must be "4.56"')
+    if data["report_type"] != MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_REPORT_TYPE:
+        raise ValidationError(
+            f'{path}.report_type must be "{MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_REPORT_TYPE}"'
+        )
+    if data["generated_by"] != "scripts/lightweight/musicnn_pragmatic_preprocessing_prototype.py":
+        raise ValidationError(f"{path}.generated_by must reference the local-only prototype helper")
+
+    for field in ("created_at", "report_id", "target_candidate", "next_step_recommendation"):
+        value = data[field]
+        if not isinstance(value, str) or not value.strip():
+            raise ValidationError(f"{path}.{field} must be a non-empty string")
+
+    _require_bool_value(data["agents_md_read"], True, f"{path}.agents_md_read")
+    _require_bool_value(data["not_production_decision"], True, f"{path}.not_production_decision")
+    _require_bool_value(data["strict_legacy_parity_required"], False, f"{path}.strict_legacy_parity_required")
+    _require_bool_value(data["output_drift_allowed"], True, f"{path}.output_drift_allowed")
+    _require_bool_value(
+        data["preprocessing_identical_to_legacy_required"],
+        False,
+        f"{path}.preprocessing_identical_to_legacy_required",
+    )
+    _require_bool_value(
+        data["documented_reproducible_preprocessing_required"],
+        True,
+        f"{path}.documented_reproducible_preprocessing_required",
+    )
+    for field in (
+        "approved_for_provider_implementation",
+        "approved_for_default_provider_switch",
+        "approved_for_production",
+        "approved_for_dependency_changes",
+        "approved_for_classify_call",
+    ):
+        _require_bool_value(data[field], False, f"{path}.{field}")
+    _require_bool_value(data["legacy_musicnn_default_unchanged"], True, f"{path}.legacy_musicnn_default_unchanged")
+
+    strategy_source = _validate_required_object(data, path, "strategy_source")
+    if strategy_source.get("roadmap") != "4.55":
+        raise ValidationError(f"{path}.strategy_source.roadmap must be 4.55")
+    if strategy_source.get("strategy") != "essentia_standard_audio_loading_plus_standalone_mel_spectrogram_generation":
+        raise ValidationError(f"{path}.strategy_source.strategy must describe the approved 4.55 strategy")
+
+    prototype_modes = data["prototype_modes"]
+    if prototype_modes != ["metadata_only", "preprocessing_probe"]:
+        raise ValidationError(f"{path}.prototype_modes must record the two local-only helper modes")
+
+    onnx_artifacts = _validate_required_object(data, path, "onnx_artifacts")
+    if onnx_artifacts.get("model_name") != "msd-musicnn-1.onnx":
+        raise ValidationError(f"{path}.onnx_artifacts.model_name must be msd-musicnn-1.onnx")
+    if onnx_artifacts.get("metadata_name") != "msd-musicnn-1.json":
+        raise ValidationError(f"{path}.onnx_artifacts.metadata_name must be msd-musicnn-1.json")
+    if onnx_artifacts.get("external_workspace") is not True:
+        raise ValidationError(f"{path}.onnx_artifacts.external_workspace must be true")
+    if onnx_artifacts.get("model_sha256") != "49668ffec47e52e94b96f45930bb46a28a1368d4bdfb5c05378fa834aca616e1":
+        raise ValidationError(f"{path}.onnx_artifacts.model_sha256 must match the approved local ONNX file")
+    if onnx_artifacts.get("metadata_sha256") != "8e6b3b509f0610c0e65dce467fd459d6777509388eaddb13ed138d8ac1341ffe":
+        raise ValidationError(f"{path}.onnx_artifacts.metadata_sha256 must match the approved local metadata file")
+
+    baseline_evidence = _validate_required_object(data, path, "baseline_evidence")
+    if baseline_evidence.get("report_path") != (
+        "docs/lightweight/evaluation/parity-scaffold/musicnn-legacy-baseline-capture-report.json"
+    ):
+        raise ValidationError(f"{path}.baseline_evidence.report_path must reference the committed baseline report")
+    if baseline_evidence.get("available") is not True:
+        raise ValidationError(f"{path}.baseline_evidence.available must be true")
+    if baseline_evidence.get("fixture_count") != 3:
+        raise ValidationError(f"{path}.baseline_evidence.fixture_count must be 3")
+    if baseline_evidence.get("expected_output_shapes") != [[30, 50], [35, 50], [86, 50]]:
+        raise ValidationError(f"{path}.baseline_evidence.expected_output_shapes must record the committed shapes")
+
+    onnx_input = _validate_required_object(data, path, "onnx_input")
+    if onnx_input.get("input_name") != "melspectrogram":
+        raise ValidationError(f"{path}.onnx_input.input_name must be melspectrogram")
+    if onnx_input.get("shape_tail") != [187, 96]:
+        raise ValidationError(f"{path}.onnx_input.shape_tail must be [187, 96]")
+    if onnx_input.get("output_names") != ["activations", "embeddings"]:
+        raise ValidationError(f"{path}.onnx_input.output_names must be ['activations', 'embeddings']")
+    if onnx_input.get("output_shape_tails") != [[50], [200]]:
+        raise ValidationError(f"{path}.onnx_input.output_shape_tails must be [[50], [200]]")
+
+    expected_outputs = _validate_required_object(data, path, "expected_outputs")
+    if expected_outputs.get("activations") != [50]:
+        raise ValidationError(f"{path}.expected_outputs.activations must be [50]")
+    if expected_outputs.get("embeddings") != [200]:
+        raise ValidationError(f"{path}.expected_outputs.embeddings must be [200]")
+
+    local_environment = _validate_required_object(data, path, "local_environment")
+    _require_bool_value(local_environment.get("onnxruntime_available"), True, f"{path}.local_environment.onnxruntime_available")
+    _require_bool_value(local_environment.get("essentia_available"), False, f"{path}.local_environment.essentia_available")
+    _require_bool_value(
+        local_environment.get("required_dependencies_missing"),
+        True,
+        f"{path}.local_environment.required_dependencies_missing",
+    )
+    missing_dependencies = local_environment.get("missing_dependencies")
+    if missing_dependencies != ["essentia"]:
+        raise ValidationError(f"{path}.local_environment.missing_dependencies must be ['essentia']")
+    onnxruntime_version = local_environment.get("onnxruntime_version")
+    if not isinstance(onnxruntime_version, str) or not onnxruntime_version.strip():
+        raise ValidationError(f"{path}.local_environment.onnxruntime_version must be a non-empty string")
+
+    preprocessing_probe_result = _validate_required_object(data, path, "preprocessing_probe_result")
+    _require_bool_value(preprocessing_probe_result.get("attempted"), True, f"{path}.preprocessing_probe_result.attempted")
+    _require_bool_value(preprocessing_probe_result.get("succeeded"), False, f"{path}.preprocessing_probe_result.succeeded")
+    _require_bool_value(
+        preprocessing_probe_result.get("repeated_run_stability_checked"),
+        False,
+        f"{path}.preprocessing_probe_result.repeated_run_stability_checked",
+    )
+    if preprocessing_probe_result.get("fixture_count") != 3:
+        raise ValidationError(f"{path}.preprocessing_probe_result.fixture_count must be 3")
+    if preprocessing_probe_result.get("produced_shape") is not None:
+        raise ValidationError(f"{path}.preprocessing_probe_result.produced_shape must be null when blocked")
+
+    probe_blockers = preprocessing_probe_result.get("blockers")
+    if not isinstance(probe_blockers, list) or not probe_blockers:
+        raise ValidationError(f"{path}.preprocessing_probe_result.blockers must be a non-empty list")
+    probe_codes: set[str] = set()
+    for index, blocker in enumerate(probe_blockers):
+        context = f"{path}.preprocessing_probe_result.blockers[{index}]"
+        if not isinstance(blocker, dict):
+            raise ValidationError(f"{context} must be an object")
+        code = blocker.get("code")
+        message = blocker.get("message")
+        if code not in MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_BLOCKERS:
+            raise ValidationError(f"{context}.code is not allowed: {code!r}")
+        if not isinstance(message, str) or not message.strip():
+            raise ValidationError(f"{context}.message must be a non-empty string")
+        probe_codes.add(code)
+    for required_code in (
+        "PRAGMATIC_PREPROCESSING_DEPENDENCY_UNAVAILABLE",
+        "ESSENTIA_STANDARD_MEL_PATH_UNAVAILABLE",
+    ):
+        if required_code not in probe_codes:
+            raise ValidationError(f"{path}.preprocessing_probe_result.blockers must include {required_code}")
+
+    sanitized_fixtures = data["sanitized_fixtures"]
+    if not isinstance(sanitized_fixtures, list) or len(sanitized_fixtures) != 3:
+        raise ValidationError(f"{path}.sanitized_fixtures must be a list with 3 records")
+    expected_fixtures = {
+        "john_bartmann_earning_happiness_cc0": "d75937b87f8ad440d7655d33b5ffbd36e374ac71ad794976fdebd325541ae628",
+        "john_bartmann_happy_clappy_cc0": "4f21570f701c07696c6b05f051528241a82156b923ab4bb3071c3c4af4a3372e",
+        "john_bartmann_home_at_last_cc0": "0146392a4ea96de074197b2622ebd707ff2560586152bbd1e901095f2ea01c75",
+    }
+    seen_fixtures: set[str] = set()
+    for index, item in enumerate(sanitized_fixtures):
+        context = f"{path}.sanitized_fixtures[{index}]"
+        if not isinstance(item, dict):
+            raise ValidationError(f"{context} must be an object")
+        fixture_id = item.get("fixture_id")
+        sha256 = item.get("sha256")
+        license_status = item.get("license_status")
+        if not isinstance(fixture_id, str) or not fixture_id.strip():
+            raise ValidationError(f"{context}.fixture_id must be a non-empty string")
+        if fixture_id not in expected_fixtures:
+            raise ValidationError(f"{context}.fixture_id is not part of the committed local fixture set")
+        if fixture_id in seen_fixtures:
+            raise ValidationError(f"{context}.fixture_id must be unique")
+        seen_fixtures.add(fixture_id)
+        if sha256 != expected_fixtures[fixture_id]:
+            raise ValidationError(f"{context}.sha256 must match the committed local fixture hash")
+        if license_status != "CC0 1.0 Universal / public domain":
+            raise ValidationError(f"{context}.license_status must document the approved license")
+
+    blockers = data["blockers"]
+    if not isinstance(blockers, list) or not blockers:
+        raise ValidationError(f"{path}.blockers must be a non-empty list")
+    top_level_codes: set[str] = set()
+    for index, blocker in enumerate(blockers):
+        context = f"{path}.blockers[{index}]"
+        if not isinstance(blocker, dict):
+            raise ValidationError(f"{context} must be an object")
+        code = blocker.get("code")
+        message = blocker.get("message")
+        if code not in MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_BLOCKERS:
+            raise ValidationError(f"{context}.code is not allowed: {code!r}")
+        if not isinstance(message, str) or not message.strip():
+            raise ValidationError(f"{context}.message must be a non-empty string")
+        top_level_codes.add(code)
+    for required_code in (
+        "PRAGMATIC_PREPROCESSING_DEPENDENCY_UNAVAILABLE",
+        "ESSENTIA_STANDARD_MEL_PATH_UNAVAILABLE",
+    ):
+        if required_code not in top_level_codes:
+            raise ValidationError(f"{path}.blockers must include {required_code}")
+
+    serialized = json.dumps(data)
+    if "/tmp/music-tools-onnx-parity" in serialized:
+        raise ValidationError(f"{path} must not publish the external fixture workspace path")
+    if "/opt/music-tools" in serialized:
+        raise ValidationError(f"{path} must not publish private repository paths")
+    _validate_no_inference_or_production_approval_claims(data, str(path))
+    _validate_no_parity_or_runtime_approval_claims(data, path)
+
+
 def _validate_musicnn_onnx_output_capture_report(path: Path) -> None:
     data = _load_json(path)
 
@@ -3836,6 +4102,11 @@ def validate_all(root: Path) -> ValidationSummary:
         _validate_musicnn_onnx_preprocessing_alignment_report(evaluation_root / relative_path)
         musicnn_onnx_preprocessing_alignment_report_count += 1
 
+    musicnn_onnx_pragmatic_preprocessing_prototype_report_count = 0
+    for relative_path in MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_REPORT_FILES:
+        _validate_musicnn_onnx_pragmatic_preprocessing_prototype_report(evaluation_root / relative_path)
+        musicnn_onnx_pragmatic_preprocessing_prototype_report_count += 1
+
     musicnn_onnx_output_capture_report_count = 0
     for relative_path in MUSICNN_ONNX_OUTPUT_CAPTURE_REPORT_FILES:
         _validate_musicnn_onnx_output_capture_report(evaluation_root / relative_path)
@@ -3889,6 +4160,9 @@ def validate_all(root: Path) -> ValidationSummary:
         musicnn_legacy_baseline_capture_reports_checked=musicnn_legacy_baseline_capture_report_count,
         musicnn_onnx_preprocessing_alignment_reports_checked=(
             musicnn_onnx_preprocessing_alignment_report_count
+        ),
+        musicnn_onnx_pragmatic_preprocessing_prototype_reports_checked=(
+            musicnn_onnx_pragmatic_preprocessing_prototype_report_count
         ),
         musicnn_onnx_output_capture_reports_checked=musicnn_onnx_output_capture_report_count,
         musicnn_onnx_fixture_visibility_strategy_reports_checked=(
@@ -3949,6 +4223,8 @@ def main(argv: list[str] | None = None) -> int:
         f"{summary.musicnn_legacy_baseline_capture_reports_checked}, "
         "musicnn_onnx_preprocessing_alignment_reports="
         f"{summary.musicnn_onnx_preprocessing_alignment_reports_checked}, "
+        "musicnn_onnx_pragmatic_preprocessing_prototype_reports="
+        f"{summary.musicnn_onnx_pragmatic_preprocessing_prototype_reports_checked}, "
         "musicnn_onnx_output_capture_reports="
         f"{summary.musicnn_onnx_output_capture_reports_checked}, "
         "musicnn_onnx_fixture_visibility_strategy_reports="
