@@ -1,0 +1,87 @@
+{
+  "schema_version": "0.1",
+  "artifact_type": "onnx_preprocessing_strategy_report",
+  "roadmap": "4.55",
+  "created_at": "2026-05-06T00:00:00+03:00",
+  "not_production_decision": true,
+  "agents_md_read": true,
+  "target_candidate": "official_onnx_musicnn",
+  "alternative_candidate_search_in_scope": false,
+  "strict_legacy_parity_required": false,
+  "output_drift_allowed": true,
+  "preprocessing_required": true,
+  "preprocessing_identical_to_legacy_required": false,
+  "documented_reproducible_preprocessing_required": true,
+  "selected_preprocessing_strategy": "Essentia standard audio loading + documented standalone mel-spectrogram generation path, preferably using Essentia standard algorithms if available without TensorflowPredictMusiCNN",
+  "selected_strategy_rationale": [
+    "local_only",
+    "no_runtime_network_downloads",
+    "no_production_dependency_changes_in_roadmap_4_55",
+    "no_strict_legacy_parity_requirement",
+    "no_TensorflowPredictMusiCNN_as_preprocessing_oracle",
+    "compatible_with_future_provider_boundary",
+    "safe_for_approved_legal_fixture_evaluation",
+    "targets_melspectrogram_187_96"
+  ],
+  "rejected_strategy_options": [
+    {
+      "name": "Lightweight numpy/scipy/librosa-style path",
+      "reason": "new dependencies are out of scope and require separate approval"
+    },
+    {
+      "name": "Minimal custom numpy STFT/mel path",
+      "reason": "too high risk of subtle audio preprocessing mistakes for this safe-slice"
+    },
+    {
+      "name": "Strict legacy parity path",
+      "reason": "strict legacy parity is no longer a mandatory gate"
+    },
+    {
+      "name": "TensorflowPredictMusiCNN as preprocessing oracle",
+      "reason": "Roadmap 4.55 explicitly does not use it as the preprocessing design oracle"
+    }
+  ],
+  "preprocessing_input": {
+    "input_name": "melspectrogram",
+    "shape_tail": [187, 96]
+  },
+  "expected_outputs": {
+    "activations": [50],
+    "embeddings": [200]
+  },
+  "prototype_acceptance_criteria": [
+    "ONNX input shape is correct: input name melspectrogram and shape tail [187, 96]",
+    "output is produced for 3 approved legal fixtures, if separately approved in Roadmap 4.56",
+    "output is stable across repeated runs",
+    "activations shape is [50]",
+    "embeddings shape is [200]",
+    "labels are mapped using existing metadata/classes",
+    "output is mapped to controlled vocabulary",
+    "non-genre leakage is controlled",
+    "/classify contract remains unchanged",
+    "response shape remains unchanged",
+    "legacy_musicnn remains the default provider",
+    "provider implementation, default switch, and production migration remain separate gates"
+  ],
+  "classify_contract_unchanged_required": true,
+  "response_shape_unchanged_required": true,
+  "response_shape": [
+    "ok",
+    "message",
+    "genres",
+    "genres_pretty"
+  ],
+  "legacy_musicnn_default_unchanged": true,
+  "approved_for_provider_implementation": false,
+  "approved_for_default_provider_switch": false,
+  "approved_for_production": false,
+  "approved_for_dependency_changes": false,
+  "approved_for_classify_call": false,
+  "next_step_recommendation": "Roadmap 4.56 — ONNX/MusiCNN pragmatic preprocessing prototype scaffold",
+  "warnings": [
+    "design_only_artifact",
+    "no_production_migration_approval",
+    "no_inference_ran",
+    "no_classify_call_made"
+  ]
+}
