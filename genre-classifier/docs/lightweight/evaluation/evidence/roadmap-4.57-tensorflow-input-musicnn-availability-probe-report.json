@@ -1,0 +1,125 @@
+{
+  "schema_version": "0.1",
+  "report_type": "musicnn_tensorflow_input_musiccnn_availability_probe_report",
+  "report_id": "roadmap_4_57_tensorflow_input_musiccnn_availability_probe_gate",
+  "generated_by": "scripts/lightweight/musicnn_tensorflow_input_probe.py",
+  "created_at": "2026-05-06T18:47:35.018460+00:00",
+  "roadmap": "4.57",
+  "agents_md_read": true,
+  "not_production_decision": true,
+  "target_candidate": "official_onnx_musicnn",
+  "strategy_source": {
+    "roadmap": "4.55",
+    "strategy": "essentia_standard_audio_loading_plus_standalone_mel_spectrogram_generation"
+  },
+  "prototype_source": {
+    "roadmap": "4.56",
+    "helper": "scripts/lightweight/musicnn_pragmatic_preprocessing_prototype.py"
+  },
+  "strict_legacy_parity_required": false,
+  "output_drift_allowed": true,
+  "preprocessing_identical_to_legacy_required": false,
+  "documented_reproducible_preprocessing_required": true,
+  "approved_for_provider_implementation": false,
+  "approved_for_default_provider_switch": false,
+  "approved_for_production": false,
+  "approved_for_dependency_changes": false,
+  "approved_for_classify_call": false,
+  "legacy_musicnn_default_unchanged": true,
+  "isolated_python_used_for_availability_check": true,
+  "preprocessing_probe_execution": "current_interpreter",
+  "recommended_isolated_probe_invocation": "Use the approved isolated Python interpreter to run scripts/lightweight/musicnn_tensorflow_input_probe.py --mode preprocessing-probe.",
+  "probe_policy": {
+    "tensorflow_input_musiccnn_allowed_as_preprocessing_only_candidate": true,
+    "tensorflow_predict_musiccnn_not_used_as_preprocessing_oracle": true,
+    "strict_legacy_parity_required": false,
+    "production_decision_made": false
+  },
+  "tensorflow_input_musiccnn": {
+    "checked": true,
+    "available_in_isolated_env": false,
+    "available_in_system_python": false,
+    "import_error_category": "ModuleNotFoundError",
+    "hasattr_result": false,
+    "isolated_env": {
+      "python_available": true,
+      "import_status": "failed",
+      "available": false,
+      "import_error_category": "ModuleNotFoundError",
+      "import_error_message": "No module named 'essentia'",
+      "hasattr_result": false,
+      "onnxruntime": {
+        "available": true,
+        "version": "1.25.1",
+        "error_category": null,
+        "error_message": null
+      }
+    },
+    "system_python": {
+      "python_available": true,
+      "import_status": "failed",
+      "available": false,
+      "import_error_category": "ModuleNotFoundError",
+      "import_error_message": "No module named 'essentia'",
+      "hasattr_result": false
+    }
+  },
+  "preprocessing_probe_result": {
+    "attempted": false,
+    "succeeded": false,
+    "produced_shape": null,
+    "expected_shape": [
+      187,
+      96
+    ],
+    "fixture_count": 0,
+    "repeated_run_stability_checked": false,
+    "stable": null,
+    "blockers": []
+  },
+  "sanitized_fixtures": [
+    {
+      "fixture_id": "john_bartmann_earning_happiness_cc0",
+      "sha256": "d75937b87f8ad440d7655d33b5ffbd36e374ac71ad794976fdebd325541ae628",
+      "license_status": "CC0 1.0 Universal / public domain"
+    },
+    {
+      "fixture_id": "john_bartmann_happy_clappy_cc0",
+      "sha256": "4f21570f701c07696c6b05f051528241a82156b923ab4bb3071c3c4af4a3372e",
+      "license_status": "CC0 1.0 Universal / public domain"
+    },
+    {
+      "fixture_id": "john_bartmann_home_at_last_cc0",
+      "sha256": "0146392a4ea96de074197b2622ebd707ff2560586152bbd1e901095f2ea01c75",
+      "license_status": "CC0 1.0 Universal / public domain"
+    }
+  ],
+  "fallback": {
+    "generic_melbands_fallback_evaluated": true,
+    "generic_melbands_fallback_used": false,
+    "fallback_status": "blocked",
+    "fallback_risks": [
+      "Fallback не доказывает gate для TensorflowInputMusiCNN-specific preprocessing.",
+      "Fallback повышает риск ухода от pragmatic ONNX lane."
+    ]
+  },
+  "blockers": [
+    {
+      "code": "ESSENTIA_IMPORT_FAILED",
+      "message": "Essentia standard runtime недоступен в approved isolated env."
+    },
+    {
+      "code": "TENSORFLOW_INPUT_MUSICNN_IMPORT_FAILED",
+      "message": "TensorflowInputMusiCNN нельзя проверить, потому что импорт essentia.standard завершился ошибкой."
+    },
+    {
+      "code": "TENSORFLOW_INPUT_MUSICNN_UNAVAILABLE",
+      "message": "TensorflowInputMusiCNN недоступен и через system python."
+    },
+    {
+      "code": "GENERIC_MELBANDS_FALLBACK_BLOCKED",
+      "message": "Generic melbands fallback не использован, потому что доступность TensorflowInputMusiCNN всё ещё не подтверждена."
+    }
+  ],
+  "next_step_recommendation": "Если TensorflowInputMusiCNN станет импортируемым в approved isolated env, повторить preprocessing-probe и только затем рассматривать более глубокую pragmatic ONNX/MusiCNN проверку; иначе держать candidate local-only и не менять production provider/default logic."
+}

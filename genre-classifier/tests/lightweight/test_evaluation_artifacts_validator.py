@@ -5,6 +5,10 @@ from pathlib import Path
 
 SERVICE_ROOT = Path(__file__).resolve().parents[2]
 VALIDATOR_PATH = SERVICE_ROOT / "scripts/lightweight/validate_evaluation_artifacts.py"
+REPORT_PATH = (
+    SERVICE_ROOT
+    / "docs/lightweight/evaluation/evidence/roadmap-4.57-tensorflow-input-musicnn-availability-probe-report.json"
+)
 
 
 def load_validator():
@@ -13,6 +17,38 @@ def load_validator():
     assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
+
+
+def _future_success_case_report(validator):
+    data = copy.deepcopy(validator._load_json(REPORT_PATH))
+    data["tensorflow_input_musiccnn"]["available_in_isolated_env"] = True
+    data["tensorflow_input_musiccnn"]["available_in_system_python"] = True
+    data["tensorflow_input_musiccnn"]["import_error_category"] = None
+    data["tensorflow_input_musiccnn"]["hasattr_result"] = True
+    data["tensorflow_input_musiccnn"]["isolated_env"]["import_status"] = "imported"
+    data["tensorflow_input_musiccnn"]["isolated_env"]["available"] = True
+    data["tensorflow_input_musiccnn"]["isolated_env"]["import_error_category"] = None
+    data["tensorflow_input_musiccnn"]["isolated_env"]["import_error_message"] = None
+    data["tensorflow_input_musiccnn"]["isolated_env"]["hasattr_result"] = True
+    data["tensorflow_input_musiccnn"]["system_python"]["import_status"] = "imported"
+    data["tensorflow_input_musiccnn"]["system_python"]["available"] = True
+    data["tensorflow_input_musiccnn"]["system_python"]["import_error_category"] = None
+    data["tensorflow_input_musiccnn"]["system_python"]["import_error_message"] = None
+    data["tensorflow_input_musiccnn"]["system_python"]["hasattr_result"] = True
+    data["preprocessing_probe_result"]["attempted"] = True
+    data["preprocessing_probe_result"]["succeeded"] = True
+    data["preprocessing_probe_result"]["produced_shape"] = [187, 96]
+    data["preprocessing_probe_result"]["expected_shape"] = [187, 96]
+    data["preprocessing_probe_result"]["fixture_count"] = 3
+    data["preprocessing_probe_result"]["repeated_run_stability_checked"] = True
+    data["preprocessing_probe_result"]["stable"] = True
+    data["preprocessing_probe_result"]["blockers"] = []
+    data["fallback"]["generic_melbands_fallback_evaluated"] = True
+    data["fallback"]["generic_melbands_fallback_used"] = False
+    data["fallback"]["fallback_status"] = "not_used"
+    data["fallback"]["fallback_risks"] = []
+    data["blockers"] = []
+    return data
 
 
 def test_validate_current_lightweight_evaluation_artifacts():
@@ -37,12 +73,72 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.musicnn_legacy_baseline_capture_reports_checked == 1
     assert summary.musicnn_onnx_preprocessing_alignment_reports_checked == 1
     assert summary.musicnn_onnx_pragmatic_preprocessing_prototype_reports_checked == 1
+    assert summary.musicnn_tensorflow_input_musiccnn_availability_probe_reports_checked == 1
     assert summary.musicnn_onnx_output_capture_reports_checked == 1
     assert summary.musicnn_onnx_fixture_visibility_strategy_reports_checked == 1
     assert summary.musicnn_legacy_baseline_import_order_diagnostic_reports_checked == 1
     assert summary.label_mapping_checked == 1
     assert summary.evidence_packages_checked == 1
     assert summary.fixture_manifest_templates_checked == 1
+
+
+def test_validate_future_success_case_roadmap_4_57_report(tmp_path):
+    validator = load_validator()
+    data = _future_success_case_report(validator)
+
+    report_path = tmp_path / "roadmap-4.57-success-report.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    validator._validate_musicnn_tensorflow_input_musiccnn_availability_probe_report(report_path)
+
+
+def test_validate_roadmap_4_57_report_rejects_wrong_shape_when_succeeded(tmp_path):
+    validator = load_validator()
+    data = _future_success_case_report(validator)
+    data["preprocessing_probe_result"]["produced_shape"] = [188, 96]
+
+    report_path = tmp_path / "roadmap-4.57-wrong-shape.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_musicnn_tensorflow_input_musiccnn_availability_probe_report(report_path)
+    except validator.ValidationError as exc:
+        message = str(exc)
+        assert "produced_shape must be [187, 96]" in message
+    else:
+        raise AssertionError("successful report with wrong shape should fail validation")
+
+
+def test_validate_roadmap_4_57_report_rejects_provider_approval_true(tmp_path):
+    validator = load_validator()
+    data = _future_success_case_report(validator)
+    data["approved_for_provider_implementation"] = True
+
+    report_path = tmp_path / "roadmap-4.57-provider-approval.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_musicnn_tensorflow_input_musiccnn_availability_probe_report(report_path)
+    except validator.ValidationError as exc:
+        assert "approved_for_provider_implementation" in str(exc)
+    else:
+        raise AssertionError("provider approval must not be accepted")
+
+
+def test_validate_roadmap_4_57_report_rejects_unknown_blocker_code(tmp_path):
+    validator = load_validator()
+    data = _future_success_case_report(validator)
+    data["blockers"] = [{"code": "UNKNOWN_BLOCKER", "message": "nope"}]
+
+    report_path = tmp_path / "roadmap-4.57-unknown-blocker.json"
+    report_path.write_text(validator.json.dumps(data), encoding="utf-8")
+
+    try:
+        validator._validate_musicnn_tensorflow_input_musiccnn_availability_probe_report(report_path)
+    except validator.ValidationError as exc:
+        assert "code is not allowed" in str(exc)
+    else:
+        raise AssertionError("unknown blocker codes must be rejected")
 
 
 def test_report_required_sections_are_validated(tmp_path):
@@ -133,6 +229,7 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "musicnn_legacy_baseline_capture_reports=1" in captured.out
     assert "musicnn_onnx_output_capture_reports=1" in captured.out
     assert "musicnn_onnx_pragmatic_preprocessing_prototype_reports=1" in captured.out
+    assert "musicnn_tensorflow_input_musiccnn_availability_probe_reports=1" in captured.out
     assert "musicnn_onnx_fixture_visibility_strategy_reports=1" in captured.out
     assert "musicnn_legacy_baseline_import_order_diagnostic_reports=1" in captured.out
     assert "evidence_packages=1" in captured.out

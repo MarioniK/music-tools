@@ -106,6 +106,10 @@ MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_REPORT_FILES = (
     Path("evidence/roadmap-4.56-onnx-musicnn-pragmatic-preprocessing-prototype-report.json"),
 )
 
+MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_REPORT_FILES = (
+    Path("evidence/roadmap-4.57-tensorflow-input-musicnn-availability-probe-report.json"),
+)
+
 REQUIRED_LOCAL_ARTIFACT_METADATA_FIELDS = (
     "schema_version",
     "report_type",
@@ -558,6 +562,9 @@ MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_REPORT_TYPE = "musicnn_onnx_preprocessing_a
 MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_REPORT_TYPE = (
     "musicnn_onnx_pragmatic_preprocessing_prototype_report"
 )
+MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_REPORT_TYPE = (
+    "musicnn_tensorflow_input_musiccnn_availability_probe_report"
+)
 MUSICNN_ONNX_OUTPUT_CAPTURE_REPORT_TYPE = "musicnn_onnx_output_capture_report"
 MUSICNN_ONNX_FIXTURE_VISIBILITY_STRATEGY_REPORT_TYPE = (
     "musicnn_onnx_fixture_visibility_strategy_report"
@@ -627,6 +634,32 @@ MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_BLOCKERS = {
     "AUDIO_FILE_IN_REPO_NOT_ALLOWED",
     "VENV_IN_REPO_NOT_ALLOWED",
     "LOCAL_PATHS_NOT_PUBLISHABLE",
+    "TIDAL_PARSER_SCOPE_VIOLATION",
+}
+
+MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_BLOCKERS = {
+    "AGENTS_MD_NOT_READ",
+    "ROADMAP_4_55_STRATEGY_REPORT_MISSING",
+    "ROADMAP_4_56_PROTOTYPE_REPORT_MISSING",
+    "FIXTURE_FILES_MISSING",
+    "ISOLATED_ENV_MISSING",
+    "ONNXRUNTIME_UNAVAILABLE",
+    "ESSENTIA_IMPORT_FAILED",
+    "TENSORFLOW_INPUT_MUSICNN_UNAVAILABLE",
+    "TENSORFLOW_INPUT_MUSICNN_IMPORT_FAILED",
+    "TENSORFLOW_INPUT_MUSICNN_PROBE_FAILED",
+    "MUSICNN_MEL_PATCH_SHAPE_NOT_PRODUCED",
+    "MUSICNN_MEL_PATCH_SHAPE_UNSTABLE",
+    "GENERIC_MELBANDS_FALLBACK_USED",
+    "GENERIC_MELBANDS_FALLBACK_BLOCKED",
+    "LOCAL_PATHS_NOT_PUBLISHABLE",
+    "MODEL_FILE_IN_REPO_NOT_ALLOWED",
+    "AUDIO_FILE_IN_REPO_NOT_ALLOWED",
+    "PRODUCTION_DEPENDENCY_CHANGE_NOT_APPROVED",
+    "CLASSIFY_CALL_NOT_ALLOWED",
+    "PROVIDER_IMPLEMENTATION_NOT_APPROVED",
+    "DEFAULT_PROVIDER_SWITCH_NOT_APPROVED",
+    "PRODUCTION_MIGRATION_NOT_APPROVED",
     "TIDAL_PARSER_SCOPE_VIOLATION",
 }
 
@@ -733,6 +766,40 @@ REQUIRED_MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_FIELDS = (
     "local_environment",
     "preprocessing_probe_result",
     "sanitized_fixtures",
+    "blockers",
+    "next_step_recommendation",
+)
+
+REQUIRED_MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_FIELDS = (
+    "schema_version",
+    "report_type",
+    "report_id",
+    "generated_by",
+    "created_at",
+    "roadmap",
+    "agents_md_read",
+    "not_production_decision",
+    "target_candidate",
+    "strategy_source",
+    "prototype_source",
+    "strict_legacy_parity_required",
+    "output_drift_allowed",
+    "preprocessing_identical_to_legacy_required",
+    "documented_reproducible_preprocessing_required",
+    "approved_for_provider_implementation",
+    "approved_for_default_provider_switch",
+    "approved_for_production",
+    "approved_for_dependency_changes",
+    "approved_for_classify_call",
+    "legacy_musicnn_default_unchanged",
+    "isolated_python_used_for_availability_check",
+    "preprocessing_probe_execution",
+    "recommended_isolated_probe_invocation",
+    "probe_policy",
+    "tensorflow_input_musiccnn",
+    "preprocessing_probe_result",
+    "sanitized_fixtures",
+    "fallback",
     "blockers",
     "next_step_recommendation",
 )
@@ -1318,6 +1385,7 @@ class ValidationSummary(NamedTuple):
     musicnn_legacy_baseline_capture_reports_checked: int = 0
     musicnn_onnx_preprocessing_alignment_reports_checked: int = 0
     musicnn_onnx_pragmatic_preprocessing_prototype_reports_checked: int = 0
+    musicnn_tensorflow_input_musiccnn_availability_probe_reports_checked: int = 0
     musicnn_onnx_output_capture_reports_checked: int = 0
     musicnn_onnx_fixture_visibility_strategy_reports_checked: int = 0
     musicnn_legacy_baseline_import_order_diagnostic_reports_checked: int = 0
@@ -2962,6 +3030,298 @@ def _validate_musicnn_onnx_pragmatic_preprocessing_prototype_report(path: Path) 
     _validate_no_parity_or_runtime_approval_claims(data, path)
 
 
+def _validate_musicnn_tensorflow_input_musiccnn_availability_probe_report(path: Path) -> None:
+    data = _load_json(path)
+
+    for field in REQUIRED_MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_FIELDS:
+        if field not in data:
+            raise ValidationError(f"{path} is missing required Roadmap 4.57 field: {field}")
+
+    if data["schema_version"] != "0.1":
+        raise ValidationError(f'{path}.schema_version must be "0.1"')
+    if data["roadmap"] != "4.57":
+        raise ValidationError(f'{path}.roadmap must be "4.57"')
+    if data["report_type"] != MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_REPORT_TYPE:
+        raise ValidationError(
+            f'{path}.report_type must be "{MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_REPORT_TYPE}"'
+        )
+    if data["generated_by"] != "scripts/lightweight/musicnn_tensorflow_input_probe.py":
+        raise ValidationError(f"{path}.generated_by must reference the local-only TensorflowInputMusiCNN helper")
+
+    for field in (
+        "created_at",
+        "report_id",
+        "target_candidate",
+        "next_step_recommendation",
+        "preprocessing_probe_execution",
+        "recommended_isolated_probe_invocation",
+    ):
+        value = data[field]
+        if not isinstance(value, str) or not value.strip():
+            raise ValidationError(f"{path}.{field} must be a non-empty string")
+
+    _require_bool_value(data["agents_md_read"], True, f"{path}.agents_md_read")
+    _require_bool_value(data["not_production_decision"], True, f"{path}.not_production_decision")
+    _require_bool_value(data["strict_legacy_parity_required"], False, f"{path}.strict_legacy_parity_required")
+    _require_bool_value(data["output_drift_allowed"], True, f"{path}.output_drift_allowed")
+    _require_bool_value(
+        data["preprocessing_identical_to_legacy_required"],
+        False,
+        f"{path}.preprocessing_identical_to_legacy_required",
+    )
+    _require_bool_value(
+        data["documented_reproducible_preprocessing_required"],
+        True,
+        f"{path}.documented_reproducible_preprocessing_required",
+    )
+    for field in (
+        "approved_for_provider_implementation",
+        "approved_for_default_provider_switch",
+        "approved_for_production",
+        "approved_for_dependency_changes",
+        "approved_for_classify_call",
+    ):
+        _require_bool_value(data[field], False, f"{path}.{field}")
+    _require_bool_value(data["legacy_musicnn_default_unchanged"], True, f"{path}.legacy_musicnn_default_unchanged")
+    _require_bool_value(
+        data["isolated_python_used_for_availability_check"],
+        True,
+        f"{path}.isolated_python_used_for_availability_check",
+    )
+
+    if data["preprocessing_probe_execution"] != "current_interpreter":
+        raise ValidationError(f"{path}.preprocessing_probe_execution must be current_interpreter")
+
+    if data["target_candidate"] != "official_onnx_musicnn":
+        raise ValidationError(f"{path}.target_candidate must be official_onnx_musicnn")
+
+    strategy_source = _validate_required_object(data, path, "strategy_source")
+    if strategy_source.get("roadmap") != "4.55":
+        raise ValidationError(f"{path}.strategy_source.roadmap must be 4.55")
+    if strategy_source.get("strategy") != "essentia_standard_audio_loading_plus_standalone_mel_spectrogram_generation":
+        raise ValidationError(f"{path}.strategy_source.strategy must describe the approved 4.55 strategy")
+
+    prototype_source = _validate_required_object(data, path, "prototype_source")
+    if prototype_source.get("roadmap") != "4.56":
+        raise ValidationError(f"{path}.prototype_source.roadmap must be 4.56")
+    if prototype_source.get("helper") != "scripts/lightweight/musicnn_pragmatic_preprocessing_prototype.py":
+        raise ValidationError(f"{path}.prototype_source.helper must reference the 4.56 helper")
+
+    probe_policy = _validate_required_object(data, path, "probe_policy")
+    _require_bool_value(
+        probe_policy.get("tensorflow_input_musiccnn_allowed_as_preprocessing_only_candidate"),
+        True,
+        f"{path}.probe_policy.tensorflow_input_musiccnn_allowed_as_preprocessing_only_candidate",
+    )
+    _require_bool_value(
+        probe_policy.get("tensorflow_predict_musiccnn_not_used_as_preprocessing_oracle"),
+        True,
+        f"{path}.probe_policy.tensorflow_predict_musiccnn_not_used_as_preprocessing_oracle",
+    )
+    _require_bool_value(probe_policy.get("strict_legacy_parity_required"), False, f"{path}.probe_policy.strict_legacy_parity_required")
+    _require_bool_value(probe_policy.get("production_decision_made"), False, f"{path}.probe_policy.production_decision_made")
+
+    tensorflow_input_musiccnn = _validate_required_object(data, path, "tensorflow_input_musiccnn")
+    _require_bool_value(tensorflow_input_musiccnn.get("checked"), True, f"{path}.tensorflow_input_musiccnn.checked")
+    if not isinstance(tensorflow_input_musiccnn.get("available_in_isolated_env"), bool):
+        raise ValidationError(f"{path}.tensorflow_input_musiccnn.available_in_isolated_env must be a bool")
+    if not isinstance(tensorflow_input_musiccnn.get("available_in_system_python"), bool):
+        raise ValidationError(f"{path}.tensorflow_input_musiccnn.available_in_system_python must be a bool")
+    if not isinstance(tensorflow_input_musiccnn.get("hasattr_result"), bool):
+        raise ValidationError(f"{path}.tensorflow_input_musiccnn.hasattr_result must be a bool")
+    import_error_category = tensorflow_input_musiccnn.get("import_error_category")
+    if import_error_category is not None and not isinstance(import_error_category, str):
+        raise ValidationError(f"{path}.tensorflow_input_musiccnn.import_error_category must be a string or null")
+
+    isolated_env = _validate_required_object(tensorflow_input_musiccnn, path, "isolated_env")
+    _require_bool_value(isolated_env.get("python_available"), True, f"{path}.tensorflow_input_musiccnn.isolated_env.python_available")
+    import_status = isolated_env.get("import_status")
+    if not isinstance(import_status, str) or not import_status.strip():
+        raise ValidationError(f"{path}.tensorflow_input_musiccnn.isolated_env.import_status must be a non-empty string")
+    _require_bool_value(isolated_env.get("available"), bool(tensorflow_input_musiccnn.get("available_in_isolated_env")), f"{path}.tensorflow_input_musiccnn.isolated_env.available")
+    isolated_import_error_category = isolated_env.get("import_error_category")
+    isolated_import_error_message = isolated_env.get("import_error_message")
+    if import_status == "imported":
+        if isolated_import_error_category not in (None, ""):
+            raise ValidationError(
+                f"{path}.tensorflow_input_musiccnn.isolated_env.import_error_category must be null when import_status is imported"
+            )
+        if isolated_import_error_message not in (None, ""):
+            raise ValidationError(
+                f"{path}.tensorflow_input_musiccnn.isolated_env.import_error_message must be null when import_status is imported"
+            )
+    else:
+        if not isinstance(isolated_import_error_category, str) or not isolated_import_error_category.strip():
+            raise ValidationError(
+                f"{path}.tensorflow_input_musiccnn.isolated_env.import_error_category must be a non-empty string when import_status is not imported"
+            )
+        if isolated_import_error_message is not None and not isinstance(isolated_import_error_message, str):
+            raise ValidationError(
+                f"{path}.tensorflow_input_musiccnn.isolated_env.import_error_message must be a string or null"
+            )
+    if not isinstance(isolated_env.get("hasattr_result"), bool):
+        raise ValidationError(f"{path}.tensorflow_input_musiccnn.isolated_env.hasattr_result must be a bool")
+    isolated_onnxruntime = _validate_required_object(isolated_env, path, "onnxruntime")
+    if not isinstance(isolated_onnxruntime.get("available"), bool):
+        raise ValidationError(f"{path}.tensorflow_input_musiccnn.isolated_env.onnxruntime.available must be a bool")
+    if isolated_onnxruntime.get("available"):
+        if not isinstance(isolated_onnxruntime.get("version"), str) or not isolated_onnxruntime["version"].strip():
+            raise ValidationError(
+                f"{path}.tensorflow_input_musiccnn.isolated_env.onnxruntime.version must be a non-empty string when available"
+            )
+        if isolated_onnxruntime.get("error_category") not in (None, ""):
+            raise ValidationError(
+                f"{path}.tensorflow_input_musiccnn.isolated_env.onnxruntime.error_category must be null when available"
+            )
+        if isolated_onnxruntime.get("error_message") not in (None, ""):
+            raise ValidationError(
+                f"{path}.tensorflow_input_musiccnn.isolated_env.onnxruntime.error_message must be null when available"
+            )
+
+    system_python = _validate_required_object(tensorflow_input_musiccnn, path, "system_python")
+    if not isinstance(system_python.get("python_available"), bool):
+        raise ValidationError(f"{path}.tensorflow_input_musiccnn.system_python.python_available must be a bool")
+    system_import_status = system_python.get("import_status")
+    if not isinstance(system_import_status, str) or not system_import_status.strip():
+        raise ValidationError(f"{path}.tensorflow_input_musiccnn.system_python.import_status must be a non-empty string")
+    if not isinstance(system_python.get("available"), bool):
+        raise ValidationError(f"{path}.tensorflow_input_musiccnn.system_python.available must be a bool")
+    system_import_error_category = system_python.get("import_error_category")
+    system_import_error_message = system_python.get("import_error_message")
+    if system_import_status == "imported":
+        if system_import_error_category not in (None, ""):
+            raise ValidationError(
+                f"{path}.tensorflow_input_musiccnn.system_python.import_error_category must be null when import_status is imported"
+            )
+        if system_import_error_message not in (None, ""):
+            raise ValidationError(
+                f"{path}.tensorflow_input_musiccnn.system_python.import_error_message must be null when import_status is imported"
+            )
+    else:
+        if not isinstance(system_import_error_category, str) or not system_import_error_category.strip():
+            raise ValidationError(
+                f"{path}.tensorflow_input_musiccnn.system_python.import_error_category must be a non-empty string when import_status is not imported"
+            )
+        if system_import_error_message is not None and not isinstance(system_import_error_message, str):
+            raise ValidationError(
+                f"{path}.tensorflow_input_musiccnn.system_python.import_error_message must be a string or null"
+            )
+    if not isinstance(system_python.get("hasattr_result"), bool):
+        raise ValidationError(f"{path}.tensorflow_input_musiccnn.system_python.hasattr_result must be a bool")
+
+    preprocessing_probe_result = _validate_required_object(data, path, "preprocessing_probe_result")
+    if not isinstance(preprocessing_probe_result.get("attempted"), bool):
+        raise ValidationError(f"{path}.preprocessing_probe_result.attempted must be a bool")
+    if not isinstance(preprocessing_probe_result.get("succeeded"), bool):
+        raise ValidationError(f"{path}.preprocessing_probe_result.succeeded must be a bool")
+    if preprocessing_probe_result.get("expected_shape") != [187, 96]:
+        raise ValidationError(f"{path}.preprocessing_probe_result.expected_shape must be [187, 96]")
+    produced_shape = preprocessing_probe_result.get("produced_shape")
+    if produced_shape is not None and produced_shape != [187, 96]:
+        raise ValidationError(f"{path}.preprocessing_probe_result.produced_shape must be [187, 96] or null")
+    fixture_count = preprocessing_probe_result.get("fixture_count")
+    if not isinstance(fixture_count, int) or fixture_count < 0:
+        raise ValidationError(f"{path}.preprocessing_probe_result.fixture_count must be a non-negative integer")
+    repeated_run_stability_checked = preprocessing_probe_result.get("repeated_run_stability_checked")
+    if not isinstance(repeated_run_stability_checked, bool):
+        raise ValidationError(
+            f"{path}.preprocessing_probe_result.repeated_run_stability_checked must be a bool"
+        )
+    stable = preprocessing_probe_result.get("stable")
+    if repeated_run_stability_checked:
+        if not isinstance(stable, bool):
+            raise ValidationError(f"{path}.preprocessing_probe_result.stable must be a bool when stability was checked")
+    elif stable is not None:
+        raise ValidationError(f"{path}.preprocessing_probe_result.stable must be null when stability was not checked")
+    if preprocessing_probe_result["succeeded"] and not preprocessing_probe_result["attempted"]:
+        raise ValidationError(f"{path}.preprocessing_probe_result.succeeded cannot be true when attempted is false")
+    if preprocessing_probe_result["succeeded"] and produced_shape != [187, 96]:
+        raise ValidationError(f"{path}.preprocessing_probe_result.produced_shape must be [187, 96] when succeeded is true")
+    if preprocessing_probe_result["succeeded"] and not repeated_run_stability_checked:
+        raise ValidationError(
+            f"{path}.preprocessing_probe_result.repeated_run_stability_checked must be true when succeeded is true"
+        )
+    probe_blockers = preprocessing_probe_result.get("blockers")
+    if not isinstance(probe_blockers, list):
+        raise ValidationError(f"{path}.preprocessing_probe_result.blockers must be a list")
+    for index, blocker in enumerate(probe_blockers):
+        context = f"{path}.preprocessing_probe_result.blockers[{index}]"
+        if not isinstance(blocker, dict):
+            raise ValidationError(f"{context} must be an object")
+        code = blocker.get("code")
+        message = blocker.get("message")
+        if code not in MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_BLOCKERS:
+            raise ValidationError(f"{context}.code is not allowed: {code!r}")
+        if not isinstance(message, str) or not message.strip():
+            raise ValidationError(f"{context}.message must be a non-empty string")
+
+    sanitized_fixtures = data["sanitized_fixtures"]
+    if not isinstance(sanitized_fixtures, list) or len(sanitized_fixtures) != 3:
+        raise ValidationError(f"{path}.sanitized_fixtures must be a list with 3 records")
+    expected_fixtures = {
+        "john_bartmann_earning_happiness_cc0": "d75937b87f8ad440d7655d33b5ffbd36e374ac71ad794976fdebd325541ae628",
+        "john_bartmann_happy_clappy_cc0": "4f21570f701c07696c6b05f051528241a82156b923ab4bb3071c3c4af4a3372e",
+        "john_bartmann_home_at_last_cc0": "0146392a4ea96de074197b2622ebd707ff2560586152bbd1e901095f2ea01c75",
+    }
+    seen_fixtures: set[str] = set()
+    for index, item in enumerate(sanitized_fixtures):
+        context = f"{path}.sanitized_fixtures[{index}]"
+        if not isinstance(item, dict):
+            raise ValidationError(f"{context} must be an object")
+        fixture_id = item.get("fixture_id")
+        sha256 = item.get("sha256")
+        license_status = item.get("license_status")
+        if not isinstance(fixture_id, str) or not fixture_id.strip():
+            raise ValidationError(f"{context}.fixture_id must be a non-empty string")
+        if fixture_id not in expected_fixtures:
+            raise ValidationError(f"{context}.fixture_id is not part of the committed local fixture set")
+        if fixture_id in seen_fixtures:
+            raise ValidationError(f"{context}.fixture_id must be unique")
+        seen_fixtures.add(fixture_id)
+        if sha256 != expected_fixtures[fixture_id]:
+            raise ValidationError(f"{context}.sha256 must match the committed local fixture hash")
+        if license_status != "CC0 1.0 Universal / public domain":
+            raise ValidationError(f"{context}.license_status must document the approved license")
+
+    fallback = _validate_required_object(data, path, "fallback")
+    _require_bool_value(
+        fallback.get("generic_melbands_fallback_evaluated"),
+        True,
+        f"{path}.fallback.generic_melbands_fallback_evaluated",
+    )
+    _require_bool_value(
+        fallback.get("generic_melbands_fallback_used"),
+        False,
+        f"{path}.fallback.generic_melbands_fallback_used",
+    )
+    fallback_status = fallback.get("fallback_status")
+    if not isinstance(fallback_status, str) or not fallback_status.strip():
+        raise ValidationError(f"{path}.fallback.fallback_status must be a non-empty string")
+    fallback_risks = fallback.get("fallback_risks")
+    if not isinstance(fallback_risks, list):
+        raise ValidationError(f"{path}.fallback.fallback_risks must be a list")
+
+    blockers = data["blockers"]
+    if not isinstance(blockers, list):
+        raise ValidationError(f"{path}.blockers must be a list")
+    for index, blocker in enumerate(blockers):
+        context = f"{path}.blockers[{index}]"
+        if not isinstance(blocker, dict):
+            raise ValidationError(f"{context} must be an object")
+        code = blocker.get("code")
+        message = blocker.get("message")
+        if code not in MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_BLOCKERS:
+            raise ValidationError(f"{context}.code is not allowed: {code!r}")
+        if not isinstance(message, str) or not message.strip():
+            raise ValidationError(f"{context}.message must be a non-empty string")
+
+    serialized = json.dumps(data)
+    if "/tmp/music-tools-onnx-parity" in serialized:
+        raise ValidationError(f"{path} must not publish the external fixture workspace path")
+    if "/opt/music-tools" in serialized:
+        raise ValidationError(f"{path} must not publish private repository paths")
+
+
 def _validate_musicnn_onnx_output_capture_report(path: Path) -> None:
     data = _load_json(path)
 
@@ -4107,6 +4467,11 @@ def validate_all(root: Path) -> ValidationSummary:
         _validate_musicnn_onnx_pragmatic_preprocessing_prototype_report(evaluation_root / relative_path)
         musicnn_onnx_pragmatic_preprocessing_prototype_report_count += 1
 
+    musicnn_tensorflow_input_musiccnn_availability_probe_report_count = 0
+    for relative_path in MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_REPORT_FILES:
+        _validate_musicnn_tensorflow_input_musiccnn_availability_probe_report(evaluation_root / relative_path)
+        musicnn_tensorflow_input_musiccnn_availability_probe_report_count += 1
+
     musicnn_onnx_output_capture_report_count = 0
     for relative_path in MUSICNN_ONNX_OUTPUT_CAPTURE_REPORT_FILES:
         _validate_musicnn_onnx_output_capture_report(evaluation_root / relative_path)
@@ -4163,6 +4528,9 @@ def validate_all(root: Path) -> ValidationSummary:
         ),
         musicnn_onnx_pragmatic_preprocessing_prototype_reports_checked=(
             musicnn_onnx_pragmatic_preprocessing_prototype_report_count
+        ),
+        musicnn_tensorflow_input_musiccnn_availability_probe_reports_checked=(
+            musicnn_tensorflow_input_musiccnn_availability_probe_report_count
         ),
         musicnn_onnx_output_capture_reports_checked=musicnn_onnx_output_capture_report_count,
         musicnn_onnx_fixture_visibility_strategy_reports_checked=(
@@ -4225,6 +4593,8 @@ def main(argv: list[str] | None = None) -> int:
         f"{summary.musicnn_onnx_preprocessing_alignment_reports_checked}, "
         "musicnn_onnx_pragmatic_preprocessing_prototype_reports="
         f"{summary.musicnn_onnx_pragmatic_preprocessing_prototype_reports_checked}, "
+        "musicnn_tensorflow_input_musiccnn_availability_probe_reports="
+        f"{summary.musicnn_tensorflow_input_musiccnn_availability_probe_reports_checked}, "
         "musicnn_onnx_output_capture_reports="
         f"{summary.musicnn_onnx_output_capture_reports_checked}, "
         "musicnn_onnx_fixture_visibility_strategy_reports="
