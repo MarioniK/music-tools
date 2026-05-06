@@ -75,6 +75,13 @@ MUSICNN_ONNX_FIXTURES_AND_SCOPED_BASELINE_CAPTURE_APPROVAL_REPORT_FILES = (
     ),
 )
 
+MUSICNN_ONNX_FIXTURE_PLACEMENT_AND_SCOPED_BASELINE_READINESS_REPORT_FILES = (
+    Path(
+        "parity-scaffold/"
+        "musicnn-onnx-parity-fixture-placement-and-scoped-baseline-readiness-report.json"
+    ),
+)
+
 REQUIRED_LOCAL_ARTIFACT_METADATA_FIELDS = (
     "schema_version",
     "report_type",
@@ -519,6 +526,9 @@ MUSICNN_ONNX_FIXTURE_SET_AND_BASELINE_RUNTIME_STRATEGY_REPORT_TYPE = (
 MUSICNN_ONNX_FIXTURES_AND_SCOPED_BASELINE_CAPTURE_APPROVAL_REPORT_TYPE = (
     "musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_report"
 )
+MUSICNN_ONNX_FIXTURE_PLACEMENT_AND_SCOPED_BASELINE_READINESS_REPORT_TYPE = (
+    "musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_report"
+)
 
 MUSICNN_ONNX_PARITY_SPIKE_DECISION_STATUSES = {
     "viable",
@@ -676,11 +686,32 @@ MUSICNN_ONNX_SCOPED_BASELINE_CAPTURE_DECISION_STATUSES = {
     "blocked_missing_fixtures_and_container_unavailable",
 }
 
+MUSICNN_ONNX_FIXTURE_PLACEMENT_READINESS_STATUSES = {
+    "ready_for_scoped_baseline_capture",
+    "fixtures_ready_container_not_checked",
+    "blocked_container_unavailable",
+    "blocked_service_unknown",
+    "blocked_container_strategy_not_reproducible",
+    "blocked_fixture_provenance_unclear",
+}
+
 MUSICNN_ONNX_SCOPED_BASELINE_CAPTURE_BLOCKERS = {
     "FIXTURE_FILES_MISSING",
     "BLOCKED_FIXTURE_PROVENANCE_UNCLEAR",
     "CONTAINER_SERVICE_UNCONFIRMED",
     "CONTAINER_UNAVAILABLE",
+}
+
+MUSICNN_ONNX_FIXTURE_PLACEMENT_READINESS_BLOCKERS = {
+    "FIXTURE_FILES_MISSING",
+    "FIXTURE_PROVENANCE_UNCLEAR",
+    "FIXTURE_HASH_MISMATCH",
+    "BASELINE_CONTAINER_UNAVAILABLE",
+    "BASELINE_CONTAINER_SERVICE_UNKNOWN",
+    "BASELINE_CONTAINER_STRATEGY_NOT_REPRODUCIBLE",
+    "BASELINE_CAPTURE_NOT_APPROVED",
+    "NUMERIC_PARITY_NOT_APPROVED",
+    "LOCAL_PATHS_NOT_PUBLISHABLE",
 }
 
 REQUIRED_MUSICNN_ONNX_SCOPED_BASELINE_CAPTURE_APPROVAL_FIELDS = (
@@ -699,6 +730,47 @@ REQUIRED_MUSICNN_ONNX_SCOPED_BASELINE_CAPTURE_APPROVAL_FIELDS = (
     "container_strategy",
     "readiness_decision",
     "safety_confirmations",
+)
+
+REQUIRED_MUSICNN_ONNX_FIXTURE_PLACEMENT_READINESS_FIELDS = (
+    "report_type",
+    "roadmap",
+    "not_production_decision",
+    "approved_for_production",
+    "approved_for_provider_implementation",
+    "approved_for_default_provider_switch",
+    "approved_for_full_numeric_parity_run",
+    "approved_for_scoped_baseline_capture",
+    "no_audio_files_committed",
+    "no_model_files_committed",
+    "no_venv_committed",
+    "no_dependency_changes",
+    "no_docker_changes",
+    "no_docker_rebuild",
+    "no_classify_calls",
+    "legacy_musicnn_remains_baseline",
+    "fixture_status",
+    "fixture_count",
+    "provenance_status",
+    "license_status",
+    "usage_permission",
+    "sanitized_fixtures",
+    "baseline_runtime_strategy",
+    "baseline_capture_readiness",
+    "container_strategy",
+    "decision_status",
+    "blockers",
+    "next_step_recommendation",
+)
+
+REQUIRED_MUSICNN_ONNX_FIXTURE_PLACEMENT_SANITIZED_FIELDS = (
+    "fixture_id",
+    "sha256",
+    "file_size_bytes",
+    "audio_format",
+    "source_artist",
+    "license_status",
+    "usage_permission",
 )
 
 REQUIRED_SCOPED_BASELINE_SAFETY_CONFIRMATIONS = (
@@ -832,6 +904,7 @@ class ValidationSummary(NamedTuple):
     musicnn_onnx_fixtures_and_baseline_runtime_decision_reports_checked: int = 0
     musicnn_onnx_fixture_set_and_baseline_runtime_strategy_reports_checked: int = 0
     musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_reports_checked: int = 0
+    musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports_checked: int = 0
     label_mapping_checked: int = 0
     evidence_packages_checked: int = 0
     fixture_manifest_templates_checked: int = 0
@@ -1771,6 +1844,158 @@ def _validate_musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_report(
     _validate_no_parity_or_runtime_approval_claims(data, path)
 
 
+def _validate_musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_report(path: Path) -> None:
+    data = _load_json(path)
+
+    for field in REQUIRED_MUSICNN_ONNX_FIXTURE_PLACEMENT_READINESS_FIELDS:
+        if field not in data:
+            raise ValidationError(f"{path} is missing required Roadmap 4.45 field: {field}")
+
+    if data["roadmap"] != "4.45":
+        raise ValidationError(f'{path}.roadmap must be "4.45"')
+    if data["report_type"] != MUSICNN_ONNX_FIXTURE_PLACEMENT_AND_SCOPED_BASELINE_READINESS_REPORT_TYPE:
+        raise ValidationError(
+            f'{path}.report_type must be "'
+            f'{MUSICNN_ONNX_FIXTURE_PLACEMENT_AND_SCOPED_BASELINE_READINESS_REPORT_TYPE}"'
+        )
+
+    _require_bool_value(data["not_production_decision"], True, f"{path}.not_production_decision")
+    for field in (
+        "approved_for_production",
+        "approved_for_provider_implementation",
+        "approved_for_default_provider_switch",
+        "approved_for_full_numeric_parity_run",
+    ):
+        _require_bool_value(data[field], False, f"{path}.{field}")
+    for field in (
+        "no_audio_files_committed",
+        "no_model_files_committed",
+        "no_venv_committed",
+        "no_dependency_changes",
+        "no_docker_changes",
+        "no_docker_rebuild",
+        "no_classify_calls",
+        "legacy_musicnn_remains_baseline",
+    ):
+        _require_bool_value(data[field], True, f"{path}.{field}")
+    if not isinstance(data["approved_for_scoped_baseline_capture"], bool):
+        raise ValidationError(f"{path}.approved_for_scoped_baseline_capture must be a bool")
+
+    fixture_status = data["fixture_status"]
+    if fixture_status not in {"present", "missing", "unclear_provenance"}:
+        raise ValidationError(f"{path}.fixture_status is not allowed: {fixture_status!r}")
+    fixture_count = data["fixture_count"]
+    if not isinstance(fixture_count, int) or isinstance(fixture_count, bool) or fixture_count < 0:
+        raise ValidationError(f"{path}.fixture_count must be a non-negative integer")
+    provenance_status = data["provenance_status"]
+    if provenance_status not in {"available", "missing", "unclear"}:
+        raise ValidationError(f"{path}.provenance_status is not allowed: {provenance_status!r}")
+    if data["license_status"] != "CC0 1.0 Universal / public domain":
+        raise ValidationError(f"{path}.license_status must record CC0/public-domain status")
+    if data["usage_permission"] != "local_evaluation_only":
+        raise ValidationError(f'{path}.usage_permission must be "local_evaluation_only"')
+
+    sanitized_fixtures = data["sanitized_fixtures"]
+    if not isinstance(sanitized_fixtures, list):
+        raise ValidationError(f"{path}.sanitized_fixtures must be a list")
+    if fixture_count != len(sanitized_fixtures):
+        raise ValidationError(f"{path}.fixture_count must match sanitized_fixtures length")
+    if fixture_status == "present" and fixture_count <= 0:
+        raise ValidationError(f"{path}.fixture_count must be positive when fixtures are present")
+
+    for index, fixture in enumerate(sanitized_fixtures):
+        context = f"{path}.sanitized_fixtures[{index}]"
+        if not isinstance(fixture, dict):
+            raise ValidationError(f"{context} must be an object")
+        for field in REQUIRED_MUSICNN_ONNX_FIXTURE_PLACEMENT_SANITIZED_FIELDS:
+            if field not in fixture:
+                raise ValidationError(f"{context} is missing required field: {field}")
+        if not isinstance(fixture["fixture_id"], str) or not fixture["fixture_id"].strip():
+            raise ValidationError(f"{context}.fixture_id must be a non-empty string")
+        _validate_sha256(fixture["sha256"], f"{context}.sha256")
+        _validate_positive_integer(fixture["file_size_bytes"], f"{context}.file_size_bytes")
+        if fixture["audio_format"] != "mp3":
+            raise ValidationError(f'{context}.audio_format must be "mp3"')
+        if fixture["source_artist"] != "John Bartmann":
+            raise ValidationError(f'{context}.source_artist must be "John Bartmann"')
+        if fixture["license_status"] != data["license_status"]:
+            raise ValidationError(f"{context}.license_status must match the top-level license_status")
+        if fixture["usage_permission"] != data["usage_permission"]:
+            raise ValidationError(f"{context}.usage_permission must match the top-level usage_permission")
+
+    if data["baseline_runtime_strategy"] != "existing_container_local_only":
+        raise ValidationError(f"{path}.baseline_runtime_strategy is not allowed")
+    if data["baseline_capture_readiness"] not in MUSICNN_ONNX_FIXTURE_PLACEMENT_READINESS_STATUSES:
+        raise ValidationError(
+            f"{path}.baseline_capture_readiness is not allowed: {data['baseline_capture_readiness']!r}"
+        )
+    decision_status = data["decision_status"]
+    if decision_status not in MUSICNN_ONNX_FIXTURE_PLACEMENT_READINESS_STATUSES:
+        raise ValidationError(f"{path}.decision_status is not allowed: {decision_status!r}")
+    if data["baseline_capture_readiness"] != decision_status:
+        raise ValidationError(f"{path}.baseline_capture_readiness must match decision_status")
+
+    container_strategy = _validate_required_object(data, path, "container_strategy")
+    for field in ("service_name_known", "import_check_allowed", "classify_call_allowed", "rebuild_allowed"):
+        if not isinstance(container_strategy.get(field), bool):
+            raise ValidationError(f"{path}.container_strategy.{field} must be a bool")
+    _require_bool_value(
+        container_strategy["classify_call_allowed"],
+        False,
+        f"{path}.container_strategy.classify_call_allowed",
+    )
+    _require_bool_value(container_strategy["rebuild_allowed"], False, f"{path}.container_strategy.rebuild_allowed")
+    compose_directory = container_strategy.get("compose_directory")
+    if not isinstance(compose_directory, str) or not compose_directory.strip():
+        raise ValidationError(f"{path}.container_strategy.compose_directory must be a non-empty string")
+    if compose_directory.startswith("/") or "/opt/music-tools" in compose_directory:
+        raise ValidationError(f"{path}.container_strategy.compose_directory must be sanitized")
+
+    blockers = data["blockers"]
+    if not isinstance(blockers, list):
+        raise ValidationError(f"{path}.blockers must be a list")
+    blocker_codes = _collect_blocker_codes(
+        blockers,
+        MUSICNN_ONNX_FIXTURE_PLACEMENT_READINESS_BLOCKERS,
+        f"{path}.blockers",
+    )
+
+    if decision_status == "ready_for_scoped_baseline_capture":
+        if blockers:
+            raise ValidationError(f"{path}.blockers must be empty when ready_for_scoped_baseline_capture")
+        if fixture_status != "present" or provenance_status != "available":
+            raise ValidationError(f"{path}.decision_status cannot be ready without present fixtures and provenance")
+        if data["approved_for_scoped_baseline_capture"] is not True:
+            raise ValidationError(f"{path}.approved_for_scoped_baseline_capture must be true when ready")
+        _require_bool_value(container_strategy["service_name_known"], True, f"{path}.container_strategy.service_name_known")
+    else:
+        if not blockers:
+            raise ValidationError(f"{path}.blockers must be non-empty unless ready")
+        if data["approved_for_scoped_baseline_capture"] is not False:
+            raise ValidationError(f"{path}.approved_for_scoped_baseline_capture must be false when blocked")
+        if fixture_status == "missing" and "FIXTURE_FILES_MISSING" not in blocker_codes:
+            raise ValidationError(f"{path}.blockers must include FIXTURE_FILES_MISSING when fixtures are missing")
+        if fixture_status == "unclear_provenance" and "FIXTURE_PROVENANCE_UNCLEAR" not in blocker_codes:
+            raise ValidationError(
+                f"{path}.blockers must include FIXTURE_PROVENANCE_UNCLEAR when provenance is unclear"
+            )
+
+    serialized = json.dumps(data)
+    forbidden_paths = (
+        "/tmp/music-tools-onnx-parity",
+        "/opt/music-tools",
+        "docs/",
+        "tests/",
+        "app/",
+    )
+    for forbidden_path in forbidden_paths:
+        if forbidden_path in serialized:
+            raise ValidationError(f"{path} must not publish a forbidden local or repo path: {forbidden_path}")
+
+    _validate_no_inference_or_production_approval_claims(data, str(path))
+    _validate_no_parity_or_runtime_approval_claims(data, path)
+
+
 def _validate_no_inference_or_production_approval_claims(value: Any, context: str) -> None:
     if isinstance(value, dict):
         for key, item in value.items():
@@ -2482,6 +2707,13 @@ def validate_all(root: Path) -> ValidationSummary:
         )
         musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_report_count += 1
 
+    musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_report_count = 0
+    for relative_path in MUSICNN_ONNX_FIXTURE_PLACEMENT_AND_SCOPED_BASELINE_READINESS_REPORT_FILES:
+        _validate_musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_report(
+            evaluation_root / relative_path
+        )
+        musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_report_count += 1
+
     label_mapping_count = 0
     for relative_path in LABEL_MAPPING_FILES:
         _validate_label_mapping(evaluation_root / relative_path)
@@ -2513,6 +2745,9 @@ def validate_all(root: Path) -> ValidationSummary:
         ),
         musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_reports_checked=(
             musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_report_count
+        ),
+        musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports_checked=(
+            musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_report_count
         ),
         label_mapping_checked=label_mapping_count,
         evidence_packages_checked=evidence_package_count,
@@ -2560,6 +2795,8 @@ def main(argv: list[str] | None = None) -> int:
         f"{summary.musicnn_onnx_fixture_set_and_baseline_runtime_strategy_reports_checked}, "
         "musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_reports="
         f"{summary.musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_reports_checked}, "
+        "musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports="
+        f"{summary.musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports_checked}, "
         f"label_mapping={summary.label_mapping_checked}, "
         f"evidence_packages={summary.evidence_packages_checked}, "
         f"fixture_manifest_templates={summary.fixture_manifest_templates_checked}"

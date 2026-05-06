@@ -1,0 +1,69 @@
+{
+  "report_type": "musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_report",
+  "roadmap": "4.45",
+  "not_production_decision": true,
+  "approved_for_production": false,
+  "approved_for_provider_implementation": false,
+  "approved_for_default_provider_switch": false,
+  "approved_for_full_numeric_parity_run": false,
+  "approved_for_scoped_baseline_capture": true,
+  "no_audio_files_committed": true,
+  "no_model_files_committed": true,
+  "no_venv_committed": true,
+  "no_dependency_changes": true,
+  "no_docker_changes": true,
+  "no_docker_rebuild": true,
+  "no_classify_calls": true,
+  "legacy_musicnn_remains_baseline": true,
+  "fixture_status": "present",
+  "fixture_count": 3,
+  "provenance_status": "available",
+  "license_status": "CC0 1.0 Universal / public domain",
+  "usage_permission": "local_evaluation_only",
+  "sanitized_fixtures": [
+    {
+      "fixture_id": "john_bartmann_earning_happiness_cc0",
+      "sha256": "d75937b87f8ad440d7655d33b5ffbd36e374ac71ad794976fdebd325541ae628",
+      "file_size_bytes": 2410633,
+      "audio_format": "mp3",
+      "source_artist": "John Bartmann",
+      "license_status": "CC0 1.0 Universal / public domain",
+      "usage_permission": "local_evaluation_only"
+    },
+    {
+      "fixture_id": "john_bartmann_happy_clappy_cc0",
+      "sha256": "4f21570f701c07696c6b05f051528241a82156b923ab4bb3071c3c4af4a3372e",
+      "file_size_bytes": 2676559,
+      "audio_format": "mp3",
+      "source_artist": "John Bartmann",
+      "license_status": "CC0 1.0 Universal / public domain",
+      "usage_permission": "local_evaluation_only"
+    },
+    {
+      "fixture_id": "john_bartmann_home_at_last_cc0",
+      "sha256": "0146392a4ea96de074197b2622ebd707ff2560586152bbd1e901095f2ea01c75",
+      "file_size_bytes": 4683517,
+      "audio_format": "mp3",
+      "source_artist": "John Bartmann",
+      "license_status": "CC0 1.0 Universal / public domain",
+      "usage_permission": "local_evaluation_only"
+    }
+  ],
+  "baseline_runtime_strategy": "existing_container_local_only",
+  "baseline_capture_readiness": "ready_for_scoped_baseline_capture",
+  "container_strategy": {
+    "service_name": "genre-classifier",
+    "service_name_known": true,
+    "compose_directory": "genre-classifier service directory",
+    "container_status": "running",
+    "tensorflow_import_check": "ok",
+    "tensorflow_version": "2.21.0",
+    "essentia_import_check": "ok",
+    "import_check_allowed": true,
+    "classify_call_allowed": false,
+    "rebuild_allowed": false
+  },
+  "decision_status": "ready_for_scoped_baseline_capture",
+  "blockers": [],
+  "next_step_recommendation": "Proceed only to scoped existing-container baseline capture after explicit approval; do not run full numeric parity, TensorFlow vs ONNX comparison, ONNX parity execution, provider implementation, or default provider switch."
+}
