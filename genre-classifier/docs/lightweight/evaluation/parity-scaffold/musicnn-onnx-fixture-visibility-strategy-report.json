@@ -1,0 +1,115 @@
+{
+  "report_type": "musicnn_onnx_fixture_visibility_strategy_report",
+  "roadmap": "4.47",
+  "not_production_decision": true,
+  "approved_for_production": false,
+  "approved_for_provider_implementation": false,
+  "approved_for_default_provider_switch": false,
+  "approved_for_full_numeric_parity_run": false,
+  "approved_for_onnx_execution": false,
+  "approved_for_baseline_capture_execution": false,
+  "approved_for_future_scoped_baseline_capture_with_selected_strategy": true,
+  "no_audio_files_committed": true,
+  "no_model_files_committed": true,
+  "no_venv_committed": true,
+  "no_dependency_changes": true,
+  "no_dockerfile_changes": true,
+  "no_compose_file_changes": true,
+  "no_docker_rebuild": true,
+  "no_classify_calls": true,
+  "legacy_musicnn_remains_baseline": true,
+  "fixture_source": {
+    "host_fixture_root_sanitized": "/tmp/music-tools-onnx-parity/fixtures/",
+    "fixture_count": 3,
+    "fixture_ids": [
+      "john_bartmann_earning_happiness_cc0",
+      "john_bartmann_happy_clappy_cc0",
+      "john_bartmann_home_at_last_cc0"
+    ],
+    "sanitization_note": "Fixture count and IDs are copied from the already committed Roadmap 4.46 sanitized report; no private local fixture files were read for Roadmap 4.47."
+  },
+  "current_blocker": [
+    "FIXTURE_PATH_NOT_AVAILABLE_IN_CONTAINER",
+    "BASELINE_CAPTURE_BLOCKED_BY_CONTAINER_MOUNT"
+  ],
+  "evaluated_strategies": [
+    {
+      "strategy": "one_off_compose_run_bind_mount",
+      "status": "selected",
+      "safe_for_future_scoped_baseline_capture": true,
+      "requires_committed_compose_change": false,
+      "requires_dockerfile_change": false,
+      "requires_rebuild": false,
+      "mutates_running_service": false,
+      "keeps_fixtures_outside_repo": true,
+      "notes": "Use a future one-off docker compose run from the genre-classifier service directory with a temporary read-only bind mount for the external legal fixture directory."
+    },
+    {
+      "strategy": "temporary_local_override_not_committed",
+      "status": "fallback_only",
+      "safe_for_future_scoped_baseline_capture": true,
+      "requires_committed_compose_change": false,
+      "requires_dockerfile_change": false,
+      "requires_rebuild": false,
+      "mutates_running_service": false,
+      "keeps_fixtures_outside_repo": true,
+      "notes": "Acceptable only as an uncommitted local override if the one-off run form is unavailable or too fragile."
+    },
+    {
+      "strategy": "docker_cp_to_container_temp_path",
+      "status": "fallback_only_less_clean",
+      "safe_for_future_scoped_baseline_capture": false,
+      "requires_committed_compose_change": false,
+      "requires_dockerfile_change": false,
+      "requires_rebuild": false,
+      "mutates_running_service": true,
+      "keeps_fixtures_outside_repo": true,
+      "notes": "Avoid unless mount-based options fail; it mutates container state and is less rollback-friendly."
+    },
+    {
+      "strategy": "existing_mounted_path",
+      "status": "usable_only_if_discovered",
+      "safe_for_future_scoped_baseline_capture": false,
+      "requires_committed_compose_change": false,
+      "requires_dockerfile_change": false,
+      "requires_rebuild": false,
+      "mutates_running_service": false,
+      "keeps_fixtures_outside_repo": true,
+      "notes": "Use only if a pre-existing, non-production fixture mount is explicitly discovered in the scoped service context."
+    }
+  ],
+  "selected_strategy": "one_off_compose_run_bind_mount",
+  "selected_strategy_status": "approved_for_future_scoped_baseline_capture",
+  "strategy_rationale": [
+    "No committed Compose changes are required.",
+    "No Dockerfile changes are required.",
+    "No Docker rebuild is required.",
+    "The running service container is not mutated.",
+    "Legal fixtures remain outside the repository.",
+    "The approach is scoped to future baseline-only execution and is rollback-friendly."
+  ],
+  "execution_boundaries": [
+    "Do not execute baseline capture in Roadmap 4.47.",
+    "Do not run ONNX.",
+    "Do not run TensorFlow vs ONNX comparison.",
+    "Do not run full numeric parity.",
+    "Do not call /classify.",
+    "Do not rebuild Docker.",
+    "Do not modify Dockerfile or committed Compose files.",
+    "Do not change provider factory, default provider, /classify contract, or response shape.",
+    "Do not change production dependencies.",
+    "Do not add audio files, model files, or venv files.",
+    "Do not touch tidal-parser."
+  ],
+  "blockers": [
+    {
+      "code": "FIXTURE_PATH_NOT_AVAILABLE_IN_CONTAINER",
+      "message": "The external legal fixture directory is not visible inside the currently running genre-classifier container without an approved non-production mount strategy."
+    },
+    {
+      "code": "BASELINE_CAPTURE_BLOCKED_BY_CONTAINER_MOUNT",
+      "message": "Baseline capture remains blocked until a future scoped baseline-only run uses the approved one-off bind-mounted execution strategy."
+    }
+  ],
+  "next_step_recommendation": "Proceed in a future roadmap to scoped baseline-only capture using a one-off docker compose run with a temporary read-only bind mount for the external legal fixtures; keep ONNX execution, /classify calls, full numeric parity, provider implementation, and production changes out of scope."
+}
