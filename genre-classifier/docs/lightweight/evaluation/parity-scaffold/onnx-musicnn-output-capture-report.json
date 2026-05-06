@@ -1,0 +1,185 @@
+{
+  "blockers": [],
+  "classify_called": false,
+  "default_provider_changed": false,
+  "docker_changed": false,
+  "docker_compose_run": false,
+  "docker_rebuild_run": false,
+  "fixture": {
+    "committed_to_repo": false,
+    "expected_sha256": "d75937b87f8ad440d7655d33b5ffbd36e374ac71ad794976fdebd325541ae628",
+    "path": "/tmp/music-tools-onnx-parity/fixtures/john_bartmann__earning_happiness__cc0.mp3",
+    "sha256": "d75937b87f8ad440d7655d33b5ffbd36e374ac71ad794976fdebd325541ae628",
+    "sha256_matches": true
+  },
+  "generated_at_utc": "2026-05-06T21:18:27.237174+00:00",
+  "generated_by": "scripts/lightweight/musicnn_onnx_output_capture.py",
+  "isolated_runtime": {
+    "essentia_import": true,
+    "essentia_standard_import": true,
+    "essentia_version": "2.1-beta6-dev",
+    "onnxruntime_import": true,
+    "onnxruntime_providers": [
+      "AzureExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "onnxruntime_version": "1.25.1",
+    "python_version": "Python 3.11.2",
+    "tensorflow_input_musiccnn_available": true,
+    "venv_path": "/tmp/music-tools-onnx-parity/venv"
+  },
+  "non_goals": [
+    "strict legacy parity",
+    "production readiness",
+    "provider implementation",
+    "default provider switch",
+    "/classify integration",
+    "TensorFlow baseline",
+    "TensorFlow vs ONNX comparison"
+  ],
+  "onnx_model": {
+    "committed_to_repo": false,
+    "exists": true,
+    "path": "/tmp/music-tools-onnx-parity/msd-musicnn-1.onnx",
+    "sha256": "49668ffec47e52e94b96f45930bb46a28a1368d4bdfb5c05378fa834aca616e1"
+  },
+  "onnx_runtime": {
+    "input_metadata": {
+      "name": "melspectrogram",
+      "shape": [
+        "unk__155",
+        187,
+        96
+      ],
+      "type": "tensor(float)"
+    },
+    "input_shape_adaptation": {
+      "adaptation": "added_batch_dimension",
+      "applied": true,
+      "requested_shape": [
+        187,
+        96
+      ],
+      "result_shape": [
+        1,
+        187,
+        96
+      ]
+    },
+    "output_metadata": [
+      {
+        "name": "activations",
+        "shape": [
+          "unk__156",
+          50
+        ],
+        "type": "tensor(float)"
+      },
+      {
+        "name": "embeddings",
+        "shape": [
+          "unk__157",
+          200
+        ],
+        "type": "tensor(float)"
+      }
+    ],
+    "session_created": true
+  },
+  "outputs": {
+    "activations": {
+      "dtype": "float32",
+      "finite_values": 50,
+      "inf_count": 0,
+      "max": 0.2679290473461151,
+      "mean": 0.036268118768930435,
+      "min": 0.002573162317276001,
+      "name": "activations",
+      "nan_count": 0,
+      "normalized_shape": [
+        50
+      ],
+      "raw_shape": [
+        1,
+        50
+      ],
+      "top_activation_indices": [
+        4,
+        0,
+        3,
+        1,
+        6
+      ],
+      "top_activation_scores": [
+        0.2679290473461151,
+        0.17159512639045715,
+        0.1285322904586792,
+        0.11120280623435974,
+        0.09515172243118286
+      ]
+    },
+    "embeddings": {
+      "dtype": "float32",
+      "finite_values": 200,
+      "inf_count": 0,
+      "max": 5.52200984954834,
+      "mean": 0.06967145204544067,
+      "min": -5.961637020111084,
+      "name": "embeddings",
+      "nan_count": 0,
+      "normalized_shape": [
+        200
+      ],
+      "raw_shape": [
+        1,
+        200
+      ]
+    }
+  },
+  "preprocessing": {
+    "blockers": [],
+    "final_patch_dtype": "float32",
+    "final_patch_shape": [
+      187,
+      96
+    ],
+    "finite_values": 17952,
+    "method": "essentia.standard.MonoLoader + essentia.standard.TensorflowInputMusiCNN + FrameGenerator",
+    "raw_observed_shape": [
+      2948,
+      96
+    ]
+  },
+  "production_dependencies_changed": false,
+  "production_touched": false,
+  "provider_implementation_changed": false,
+  "repeated_run_stability": {
+    "checked": true,
+    "max_abs_diff": 0.0,
+    "mean_abs_diff": 0.0,
+    "stable": true,
+    "tolerance": 1e-06
+  },
+  "report_id": "roadmap_4_65_isolated_onnx_musiccnn_output_capture",
+  "report_type": "onnx_musicnn_output_capture_report",
+  "roadmap": "4.65",
+  "roadmap_4_64_evidence": {
+    "blockers": [],
+    "final_patch_shape": [
+      187,
+      96
+    ],
+    "report_path": "docs/lightweight/evaluation/parity-scaffold/tensorflow-input-musicnn-preprocessing-probe-report.json",
+    "stable": true,
+    "validated": true
+  },
+  "schema_version": "0.1",
+  "scope": "isolated_local_onnx_output_capture",
+  "status": "completed",
+  "strict_legacy_parity_claimed": false,
+  "tensorflow_baseline_run": false,
+  "tensorflow_predict_musicnn_used": false,
+  "tensorflow_vs_onnx_comparison_run": false,
+  "tidal_parser_touched": false,
+  "title": "Roadmap 4.65 - Isolated ONNX/MusiCNN output capture"
+}
