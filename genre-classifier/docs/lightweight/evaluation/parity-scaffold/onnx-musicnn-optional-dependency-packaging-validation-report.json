@@ -1,0 +1,31 @@
+{
+  "schema_version": "0.1",
+  "report_type": "onnx_musicnn_optional_dependency_packaging_validation_report",
+  "roadmap": "4.74",
+  "validation_gate": true,
+  "not_production_decision": true,
+  "optional_requirements_file": "genre-classifier/requirements-optional-onnx.txt",
+  "optional_requirements_present": true,
+  "expected_pinned_dependencies": [
+    "onnxruntime==1.25.1",
+    "essentia-tensorflow==2.1b6.dev1389"
+  ],
+  "pinned_dependencies_valid": true,
+  "production_requirements_reference_optional_file": false,
+  "production_requirements_include_onnxruntime": false,
+  "production_requirements_include_essentia_tensorflow": false,
+  "docker_installs_optional_requirements": false,
+  "compose_sets_onnx_provider_by_default": false,
+  "provider_default_unchanged": true,
+  "default_provider": "legacy_musicnn",
+  "onnx_musicnn_disabled_by_default": true,
+  "classify_contract_unchanged": true,
+  "response_shape_unchanged": true,
+  "runtime_smoke_approved": false,
+  "production_approval": false,
+  "production_dependency_changes": false,
+  "docker_changes": false,
+  "tidal_parser_touched": false,
+  "blockers": [],
+  "next_step_recommendation": "Roadmap 4.75 may perform an isolated optional install probe only after explicit approval, without Docker/runtime migration."
+}
