@@ -1,0 +1,94 @@
+{
+  "roadmap": "4.105",
+  "lightweight_evidence_cleanup_plan": true,
+  "documentation_inventory_only": true,
+  "files_deleted": false,
+  "files_moved": false,
+  "runtime_smoke_run": false,
+  "docker_build_run": false,
+  "docker_compose_run": false,
+  "docker_compose_up_run": false,
+  "classify_called": false,
+  "parse_request_called": false,
+  "network_http_called": false,
+  "inference_run": false,
+  "preprocessing_run": false,
+  "current_release_anchor": {
+    "version": "v0.5.0",
+    "docs_exist": true,
+    "onnx_runtime_doc_exists": true,
+    "changelog_exists": true,
+    "tag_created": false
+  },
+  "inventory": {
+    "lightweight_roadmap_docs_count": 95,
+    "parity_scaffold_json_count": 56,
+    "lightweight_report_tests_count": 22,
+    "docs_lightweight_size": "1.6M",
+    "tests_lightweight_size": "1.7M"
+  },
+  "keep": {
+    "permanent_docs": [
+      "README.md",
+      "CHANGELOG.md",
+      "genre-classifier/docs/onnx-runtime.md",
+      "genre-classifier/docs/releases/v0.5.0.md"
+    ],
+    "runtime_tests_to_keep": [
+      "genre-classifier/tests/test_settings.py",
+      "genre-classifier/tests/test_provider_factory.py",
+      "genre-classifier/tests/test_classify_orchestration.py",
+      "genre-classifier/tests/lightweight/test_optional_onnx_dependency_packaging.py"
+    ],
+    "artifacts_to_keep": [
+      "genre-classifier/app/models/msd-musicnn-1.pb"
+    ]
+  },
+  "cleanup_candidates": {
+    "roadmap_docs": [
+      "genre-classifier/docs/lightweight/roadmap-4.1-lightweight-classifier-research.md",
+      "genre-classifier/docs/lightweight/roadmap-4.100-onnx-integration-smoke-harness-design.md",
+      "genre-classifier/docs/lightweight/roadmap-4.99-legacy-integration-smoke.md"
+    ],
+    "parity_scaffold_reports": [
+      "genre-classifier/docs/lightweight/evaluation/parity-scaffold/example-musicnn-onnx-parity-scaffold-dry-run-output.json",
+      "genre-classifier/docs/lightweight/evaluation/parity-scaffold/legacy-integration-smoke-report.json",
+      "genre-classifier/docs/lightweight/evaluation/parity-scaffold/onnx-musicnn-provider-direct-smoke-report.json"
+    ],
+    "report_structure_tests": [
+      "genre-classifier/tests/lightweight/test_legacy_integration_smoke_report.py",
+      "genre-classifier/tests/lightweight/test_onnx_default_switch_readiness_gate_report.py",
+      "genre-classifier/tests/lightweight/test_v050_onnx_release_documentation_consolidation_report.py"
+    ]
+  },
+  "defer_until_after_tag": [
+    "genre-classifier/docs/lightweight/roadmap-4.97-onnx-default-switch-rollback-incident.md",
+    "genre-classifier/docs/lightweight/roadmap-4.103-controlled-onnx-default-switch.md",
+    "genre-classifier/docs/lightweight/roadmap-4.104-v0.5.0-onnx-release-documentation-consolidation.md",
+    "genre-classifier/docs/lightweight/evaluation/parity-scaffold/onnx-default-switch-rollback-incident-report.json",
+    "genre-classifier/docs/lightweight/evaluation/parity-scaffold/controlled-onnx-default-switch-report.json",
+    "genre-classifier/docs/lightweight/evaluation/parity-scaffold/v0.5.0-onnx-release-documentation-consolidation-report.json",
+    "genre-classifier/tests/lightweight/test_onnx_default_switch_rollback_incident_report.py",
+    "genre-classifier/tests/lightweight/test_controlled_onnx_default_switch_report.py",
+    "genre-classifier/tests/lightweight/test_v050_onnx_release_documentation_consolidation_report.py"
+  ],
+  "recommended_cleanup_strategy": {
+    "rewrite_git_history": false,
+    "delete_in_this_step": false,
+    "next_cleanup_step": "4.106",
+    "approach": "delete obsolete lightweight evidence only after v0.5.0 release docs are accepted and the tag is in place"
+  },
+  "production_boundaries": {
+    "app_code_changed": false,
+    "dockerfile_changed": false,
+    "compose_changed": false,
+    "requirements_changed": false,
+    "default_provider_changed": false,
+    "tidal_parser_code_changed": false,
+    "artifacts_committed": false
+  },
+  "blockers": [],
+  "warnings": [
+    "This step only inventories cleanup candidates; no files are removed."
+  ]
+}
