@@ -1,0 +1,75 @@
+{
+  "roadmap": "4.97",
+  "onnx_default_switch_rollback_incident_record": true,
+  "documentation_only": true,
+  "runtime_smoke_run": false,
+  "docker_build_run": false,
+  "docker_compose_run": false,
+  "classify_called": false,
+  "network_http_called": false,
+  "inference_run": false,
+  "preprocessing_run": false,
+  "roadmap_4_96_report_removed_by_revert": true,
+  "incident": {
+    "default_switch_commit": "7b94fec279154daaee354ed950c93fd899c28a4b",
+    "rollback_commit": "70e24e0",
+    "legacy_dependency_hotfix_commit": "4188c28",
+    "symptom": "real tidal-parser flow failed after ONNX default switch",
+    "user_visible_error_reference_id": "5364a1fe1e05401c8a80efdb806b5c61",
+    "rollback_reason": "standalone genre-classifier smoke was insufficient; full tidal-parser -> genre-classifier flow was not validated before default switch"
+  },
+  "recovery": {
+    "default_provider_restored": "legacy_musicnn",
+    "default_service_target_restored": "legacy-runtime",
+    "requirements_txt_restored_legacy_essentia": true,
+    "legacy_dependency": "essentia-tensorflow==2.1b6.dev1389",
+    "health_restored": true,
+    "classify_restored": true,
+    "real_parser_flow_restored": true,
+    "onnx_leftover_image_removed": true,
+    "build_cache_cleaned": true
+  },
+  "root_causes_and_findings": {
+    "primary_finding": "ONNX default switch was premature because full parser integration smoke was missing.",
+    "secondary_finding": "Legacy rebuild was not reproducible after dependency isolation removed essentia from production requirements.",
+    "legacy_startup_failure": "ModuleNotFoundError: No module named 'essentia'",
+    "legacy_import_path": "from essentia.standard import MonoLoader, TensorflowPredictMusiCNN",
+    "onnx_candidate_evidence_still_valid": true,
+    "onnx_default_approved": false
+  },
+  "current_stable_baseline": {
+    "provider": "legacy_musicnn",
+    "service_target": "legacy-runtime",
+    "requirements_txt_contains_essentia_tensorflow": true,
+    "tidal_parser_touched": false,
+    "artifacts_committed": false
+  },
+  "guardrails_before_next_default_switch_attempt": [
+    "Run full tidal-parser -> genre-classifier integration smoke before default switch.",
+    "Validate real parser-flow, not only standalone /classify.",
+    "Keep rollback path ready and documented.",
+    "Do not remove legacy runtime dependency while legacy remains fallback/default.",
+    "Treat ONNX as candidate until integration smoke passes."
+  ],
+  "next_steps": [
+    "Do not continue previous 4.97 WIP alignment as-is.",
+    "Use a new integration-focused roadmap slice before any future ONNX default switch.",
+    "Consider adding a reproducible test or operator smoke for tidal-parser -> genre-classifier boundary.",
+    "Keep ONNX artifacts external and do not commit model files."
+  ],
+  "production_boundaries": {
+    "app_code_changed": false,
+    "dockerfile_changed": false,
+    "compose_changed": false,
+    "requirements_changed": false,
+    "default_provider_changed_in_this_step": false,
+    "classify_contract_changed": false,
+    "response_shape_changed": false,
+    "tidal_parser_touched": false,
+    "artifacts_committed": false
+  },
+  "blockers": [],
+  "warnings": [
+    "This record documents rollback and recovery; it does not re-approve ONNX as default."
+  ]
+}
