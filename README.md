@@ -38,14 +38,14 @@
 - прогоняет через модель Essentia / MusiCNN;
 - возвращает сырые предсказания и нормализованные жанры.
 
-Production runtime после Roadmap 3:
+Текущий production runtime после controlled ONNX default switch:
 
-- Python 3.12.13;
-- TensorFlow 2.21.0;
-- `essentia-tensorflow` 2.1b6.dev1389;
-- Essentia 2.1-beta6-dev.
+- default provider: `onnx_musicnn`;
+- default Docker target: `onnx-runtime-slim`;
+- external ONNX artifacts: `/opt/music-tools-artifacts/genre-classifier/onnx`;
+- legacy rollback profile: `genre-classifier-legacy` / `legacy-runtime` / `GENRE_PROVIDER=legacy_musicnn`.
 
-Предыдущий production runtime был Python 3.6 / TensorFlow 1.15. Default provider остаётся `legacy_musicnn`; LLM migration foundation существует, но LLM provider не является production default.
+Legacy MusicNN path остаётся сохранён как fallback/rollback context. `essentia-tensorflow` пока не удалён, потому что ONNX preprocessing по-прежнему использует Essentia path.
 
 ## Основные возможности
 
@@ -61,22 +61,13 @@ Production runtime после Roadmap 3:
 - корректное разделение допустимой деградации результата и фатальных ошибок;
 - генерация `blog_output` из финального результата.
 
-## Статус релиза v0.4.0
+## Статус релиза v0.5.0
 
-`v0.4.0` — repository-level documentation release для завершённой Roadmap 3 runtime modernization.
+`v0.5.0` фиксирует ONNX default runtime для `genre-classifier`.
 
-Production runtime `genre-classifier` модернизирован, но legacy MusiCNN production contract сохранён. Default provider остаётся `legacy_musicnn`. `/classify` contract и response shape не менялись. Runtime shadow остаётся disabled by default. LLM provider не является production default.
+ONNX MusiCNN стал default provider, default target переключён на `onnx-runtime-slim`, а legacy MusicNN path остался как rollback/fallback context. `/classify` contract и response shape не менялись. `tidal-parser` code в этом switch не менялся.
 
-`/classify` response shape остаётся:
-
-- `ok`;
-- `message`;
-- `genres`;
-- `genres_pretty`.
-
-Provider switch, canary rollout, LLM production adoption и lighter non-TensorFlow model migration остаются future work.
-
-Детали: [docs/releases/v0.4.0.md](docs/releases/v0.4.0.md).
+Детали: [docs/releases/v0.5.0.md](docs/releases/v0.5.0.md) и [genre-classifier/docs/onnx-runtime.md](genre-classifier/docs/onnx-runtime.md).
 
 ## Статус релиза v0.3.0
 
@@ -155,7 +146,7 @@ http://localhost:8011
 ## Ограничения текущей версии
 
 - проект развивается как монорепозиторий с раздельным запуском сервисов, без единого compose для всего стека;
-- `genre-classifier` остаётся отдельным сервисом; provider switch, canary rollout, LLM production adoption и lighter non-TensorFlow model migration остаются будущей работой;
+- `genre-classifier` остаётся отдельным сервисом; canary rollout, LLM production adoption и lighter non-TensorFlow model migration остаются будущей работой;
 - качество результата зависит от доступности и структуры TIDAL HTML;
 - обогащение через Discogs зависит от `DISCOGS_TOKEN`;
 - внешние источники могут деградировать частично, поэтому часть полей может быть пустой даже при успешном общем результате;
@@ -164,7 +155,7 @@ http://localhost:8011
 ## Roadmap
 
 - привести запуск монорепозитория к более цельной dev-схеме;
-- выполнить provider switch/canary rollout только отдельным будущим этапом;
+- удержать ONNX default runtime и отдельно рассматривать дальнейшие runtime-эксперименты только будущими этапами;
 - рассмотреть LLM production adoption и lighter non-TensorFlow classifier migration в отдельной Roadmap 4 или позже;
 - расширить покрытие проверок smoke/integration;
 - улучшить документацию по окружению и эксплуатации.

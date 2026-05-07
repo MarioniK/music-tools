@@ -1,0 +1,68 @@
+{
+  "roadmap": "4.104",
+  "v050_onnx_release_documentation_consolidation": true,
+  "documentation_only": true,
+  "runtime_smoke_run": false,
+  "docker_build_run": false,
+  "docker_compose_run": false,
+  "docker_compose_up_run": false,
+  "classify_called": false,
+  "parse_request_called": false,
+  "network_http_called": false,
+  "inference_run": false,
+  "preprocessing_run": false,
+  "current_default_runtime": {
+    "provider": "onnx_musicnn",
+    "target": "onnx-runtime-slim",
+    "legacy_fallback_preserved": true,
+    "legacy_pb_model_removed": false,
+    "essentia_tensorflow_removed": false
+  },
+  "release_summary": {
+    "version": "v0.5.0",
+    "onnx_default_documented": true,
+    "external_artifacts_documented": true,
+    "legacy_rollback_documented": true,
+    "integration_smoke_documented": true,
+    "cpu_observation_documented": true,
+    "response_shape_unchanged_documented": true
+  },
+  "docs": {
+    "onnx_runtime_doc_created": true,
+    "v050_release_doc_created": true,
+    "changelog_updated_or_created": true,
+    "readme_updated_if_needed": true
+  },
+  "artifact_contract": {
+    "host_path": "/opt/music-tools-artifacts/genre-classifier/onnx",
+    "container_path": "/opt/genre-classifier/onnx",
+    "model_checksum": "49668ffec47e52e94b96f45930bb46a28a1368d4bdfb5c05378fa834aca616e1",
+    "metadata_checksum": "8e6b3b509f0610c0e65dce467fd459d6777509388eaddb13ed138d8ac1341ffe",
+    "artifacts_committed": false
+  },
+  "cleanup_strategy": {
+    "git_history_rewrite_recommended": false,
+    "use_v050_tag_as_new_stable_anchor": true,
+    "mass_delete_lightweight_docs_in_this_step": false,
+    "future_cleanup_slice_recommended": true
+  },
+  "openvino_igpu_decision": {
+    "included_in_v050": false,
+    "reason": "ONNX CPU runtime is already fast and low CPU in production observation.",
+    "future_optional_experiment": true
+  },
+  "production_boundaries": {
+    "app_code_changed": false,
+    "dockerfile_changed": false,
+    "compose_changed": false,
+    "requirements_changed": false,
+    "default_provider_changed": false,
+    "tidal_parser_code_changed": false,
+    "artifacts_committed": false
+  },
+  "blockers": [],
+  "warnings": [
+    "This step consolidates documentation only; it does not tag v0.5.0.",
+    "Old lightweight roadmap/evidence files are not deleted in this step."
+  ]
+}
