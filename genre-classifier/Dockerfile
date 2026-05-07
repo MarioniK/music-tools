@@ -13,20 +13,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt /app/requirements.txt
-
-RUN python -m pip install --no-cache-dir --requirement /app/requirements.txt
-
 COPY app /app/app
 
 EXPOSE 8021
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8021"]
 
+FROM runtime-base AS legacy-runtime
+
+COPY requirements.txt /app/requirements.txt
+
+RUN python -m pip install --no-cache-dir --requirement /app/requirements.txt
+
 FROM runtime-base AS onnx-runtime
 
+COPY requirements.txt /app/requirements.txt
 COPY requirements-optional-onnx.txt /app/requirements-optional-onnx.txt
 
-RUN python -m pip install --no-cache-dir --requirement /app/requirements-optional-onnx.txt
+RUN python -m pip install --no-cache-dir --requirement /app/requirements.txt && \
+    python -m pip install --no-cache-dir --requirement /app/requirements-optional-onnx.txt
 
-FROM runtime-base AS legacy-runtime
+FROM runtime-base AS onnx-runtime-slim
+
+COPY requirements.txt /app/requirements.txt
+COPY requirements-optional-onnx.txt /app/requirements-optional-onnx.txt
+
+RUN grep -vE '^[[:space:]]*tensorflow([<>=!~].*)?([[:space:]]*#.*)?$' /app/requirements.txt > /tmp/requirements-slim.txt && \
+    python -m pip install --no-cache-dir --requirement /tmp/requirements-slim.txt && \
+    python -m pip install --no-cache-dir --requirement /app/requirements-optional-onnx.txt && \
+    python -m pip uninstall -y tensorflow && \
+    python -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('tensorflow') is None else 1)"

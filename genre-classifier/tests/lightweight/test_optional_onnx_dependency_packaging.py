@@ -146,13 +146,19 @@ def test_dockerfile_keeps_legacy_default_runtime_and_optional_onnx_target():
 
     assert "FROM runtime-base AS legacy-runtime" in dockerfile
     assert "FROM runtime-base AS onnx-runtime" in dockerfile
-    assert "COPY requirements.txt /app/requirements.txt" in dockerfile
-    assert "pip install --no-cache-dir --requirement /app/requirements.txt" in dockerfile
-    assert "COPY requirements-optional-onnx.txt /app/requirements-optional-onnx.txt" in dockerfile
-    assert "pip install --no-cache-dir --requirement /app/requirements-optional-onnx.txt" in dockerfile
-    assert dockerfile.index("COPY requirements.txt /app/requirements.txt") < dockerfile.index(
-        "COPY requirements-optional-onnx.txt /app/requirements-optional-onnx.txt"
+    assert "FROM runtime-base AS onnx-runtime-slim" in dockerfile
+    assert dockerfile.index("FROM runtime-base AS legacy-runtime") < dockerfile.index(
+        "FROM runtime-base AS onnx-runtime"
     )
+    assert dockerfile.index("FROM runtime-base AS onnx-runtime") < dockerfile.index(
+        "FROM runtime-base AS onnx-runtime-slim"
+    )
+    assert dockerfile.count("COPY requirements.txt /app/requirements.txt") == 3
+    assert "COPY requirements-optional-onnx.txt /app/requirements-optional-onnx.txt" in dockerfile
+    assert dockerfile.count("pip install --no-cache-dir --requirement /app/requirements.txt") == 2
+    assert dockerfile.count("pip install --no-cache-dir --requirement /app/requirements-optional-onnx.txt") == 2
+    assert "python -m pip uninstall -y tensorflow" in dockerfile
+    assert "grep -vE '^[[:space:]]*tensorflow" in dockerfile
     assert "COPY app /app/app" in dockerfile
     assert "model.onnx" not in dockerfile
     assert "model.json" not in dockerfile
