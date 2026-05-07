@@ -1,0 +1,119 @@
+{
+  "roadmap": "4.94",
+  "onnx_slim_operational_readiness_gate": true,
+  "decision_type": "optional_runtime_candidate_promotion_gate",
+  "not_production_decision": true,
+  "production_approval": false,
+  "default_switch_approval": false,
+  "runtime_smoke_run": false,
+  "docker_build_run": false,
+  "docker_compose_run": false,
+  "classify_called": false,
+  "network_http_called": false,
+  "evidence": {
+    "slim_docker_target": {
+      "roadmap": "4.85",
+      "passed": true,
+      "slim_image_size_bytes": 1572225060,
+      "size_reduction_percent": 54.81,
+      "tensorflow_python_package_absent": true
+    },
+    "slim_performance_baseline": {
+      "roadmap": "4.86",
+      "passed": true,
+      "runtime_regression_detected": false,
+      "performance_signal": "same/faster"
+    },
+    "compose_profile_static_validation": {
+      "roadmap": "4.87",
+      "passed": true,
+      "optional_onnx_service_target": "onnx-runtime-slim",
+      "default_service_target": "legacy-runtime"
+    },
+    "compose_config_and_artifact_path": {
+      "roadmap": "4.88",
+      "passed": true,
+      "persistent_host_artifact_path": "/opt/music-tools-artifacts/genre-classifier/onnx",
+      "artifacts_baked_into_image": false,
+      "runtime_downloads_by_default": false
+    },
+    "artifact_placement_checksum": {
+      "roadmap": "4.89",
+      "passed": true,
+      "artifacts_outside_repo": true,
+      "model_checksum_match": true,
+      "metadata_checksum_match": true
+    },
+    "container_import_smoke": {
+      "roadmap": "4.90",
+      "passed": true,
+      "tensorflow_absent": true,
+      "tensorflow_input_musicnn_available": true,
+      "provider_module_import_ok": true
+    },
+    "provider_direct_smoke": {
+      "roadmap": "4.91",
+      "passed": true,
+      "patch_shape": [187, 96],
+      "activations_shape": [50],
+      "embeddings_shape": [200],
+      "genres_non_empty": true,
+      "genres_pretty_non_empty": true
+    },
+    "legacy_vs_onnx_benchmark": {
+      "roadmap": "4.92",
+      "passed": true,
+      "legacy_avg_total_seconds": 4.120633650318875,
+      "onnx_slim_avg_total_seconds": 2.1574637469796776,
+      "speedup_ratio_legacy_div_onnx": 1.9099434027976228,
+      "memory_delta_kb": 335100,
+      "performance_benefit_confirmed": true,
+      "output_drift_documented": true
+    },
+    "optional_classify_smoke": {
+      "roadmap": "4.93",
+      "passed": true,
+      "health_status_code": 200,
+      "classify_status_code": 200,
+      "response_shape": ["ok", "message", "genres", "genres_pretty"],
+      "provider_selected": "onnx_musicnn"
+    }
+  },
+  "promotion_decision": {
+    "documented_optional_runtime_candidate": true,
+    "preferred_optional_runtime_target": "onnx-runtime-slim",
+    "default_provider_remains": "legacy_musicnn",
+    "default_service_target_remains": "legacy-runtime",
+    "onnx_provider_opt_in_only": true,
+    "production_readiness_granted": false,
+    "default_switch_allowed": false
+  },
+  "remaining_risks": [
+    "ONNX artifacts require external provisioning outside repo.",
+    "Output drift from legacy is controlled and documented but not identical.",
+    "Smoke coverage currently uses limited fixture coverage.",
+    "Production default switch requires broader validation and explicit approval.",
+    "tidal-parser integration path has not been migrated or switched."
+  ],
+  "required_next_steps_before_production_readiness": [
+    "Document operator artifact provisioning procedure.",
+    "Add multi-fixture optional ONNX slim smoke or benchmark.",
+    "Add optional runtime troubleshooting notes for missing artifacts/checksum mismatch.",
+    "Decide whether to expose optional ONNX runtime in README/operator docs.",
+    "Only after explicit approval, plan default switch separately."
+  ],
+  "production_boundaries": {
+    "production_requirements_changed": false,
+    "dockerfile_changed": false,
+    "compose_changed": false,
+    "default_provider_changed": false,
+    "classify_contract_changed": false,
+    "response_shape_changed": false,
+    "tidal_parser_touched": false,
+    "artifacts_committed": false
+  },
+  "blockers": [],
+  "warnings": [
+    "This gate promotes ONNX slim only as a documented optional runtime candidate, not as production default."
+  ]
+}
