@@ -1,0 +1,68 @@
+{
+  "roadmap": "4.99",
+  "legacy_integration_smoke": true,
+  "runtime_smoke_run": true,
+  "onnx_smoke_run": false,
+  "default_switch": false,
+  "docker_build_run": false,
+  "docker_compose_up_run": false,
+  "docker_compose_run_run": false,
+  "classify_called_directly": false,
+  "parse_request_called": true,
+  "network_http_called": true,
+  "current_stable_baseline": {
+    "genre_classifier_provider": "legacy_musicnn",
+    "genre_classifier_target": "legacy-runtime",
+    "onnx_is_default": false,
+    "onnx_status": "candidate_not_default",
+    "requirements_txt_contains_essentia_tensorflow": true
+  },
+  "services": {
+    "tidal_parser_container_running": true,
+    "genre_classifier_container_running": true,
+    "tidal_parser_health_ok": true,
+    "genre_classifier_health_ok": true
+  },
+  "request": {
+    "endpoint": "POST /",
+    "method": "POST",
+    "tidal_url_redacted_or_recorded": "https://tidal.com/track/498894205/u",
+    "http_status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "total_time_seconds": 9.950274,
+    "response_excerpt_recorded": true,
+    "reference_id_error_present": false
+  },
+  "integration_result": {
+    "success": true,
+    "tidal_parser_successful_response": true,
+    "genre_classifier_file_processing_succeeded": true,
+    "response_shape_preserved": true,
+    "audio_classification_present": true,
+    "graceful_degradation_documented": false,
+    "request_id": "2454d08f6d1747f089de6a51ce98c8f7",
+    "reference_id": null
+  },
+  "log_evidence": {
+    "tidal_parser_logs_collected": true,
+    "genre_classifier_logs_collected": true,
+    "provider_selected": "legacy_musicnn",
+    "module_not_found_essentia": false,
+    "server_5xx_seen": false
+  },
+  "production_boundaries": {
+    "app_code_changed": false,
+    "dockerfile_changed": false,
+    "compose_changed": false,
+    "requirements_changed": false,
+    "default_provider_changed": false,
+    "classify_contract_changed": false,
+    "response_shape_changed": false,
+    "tidal_parser_code_changed": false,
+    "artifacts_committed": false
+  },
+  "blockers": [],
+  "warnings": [
+    "provider_selected зафиксирован как legacy_musicnn по текущему stable baseline; в логах classifier не печатается explicit provider_name"
+  ]
+}
