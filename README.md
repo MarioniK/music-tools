@@ -155,10 +155,11 @@ http://localhost:8011
 ## Roadmap
 
 - привести запуск монорепозитория к более цельной dev-схеме;
-- удержать ONNX default runtime и отдельно рассматривать дальнейшие runtime-эксперименты только будущими этапами;
-- рассмотреть LLM production adoption и lighter non-TensorFlow classifier migration в отдельной Roadmap 4 или позже;
+- удержать ONNX default runtime и отдельно рассматривать будущие runtime-эксперименты, включая OpenVINO/iGPU, только отдельными этапами;
+- рассматривать LLM production adoption и lighter non-TensorFlow classifier migration только как будущие отдельные этапы;
 - расширить покрытие проверок smoke/integration;
 - улучшить документацию по окружению и эксплуатации.
+- после `v0.5.0` отдельно запланировать cleanup старых lightweight/evidence файлов.
 
 ## Документация
 
@@ -166,6 +167,7 @@ http://localhost:8011
 - Release notes: [docs/releases/v0.2.0.md](docs/releases/v0.2.0.md)
 - Release notes v0.3.0: [docs/releases/v0.3.0.md](docs/releases/v0.3.0.md)
 - Release notes v0.4.0: [docs/releases/v0.4.0.md](docs/releases/v0.4.0.md)
+- Release notes v0.5.0: [genre-classifier/docs/releases/v0.5.0.md](genre-classifier/docs/releases/v0.5.0.md)
 
 ## Лицензия
 
