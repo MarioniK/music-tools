@@ -9,7 +9,7 @@
 
 Принятое размещение artifacts:
 
-- host: `/opt/music-tools/artifacts/genre-classifier/onnx`
+- host: `/opt/music-tools-artifacts/genre-classifier/onnx`
 - container: `/opt/genre-classifier/onnx`
 - files:
   - `msd-musicnn-1.onnx`

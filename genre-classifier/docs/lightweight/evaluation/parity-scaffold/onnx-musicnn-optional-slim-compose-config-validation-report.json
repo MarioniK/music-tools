@@ -22,7 +22,7 @@
     "optional_provider_env": "GENRE_PROVIDER=onnx_musicnn",
     "default_service_has_onnx_provider_env": false,
     "optional_service_has_explicit_artifact_mounts": true,
-    "persistent_host_artifact_path": "/opt/music-tools/artifacts/genre-classifier/onnx",
+    "persistent_host_artifact_path": "/opt/music-tools-artifacts/genre-classifier/onnx",
     "container_artifact_path": "/opt/genre-classifier/onnx",
     "model_env_path": "/opt/genre-classifier/onnx/msd-musicnn-1.onnx",
     "metadata_env_path": "/opt/genre-classifier/onnx/msd-musicnn-1.json",
@@ -41,10 +41,10 @@
   },
   "artifact_placement_decision": {
     "current_probe_source_path": "/tmp/music-tools-onnx-parity",
-    "persistent_host_path": "/opt/music-tools/artifacts/genre-classifier/onnx",
+    "persistent_host_path": "/opt/music-tools-artifacts/genre-classifier/onnx",
     "copy_executed_in_this_step": false,
     "required_operator_action_before_runtime_smoke": [
-      "mkdir -p /opt/music-tools/artifacts/genre-classifier/onnx",
+      "mkdir -p /opt/music-tools-artifacts/genre-classifier/onnx",
       "copy msd-musicnn-1.onnx to persistent host path",
       "copy msd-musicnn-1.json to persistent host path",
       "verify checksums against Roadmap 4.71 provenance/checksum record"

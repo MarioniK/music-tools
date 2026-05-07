@@ -187,7 +187,9 @@ def test_compose_adds_optional_onnx_profile_without_switching_default_service():
     assert "ONNX_MUSICNN_MODEL_PATH: /opt/genre-classifier/onnx/msd-musicnn-1.onnx" in compose
     assert "ONNX_MUSICNN_METADATA_PATH: /opt/genre-classifier/onnx/msd-musicnn-1.json" in compose
     assert (
-        compose.count("/opt/music-tools/artifacts/genre-classifier/onnx:/opt/genre-classifier/onnx:ro")
+        compose.count(
+            "/opt/music-tools-artifacts/genre-classifier/onnx:/opt/genre-classifier/onnx:ro"
+        )
         == 1
     )
     assert "./artifacts/onnx-musicnn/model.onnx" not in compose
@@ -415,7 +417,7 @@ def test_optional_slim_compose_config_validation_report_records_persistent_artif
     assert implementation["default_service_has_onnx_provider_env"] is False
     assert implementation["optional_service_has_explicit_artifact_mounts"] is True
     assert implementation["persistent_host_artifact_path"] == (
-        "/opt/music-tools/artifacts/genre-classifier/onnx"
+        "/opt/music-tools-artifacts/genre-classifier/onnx"
     )
     assert implementation["container_artifact_path"] == "/opt/genre-classifier/onnx"
     assert implementation["model_env_path"] == "/opt/genre-classifier/onnx/msd-musicnn-1.onnx"
@@ -436,11 +438,11 @@ def test_optional_slim_compose_config_validation_report_records_persistent_artif
     artifact_decision = report["artifact_placement_decision"]
     assert artifact_decision["current_probe_source_path"] == "/tmp/music-tools-onnx-parity"
     assert artifact_decision["persistent_host_path"] == (
-        "/opt/music-tools/artifacts/genre-classifier/onnx"
+        "/opt/music-tools-artifacts/genre-classifier/onnx"
     )
     assert artifact_decision["copy_executed_in_this_step"] is False
     assert artifact_decision["required_operator_action_before_runtime_smoke"] == [
-        "mkdir -p /opt/music-tools/artifacts/genre-classifier/onnx",
+        "mkdir -p /opt/music-tools-artifacts/genre-classifier/onnx",
         "copy msd-musicnn-1.onnx to persistent host path",
         "copy msd-musicnn-1.json to persistent host path",
         "verify checksums against Roadmap 4.71 provenance/checksum record",

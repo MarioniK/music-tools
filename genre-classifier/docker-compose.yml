@@ -31,7 +31,7 @@ services:
       ONNX_MUSICNN_MODEL_PATH: /opt/genre-classifier/onnx/msd-musicnn-1.onnx
       ONNX_MUSICNN_METADATA_PATH: /opt/genre-classifier/onnx/msd-musicnn-1.json
     volumes:
-      - /opt/music-tools/artifacts/genre-classifier/onnx:/opt/genre-classifier/onnx:ro
+      - /opt/music-tools-artifacts/genre-classifier/onnx:/opt/genre-classifier/onnx:ro
       - ./app/models:/app/app/models
       - ./app/tmp:/app/app/tmp
       - ./app/templates:/app/app/templates
