@@ -1,0 +1,54 @@
+{
+  "schema_version": "0.1",
+  "report_type": "onnx_musicnn_optional_dependency_packaging_report",
+  "roadmap": "4.73",
+  "title": "optional ONNX/MusiCNN dependency packaging implementation gate",
+  "status": "completed",
+  "not_production_decision": true,
+  "optional_dependency_packaging_added": true,
+  "optional_requirements_file": "genre-classifier/requirements-optional-onnx.txt",
+  "production_requirements_changed": false,
+  "docker_changed": false,
+  "provider_default_unchanged": true,
+  "onnx_musicnn_disabled_by_default": true,
+  "classify_contract_unchanged": true,
+  "response_shape_unchanged": true,
+  "runtime_smoke_approved": false,
+  "production_approval": false,
+  "runtime_downloads_allowed": false,
+  "implicit_install_allowed": false,
+  "bundled_artifacts": false,
+  "dependencies": {
+    "onnxruntime": {
+      "version": "1.25.1",
+      "cpu_only": true,
+      "gpu_package_allowed": false,
+      "lazy_import_required": true,
+      "startup_import_allowed": false
+    },
+    "essentia-tensorflow": {
+      "version": "2.1b6.dev1389",
+      "TensorflowInputMusiCNN_required": true,
+      "lazy_import_required": true,
+      "startup_import_allowed": false,
+      "weight_risk": "high",
+      "production_ready": false
+    }
+  },
+  "non_goals": [
+    "production dependency migration",
+    "Docker implementation",
+    "runtime smoke",
+    "provider activation",
+    "default provider switch",
+    "/classify call",
+    "production inference",
+    "TensorFlow baseline",
+    "TensorFlow vs ONNX comparison",
+    "model artifact commit",
+    "audio artifact commit",
+    "wheel or venv commit",
+    "tidal-parser changes"
+  ],
+  "next_step_recommendation": "Roadmap 4.74 should validate the optional dependency packaging path without changing production requirements, Docker, provider defaults, /classify contract, or running production inference."
+}

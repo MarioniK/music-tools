@@ -1,0 +1,10 @@
+# Optional/dev-only dependency set for the future disabled-by-default ONNX/MusiCNN smoke path.
+# Этот файл не используется production install path.
+# Dockerfile и Docker Compose не должны устанавливать его по умолчанию.
+# Production requirements не меняются этим артефактом.
+# Default provider остаётся legacy_musicnn.
+# onnx_musicnn остаётся explicit opt-in и disabled-by-default.
+# Runtime smoke и production readiness этим файлом не разрешаются.
+
+onnxruntime==1.25.1
+essentia-tensorflow==2.1b6.dev1389
