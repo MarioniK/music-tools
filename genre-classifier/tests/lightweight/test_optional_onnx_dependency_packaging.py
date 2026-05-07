@@ -1,5 +1,4 @@
 import ast
-import json
 import re
 from pathlib import Path
 
@@ -14,26 +13,7 @@ COMPOSE_PATH = SERVICE_ROOT / "docker-compose.yml"
 ROUTES_PATH = SERVICE_ROOT / "app/api/routes.py"
 SETTINGS_PATH = SERVICE_ROOT / "app/core/settings.py"
 FACTORY_PATH = SERVICE_ROOT / "app/providers/factory.py"
-REPORT_PATH = (
-    SERVICE_ROOT
-    / "docs/lightweight/evaluation/parity-scaffold/"
-    / "onnx-musicnn-optional-docker-target-profile-report.json"
-)
-OPTIONAL_SLIM_COMPOSE_VALIDATION_REPORT_PATH = (
-    SERVICE_ROOT
-    / "docs/lightweight/evaluation/parity-scaffold/"
-    / "onnx-musicnn-optional-slim-compose-profile-validation-report.json"
-)
-CONFIG_VALIDATION_REPORT_PATH = (
-    SERVICE_ROOT
-    / "docs/lightweight/evaluation/parity-scaffold/"
-    / "onnx-musicnn-optional-slim-compose-config-validation-report.json"
-)
-BUILD_VALIDATION_REPORT_PATH = (
-    SERVICE_ROOT
-    / "docs/lightweight/evaluation/parity-scaffold/"
-    / "onnx-musicnn-optional-docker-build-validation-report.json"
-)
+ONNX_RUNTIME_DOC_PATH = SERVICE_ROOT / "docs/onnx-runtime.md"
 
 EXPECTED_OPTIONAL_REQUIREMENTS = [
     "onnxruntime==1.25.1",
@@ -148,7 +128,6 @@ def test_production_requirements_remain_separate_from_optional_packaging():
     assert "requirements-optional-onnx.txt" not in production_requirements
     assert "onnxruntime" not in production_requirements
     assert "essentia-tensorflow==2.1b6.dev1389" in production_requirements
-    assert "tensorflow==2.21.0" in production_requirements
 
 
 def test_dockerfile_keeps_legacy_default_runtime_and_optional_onnx_target():
@@ -227,6 +206,18 @@ def test_settings_switch_default_provider_to_onnx_and_keep_legacy_available():
     assert "return OnnxMusiCNNProvider(settings_module=settings)" in factory_text
 
 
+def test_onnx_runtime_docs_cover_current_operator_contract():
+    doc = _read_text(ONNX_RUNTIME_DOC_PATH)
+
+    assert ONNX_RUNTIME_DOC_PATH.is_file()
+    assert "onnx_musicnn" in doc
+    assert "onnx-runtime-slim" in doc
+    assert "/opt/music-tools-artifacts/genre-classifier/onnx" in doc
+    assert "msd-musicnn-1.onnx" in doc
+    assert "msd-musicnn-1.json" in doc
+    assert "genre-classifier-legacy" in doc
+
+
 def test_classify_contract_and_response_shape_remain_unchanged():
     route_keys = _extract_classify_return_dict_keys(ROUTES_PATH)
 
@@ -234,248 +225,3 @@ def test_classify_contract_and_response_shape_remain_unchanged():
     assert {"ok", "message", "genres", "genres_pretty"} in route_keys
     assert len({"ok", "message", "genres", "genres_pretty"}) == 4
     assert "Аудио проанализировано" in _read_text(ROUTES_PATH)
-
-
-def test_optional_packaging_report_records_current_static_state():
-    report = json.loads(_read_text(REPORT_PATH))
-
-    assert report["roadmap"] == "4.81"
-    assert report["optional_docker_packaging_implementation"] is True
-    assert report["not_production_decision"] is True
-    assert report["production_approval"] is False
-    assert report["docker_build_run"] is False
-    assert report["docker_compose_run"] is False
-    assert report["classify_called"] is False
-    assert report["network_http_called"] is False
-    implementation = report["implementation"]
-    assert implementation["dockerfile_changed"] is True
-    assert implementation["compose_changed"] is True
-    assert implementation["optional_target_added"] is True
-    assert implementation["optional_profile_added"] is True
-    assert implementation["optional_build_arg_added"] is False
-    assert implementation["default_install_path_unchanged"] is True
-    assert implementation["optional_requirements_installed_only_in_optional_path"] is True
-    assert implementation["runtime_downloads_by_default"] is False
-    assert implementation["artifacts_baked_into_image"] is False
-    assert implementation["mounted_artifacts_required"] is True
-    default_runtime = report["default_runtime"]
-    assert default_runtime["provider"] == "legacy_musicnn"
-    assert default_runtime["legacy_only"] is True
-    assert default_runtime["installs_optional_onnx_deps"] is False
-    assert default_runtime["uses_requirements_optional_onnx"] is False
-    optional_runtime = report["optional_onnx_runtime"]
-    assert optional_runtime["provider"] == "onnx_musicnn"
-    assert optional_runtime["explicit_opt_in_only"] is True
-    assert optional_runtime["uses_requirements_optional_onnx"] is True
-    assert optional_runtime["requires_explicit_model_path"] is True
-    assert optional_runtime["requires_explicit_classes_path"] is True
-    assert optional_runtime["artifacts_delivery"] == "mounted_paths"
-    production_boundaries = report["production_boundaries"]
-    assert production_boundaries["production_requirements_changed"] is False
-    assert production_boundaries["default_provider_changed"] is False
-    assert production_boundaries["classify_contract_changed"] is False
-    assert production_boundaries["response_shape_changed"] is False
-    assert production_boundaries["tidal_parser_touched"] is False
-    validation = report["validation"]
-    assert validation["roadmap_4_80_report_json_valid"] is True
-    assert validation["requirements_optional_onnx_pinned"] is True
-    assert validation["production_requirements_clean"] is True
-    assert validation["static_validation_passed"] is True
-    assert report["blockers"] == []
-    assert report["warnings"] == []
-    assert (
-        report["next_step_recommendation"]
-        == "Roadmap 4.82 - optional Docker build/static runtime validation without default switch."
-    )
-
-
-def test_optional_docker_build_validation_report_records_runtime_checks():
-    report = json.loads(_read_text(BUILD_VALIDATION_REPORT_PATH))
-
-    assert report["roadmap"] == "4.82"
-    assert report["optional_docker_build_validation"] is True
-    assert report["not_production_decision"] is True
-    assert report["production_approval"] is False
-    assert report["docker_build_run"] is True
-    assert report["docker_compose_run"] is False
-    assert report["classify_called"] is False
-    assert report["network_http_called"] is False
-    assert report["production_inference_run"] is False
-
-    docker = report["docker"]
-    assert docker["context"] == "genre-classifier"
-    assert docker["target"] == "onnx-runtime"
-    assert docker["image_tag"] == "music-tools-genre-classifier-onnx:roadmap-4.82"
-    assert docker["build_success"] is True
-    assert docker["build_duration_seconds"] == 124
-    assert (
-        docker["image_id"]
-        == "sha256:c1c8101f93012ce23a545b7f5c95ef28732825343e253443e9c94995271ac1d7"
-    )
-    assert docker["image_size"] == 3479268978
-
-    runtime_checks = report["runtime_static_checks"]
-    assert runtime_checks["pip_show_onnxruntime_ok"] is True
-    assert runtime_checks["pip_show_essentia_tensorflow_ok"] is True
-    assert runtime_checks["onnxruntime_import_ok"] is True
-    assert runtime_checks["onnxruntime_version"] == "1.25.1"
-    assert runtime_checks["onnxruntime_available_providers"] == [
-        "AzureExecutionProvider",
-        "CPUExecutionProvider",
-    ]
-    assert runtime_checks["essentia_import_ok"] is True
-    assert runtime_checks["essentia_standard_import_ok"] is True
-    assert runtime_checks["tensorflow_input_musicnn_available"] is True
-
-    default_runtime = report["default_runtime"]
-    assert default_runtime["provider"] == "legacy_musicnn"
-    assert default_runtime["legacy_only"] is True
-    assert default_runtime["build_run"] is False
-    assert default_runtime["compose_run"] is False
-
-    optional_runtime = report["optional_onnx_runtime"]
-    assert optional_runtime["provider"] == "onnx_musicnn"
-    assert optional_runtime["explicit_opt_in_only"] is True
-    assert optional_runtime["uses_requirements_optional_onnx"] is True
-    assert optional_runtime["artifacts_delivery"] == "mounted_paths"
-    assert optional_runtime["artifacts_baked_into_image"] is False
-    assert optional_runtime["runtime_downloads_by_default"] is False
-
-    production_boundaries = report["production_boundaries"]
-    assert production_boundaries["production_requirements_changed"] is False
-    assert production_boundaries["default_provider_changed"] is False
-    assert production_boundaries["classify_contract_changed"] is False
-    assert production_boundaries["response_shape_changed"] is False
-    assert production_boundaries["tidal_parser_touched"] is False
-
-    assert report["blockers"] == []
-    assert report["warnings"] == [
-        "TensorFlow/CUDA warnings appeared during import checks but did not block validation.",
-        "No /classify or network HTTP smoke was run in this roadmap step.",
-    ]
-    assert (
-        report["next_step_recommendation"]
-        == "Roadmap 4.83 - optional ONNX Compose profile config/static validation or optional container smoke without /classify, depending on 4.82 outcome."
-    )
-
-
-def test_optional_slim_compose_profile_validation_report_records_current_static_state():
-    report = json.loads(_read_text(OPTIONAL_SLIM_COMPOSE_VALIDATION_REPORT_PATH))
-
-    assert report["roadmap"] == "4.87"
-    assert report["optional_slim_compose_profile_validation"] is True
-    assert report["not_production_decision"] is True
-    assert report["production_approval"] is False
-    assert report["docker_compose_run"] is False
-    assert report["docker_build_run"] is False
-    assert report["classify_called"] is False
-    assert report["network_http_called"] is False
-
-    implementation = report["implementation"]
-    assert implementation["compose_changed"] is True
-    assert implementation["dockerfile_changed"] is False
-    assert implementation["default_service_target"] == "legacy-runtime"
-    assert implementation["optional_onnx_service_target"] == "onnx-runtime-slim"
-    assert implementation["full_onnx_runtime_target_preserved"] is True
-    assert implementation["slim_target_preferred_for_compose"] is True
-    assert implementation["default_provider_changed"] is False
-    assert implementation["optional_provider_env"] == "GENRE_PROVIDER=onnx_musicnn"
-    assert implementation["explicit_artifact_mounts_only"] is True
-    assert implementation["runtime_downloads_by_default"] is False
-    assert implementation["artifacts_baked_into_image"] is False
-
-    validated_baseline = report["validated_baseline"]
-    assert validated_baseline["slim_image_size_bytes"] == 1572225060
-    assert validated_baseline["size_reduction_percent"] == 54.81
-    assert validated_baseline["roadmap_4_86_runtime_regression_detected"] is False
-    assert validated_baseline["roadmap_4_86_performance_signal"] == "same/faster"
-
-    production_boundaries = report["production_boundaries"]
-    assert production_boundaries["production_requirements_changed"] is False
-    assert production_boundaries["default_provider_changed"] is False
-    assert production_boundaries["classify_contract_changed"] is False
-    assert production_boundaries["response_shape_changed"] is False
-    assert production_boundaries["tidal_parser_touched"] is False
-
-    assert report["blockers"] == []
-    assert report["warnings"] == []
-
-
-def test_optional_slim_compose_config_validation_report_records_persistent_artifact_path_decision():
-    report = json.loads(_read_text(CONFIG_VALIDATION_REPORT_PATH))
-
-    assert report["roadmap"] == "4.88"
-    assert report["optional_slim_compose_config_validation"] is True
-    assert report["persistent_artifact_mount_path_decision"] is True
-    assert report["not_production_decision"] is True
-    assert report["production_approval"] is False
-    assert report["docker_compose_config_run"] is True
-    assert report["docker_compose_profile_config_run"] is True
-    assert report["docker_compose_up_run"] is False
-    assert report["docker_compose_run_run"] is False
-    assert report["docker_build_run"] is False
-    assert report["classify_called"] is False
-    assert report["network_http_called"] is False
-    assert report["artifact_migration_executed"] is False
-    assert report["artifacts_committed_to_repo"] is False
-
-    implementation = report["implementation"]
-    assert implementation["compose_changed"] is True
-    assert implementation["dockerfile_changed"] is False
-    assert implementation["default_service_target"] == "legacy-runtime"
-    assert implementation["optional_onnx_service_target"] == "onnx-runtime-slim"
-    assert implementation["default_service_provider"] == "legacy_musicnn"
-    assert implementation["optional_provider_env"] == "GENRE_PROVIDER=onnx_musicnn"
-    assert implementation["default_service_has_onnx_provider_env"] is False
-    assert implementation["optional_service_has_explicit_artifact_mounts"] is True
-    assert implementation["persistent_host_artifact_path"] == (
-        "/opt/music-tools-artifacts/genre-classifier/onnx"
-    )
-    assert implementation["container_artifact_path"] == "/opt/genre-classifier/onnx"
-    assert implementation["model_env_path"] == "/opt/genre-classifier/onnx/msd-musicnn-1.onnx"
-    assert implementation["metadata_env_path"] == "/opt/genre-classifier/onnx/msd-musicnn-1.json"
-    assert implementation["runtime_downloads_by_default"] is False
-    assert implementation["artifacts_baked_into_image"] is False
-
-    compose_validation = report["compose_config_validation"]
-    assert compose_validation["default_config_render_success"] is True
-    assert compose_validation["onnx_profile_config_render_success"] is True
-    assert compose_validation["default_service_present"] is True
-    assert compose_validation["optional_onnx_service_present"] is True
-    assert compose_validation["default_service_target_match"] is True
-    assert compose_validation["optional_onnx_service_target_match"] is True
-    assert compose_validation["optional_env_match"] is True
-    assert compose_validation["persistent_artifact_mount_match"] is True
-
-    artifact_decision = report["artifact_placement_decision"]
-    assert artifact_decision["current_probe_source_path"] == "/tmp/music-tools-onnx-parity"
-    assert artifact_decision["persistent_host_path"] == (
-        "/opt/music-tools-artifacts/genre-classifier/onnx"
-    )
-    assert artifact_decision["copy_executed_in_this_step"] is False
-    assert artifact_decision["required_operator_action_before_runtime_smoke"] == [
-        "mkdir -p /opt/music-tools-artifacts/genre-classifier/onnx",
-        "copy msd-musicnn-1.onnx to persistent host path",
-        "copy msd-musicnn-1.json to persistent host path",
-        "verify checksums against Roadmap 4.71 provenance/checksum record",
-    ]
-
-    validated_baseline = report["validated_baseline"]
-    assert validated_baseline["roadmap_4_86_runtime_regression_detected"] is False
-    assert validated_baseline["roadmap_4_86_performance_signal"] == "same/faster"
-    assert validated_baseline["roadmap_4_87_compose_static_validation_passed"] is True
-    assert validated_baseline["slim_image_size_bytes"] == 1572225060
-    assert validated_baseline["size_reduction_percent"] == 54.81
-
-    production_boundaries = report["production_boundaries"]
-    assert production_boundaries["production_requirements_changed"] is False
-    assert production_boundaries["dockerfile_changed"] is False
-    assert production_boundaries["default_provider_changed"] is False
-    assert production_boundaries["classify_contract_changed"] is False
-    assert production_boundaries["response_shape_changed"] is False
-    assert production_boundaries["tidal_parser_touched"] is False
-
-    assert report["blockers"] == []
-    assert report["warnings"] == [
-        "Persistent artifact files are not copied in this step; operator action is required before container runtime smoke."
-    ]
