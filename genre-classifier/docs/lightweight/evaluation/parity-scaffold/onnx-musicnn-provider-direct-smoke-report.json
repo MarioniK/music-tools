@@ -1,0 +1,89 @@
+{
+  "artifacts": {
+    "audio_path_external": true,
+    "audio_path_provided": true,
+    "classes_path_external": true,
+    "classes_path_provided": true,
+    "implicit_discovery_used": false,
+    "onnx_model_path_external": true,
+    "onnx_model_path_provided": true
+  },
+  "blockers": [],
+  "classify_called": false,
+  "docker_run": false,
+  "explicit_opt_in_only": true,
+  "http_called": false,
+  "next_step_recommendation": "Proceed to Roadmap 4.79 explicit /classify opt-in smoke only after provider direct smoke succeeds.",
+  "not_production_decision": true,
+  "production_approval": false,
+  "production_boundaries": {
+    "classify_contract_changed": false,
+    "docker_changed": false,
+    "onnx_musicnn_disabled_by_default": true,
+    "production_requirements_changed": false,
+    "provider_default_unchanged": true,
+    "response_shape_changed": false,
+    "tidal_parser_touched": false
+  },
+  "provider": {
+    "default_provider_changed": false,
+    "direct_call_ok": true,
+    "direct_import_ok": true,
+    "key": "onnx_musicnn",
+    "lazy_optional_imports_preserved": true
+  },
+  "provider_direct_smoke_only": true,
+  "python": {
+    "executable": "/tmp/music-tools-roadmap-4.75-onnx-install-probe/venv/bin/python",
+    "version": "3.11.2"
+  },
+  "result": {
+    "contract_compatible_fields": {
+      "genres": true,
+      "genres_pretty": true
+    },
+    "genres": [
+      {
+        "prob": 0.2679,
+        "tag": "electronic"
+      },
+      {
+        "prob": 0.1716,
+        "tag": "rock"
+      },
+      {
+        "prob": 0.1285,
+        "tag": "indie"
+      },
+      {
+        "prob": 0.1112,
+        "tag": "pop"
+      },
+      {
+        "prob": 0.0952,
+        "tag": "dance"
+      }
+    ],
+    "genres_non_empty": true,
+    "genres_pretty": [
+      "indie rock",
+      "electronic",
+      "rock",
+      "indie",
+      "pop",
+      "dance"
+    ],
+    "genres_pretty_non_empty": true,
+    "success": true,
+    "validated": {
+      "dropped_items_count": 0,
+      "model_name": "onnx-musicnn-scaffold",
+      "provider_name": "onnx_musicnn",
+      "total_items_kept": 5,
+      "total_items_received": 5
+    }
+  },
+  "roadmap": "4.78",
+  "runtime_smoke_through_http": false,
+  "warnings": []
+}

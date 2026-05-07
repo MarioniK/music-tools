@@ -257,6 +257,58 @@ def test_provider_classify_reports_missing_onnxruntime_as_controlled_failure(tmp
         provider.classify("/tmp/audio.wav")
 
 
+def test_provider_classify_with_explicit_artifacts_returns_provider_result(tmp_path, monkeypatch):
+    model_path = tmp_path / "msd-musicnn-1.onnx"
+    metadata_path = tmp_path / "msd-musicnn-1.json"
+    audio_path = tmp_path / "fixture.mp3"
+    model_path.write_bytes(b"stub model")
+    metadata_path.write_text(
+        json.dumps({"classes": ["dream-pop", "ambient", "electronic"]}),
+        encoding="utf-8",
+    )
+    audio_path.write_bytes(b"stub audio")
+
+    provider = _build_provider(model_path=model_path, metadata_path=metadata_path)
+    monkeypatch.setattr(provider, "_load_onnxruntime", lambda: object())
+    monkeypatch.setattr(
+        provider,
+        "_load_essentia_standard",
+        lambda: SimpleNamespace(TensorflowInputMusiCNN=object()),
+    )
+    monkeypatch.setattr(provider, "_build_tensorflow_input_patch", lambda *_: [[0.93, 0.72, 0.41]])
+    monkeypatch.setattr(provider, "_run_onnx_inference", lambda *_: [0.93, 0.72, 0.41])
+
+    provider_result = provider.classify_with_explicit_artifacts(str(audio_path), top_n=2)
+
+    assert provider_result.provider_name == "onnx_musicnn"
+    assert provider_result.model_name == "onnx-musicnn-scaffold"
+    assert [(item.tag, item.score) for item in provider_result.genres] == [
+        ("dream pop", 0.93),
+        ("ambient", 0.72),
+    ]
+
+
+def test_provider_classify_with_explicit_artifacts_reports_missing_audio_artifact(tmp_path, monkeypatch):
+    model_path = tmp_path / "msd-musicnn-1.onnx"
+    metadata_path = tmp_path / "msd-musicnn-1.json"
+    model_path.write_bytes(b"stub model")
+    metadata_path.write_text(
+        json.dumps({"classes": ["dream-pop", "ambient"]}),
+        encoding="utf-8",
+    )
+
+    provider = _build_provider(model_path=model_path, metadata_path=metadata_path)
+    monkeypatch.setattr(provider, "_load_onnxruntime", lambda: object())
+    monkeypatch.setattr(
+        provider,
+        "_load_essentia_standard",
+        lambda: SimpleNamespace(TensorflowInputMusiCNN=object()),
+    )
+
+    with pytest.raises(RuntimeError, match="audio artifact missing"):
+        provider.classify_with_explicit_artifacts(str(tmp_path / "missing.mp3"))
+
+
 def test_provider_runtime_status_reports_invalid_metadata_format(tmp_path, monkeypatch):
     model_path = tmp_path / "msd-musicnn-1.onnx"
     metadata_path = tmp_path / "msd-musicnn-1.json"

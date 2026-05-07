@@ -36,6 +36,27 @@ class OnnxMusiCNNProvider(GenreProvider):
             "onnx_musicnn provider scaffold is disabled-by-default and inference is not implemented"
         )
 
+    def classify_with_explicit_artifacts(self, audio_path: str, top_n: Optional[int] = None) -> ProviderResult:
+        """Выполняет explicit-only direct smoke через локальные артефакты.
+
+        Метод предназначен для isolated evaluation/probe сценариев. Он не
+        меняет default provider, не трогает `/classify` и не выполняется на
+        module import path. Все optional runtime зависимости подгружаются
+        лениво внутри этого boundary.
+        """
+
+        runtime_status = self.describe_runtime_status()
+        if not runtime_status["available"]:
+            raise RuntimeError(self._format_unsupported_message(runtime_status))
+
+        activations, classes = self._run_explicit_inference(audio_path)
+        return self.build_provider_result_from_outputs(
+            activations,
+            classes,
+            model_name=ONNX_MUSICNN_RUNTIME_MODEL_NAME,
+            top_n=self._top_n if top_n is None else top_n,
+        )
+
     def describe_runtime_status(self):
         model_path = self._get_model_path()
         metadata_path = self._get_metadata_path()
@@ -168,6 +189,127 @@ class OnnxMusiCNNProvider(GenreProvider):
             raise RuntimeError("TensorflowInputMusiCNN unavailable")
 
         return essentia_standard
+
+    def _run_explicit_inference(self, audio_path: str):
+        model_path = self._get_model_path()
+        metadata_path = self._get_metadata_path()
+
+        if model_path is None:
+            raise RuntimeError("onnx model path not configured")
+        if metadata_path is None:
+            raise RuntimeError("onnx metadata path not configured")
+
+        metadata = self._load_metadata(metadata_path)
+        classes = self._extract_classes_from_metadata(metadata)
+        onnxruntime = self._load_onnxruntime()
+        essentia_standard = self._load_essentia_standard()
+        patch = self._build_tensorflow_input_patch(essentia_standard, audio_path)
+        activations = self._run_onnx_inference(onnxruntime, model_path, patch)
+
+        return activations, classes
+
+    def _build_tensorflow_input_patch(self, essentia_standard, audio_path: str):
+        audio_file = Path(audio_path)
+        if not audio_file.is_file():
+            raise RuntimeError("audio artifact missing")
+
+        import numpy as np
+
+        audio = essentia_standard.MonoLoader(filename=str(audio_file), sampleRate=16000)()
+        tensor = essentia_standard.TensorflowInputMusiCNN()
+
+        rows = []
+        for frame in essentia_standard.FrameGenerator(
+            audio,
+            frameSize=512,
+            hopSize=256,
+            startFromZero=True,
+            lastFrameToEndOfFile=True,
+        ):
+            bands = tensor(frame)
+            rows.append([float(value) for value in bands])
+
+        if not rows:
+            raise RuntimeError("TensorflowInputMusiCNN produced no rows")
+
+        normalized_rows = rows
+        if len(normalized_rows) < 187:
+            last_row = list(normalized_rows[-1])
+            while len(normalized_rows) < 187:
+                normalized_rows.append(list(last_row))
+        else:
+            normalized_rows = normalized_rows[:187]
+
+        if any(len(row) != 96 for row in normalized_rows):
+            raise RuntimeError("TensorflowInputMusiCNN patch width normalization failed")
+
+        patch = np.asarray(normalized_rows, dtype=np.float32)
+        if patch.shape != (187, 96):
+            raise RuntimeError("TensorflowInputMusiCNN patch shape normalization failed")
+
+        if not np.isfinite(patch).all():
+            raise RuntimeError("TensorflowInputMusiCNN patch contains non-finite values")
+
+        return patch
+
+    def _run_onnx_inference(self, onnxruntime, model_path: Path, patch):
+        import numpy as np
+
+        options = onnxruntime.SessionOptions()
+        options.intra_op_num_threads = 1
+        options.inter_op_num_threads = 1
+
+        session = onnxruntime.InferenceSession(
+            str(model_path),
+            sess_options=options,
+            providers=["CPUExecutionProvider"],
+        )
+
+        inputs = session.get_inputs()
+        outputs = session.get_outputs()
+        if not inputs:
+            raise RuntimeError("onnxruntime session has no inputs")
+        if not outputs:
+            raise RuntimeError("onnxruntime session has no outputs")
+
+        input_meta = inputs[0]
+        input_shape = list(input_meta.shape)
+        feed_array = patch
+        if len(input_shape) == 3 and input_shape[-2:] == [187, 96]:
+            feed_array = np.expand_dims(patch, axis=0)
+        elif len(input_shape) != 2 or input_shape != [187, 96]:
+            raise RuntimeError(f"unexpected ONNX input shape: {input_shape}")
+
+        run_outputs = session.run(None, {input_meta.name: feed_array})
+        output_names = [item.name for item in outputs]
+        output_map = {name: value for name, value in zip(output_names, run_outputs)}
+
+        if "activations" not in output_map:
+            raise RuntimeError("onnx outputs did not include an 'activations' tensor")
+        if "embeddings" not in output_map:
+            raise RuntimeError("onnx outputs did not include an 'embeddings' tensor")
+
+        return self._normalize_output_values(output_map["activations"])
+
+    def _normalize_output_values(self, tensor):
+        import numpy as np
+
+        array = np.asarray(tensor, dtype=float)
+        if array.size == 0:
+            raise RuntimeError("invalid onnx output")
+
+        if array.ndim == 1:
+            values = array
+        elif array.ndim == 2 and array.shape[0] == 1:
+            values = array[0]
+        else:
+            values = np.mean(array, axis=0)
+
+        normalized_values = [float(value) for value in np.asarray(values).reshape(-1).tolist()]
+        if not normalized_values:
+            raise RuntimeError("invalid onnx output")
+
+        return normalized_values
 
     def _format_unsupported_message(self, runtime_status) -> str:
         reasons = runtime_status.get("reasons") or []
