@@ -1,0 +1,213 @@
+{
+  "audio_fixture": "/tmp/music-tools-onnx-parity/fixtures/john_bartmann__earning_happiness__cc0.mp3",
+  "blockers": [],
+  "classify_called": false,
+  "comparison": {
+    "avg_inference_seconds_legacy": 2.458359995992699,
+    "avg_inference_seconds_onnx_slim": 0.05307915899902582,
+    "avg_mapping_seconds_legacy": 0.0006565073466238877,
+    "avg_mapping_seconds_onnx_slim": 0.00022393899659315744,
+    "avg_preprocessing_seconds_legacy": null,
+    "avg_preprocessing_seconds_onnx_slim": 0.6102927203173749,
+    "avg_total_seconds_legacy": 4.120633650318875,
+    "avg_total_seconds_onnx_slim": 2.1574637469796776,
+    "legacy_max_rss_kb": 630336,
+    "memory_delta_kb": 335100,
+    "onnx_slim_faster": true,
+    "onnx_slim_max_rss_kb": 295236,
+    "output_drift_documented": true,
+    "performance_benefit_confirmed": true,
+    "qualitative_output_drift_note": "Observed drift is controlled and reproducible.",
+    "response_shape_match": true,
+    "speedup_ratio_legacy_div_onnx": 1.9099434027976228
+  },
+  "decision_signal": {
+    "legacy_comparison_completed": true,
+    "onnx_slim_runtime_functional": true,
+    "performance_benefit_confirmed": true,
+    "recommendation": "ONNX slim path is faster or comparable and stays contract-compatible; keep it as an optional candidate, but this benchmark is not a production approval."
+  },
+  "default_provider_changed": false,
+  "docker_compose_run_command_used": true,
+  "docker_compose_up_run": false,
+  "legacy_benchmark": {
+    "attempted": true,
+    "available": true,
+    "genres": [
+      {
+        "prob": 0.4162,
+        "tag": "electronic"
+      },
+      {
+        "prob": 0.2134,
+        "tag": "dance"
+      },
+      {
+        "prob": 0.1725,
+        "tag": "house"
+      },
+      {
+        "prob": 0.1087,
+        "tag": "electronica"
+      },
+      {
+        "prob": 0.103,
+        "tag": "chillout"
+      },
+      {
+        "prob": 0.0994,
+        "tag": "electro"
+      },
+      {
+        "prob": 0.0965,
+        "tag": "pop"
+      },
+      {
+        "prob": 0.0712,
+        "tag": "indie"
+      }
+    ],
+    "genres_pretty": [
+      "electronic",
+      "dance",
+      "house",
+      "electronica",
+      "chillout",
+      "electro",
+      "pop",
+      "indie"
+    ],
+    "inference_seconds": [
+      2.605142100015655,
+      2.406991780968383,
+      2.362946106994059
+    ],
+    "mapping_seconds": [
+      0.001191687013488263,
+      0.0003664690302684903,
+      0.00041136599611490965
+    ],
+    "max_rss_kb": 630336,
+    "preprocessing_seconds": [
+      null,
+      null,
+      null
+    ],
+    "provider": "legacy_musicnn",
+    "repeated_run_stable": true,
+    "response_compatible_shape": true,
+    "runs": 3,
+    "runtime_reasons": [],
+    "service": "genre-classifier",
+    "success": true,
+    "total_seconds": [
+      4.431045878969599,
+      4.047480826964602,
+      3.8833742450224236
+    ]
+  },
+  "legacy_vs_onnx_slim_direct_benchmark": true,
+  "network_http_called": false,
+  "not_production_decision": true,
+  "onnx_slim_benchmark": {
+    "attempted": true,
+    "available": true,
+    "genres": [
+      {
+        "prob": 0.2679,
+        "tag": "electronic"
+      },
+      {
+        "prob": 0.1716,
+        "tag": "rock"
+      },
+      {
+        "prob": 0.1285,
+        "tag": "indie"
+      },
+      {
+        "prob": 0.1112,
+        "tag": "pop"
+      },
+      {
+        "prob": 0.0952,
+        "tag": "dance"
+      },
+      {
+        "prob": 0.0878,
+        "tag": "alternative"
+      },
+      {
+        "prob": 0.0741,
+        "tag": "progressive rock"
+      },
+      {
+        "prob": 0.0666,
+        "tag": "electronica"
+      }
+    ],
+    "genres_pretty": [
+      "indie rock",
+      "alternative rock",
+      "electronic",
+      "rock",
+      "indie",
+      "pop",
+      "dance",
+      "alternative"
+    ],
+    "inference_seconds": [
+      0.05548259796341881,
+      0.05268559604883194,
+      0.051069282984826714
+    ],
+    "mapping_seconds": [
+      0.0002101069549098611,
+      0.0002586840419098735,
+      0.00020302599295973778
+    ],
+    "max_rss_kb": 295236,
+    "preprocessing_seconds": [
+      0.6010516439564526,
+      0.6500982389552519,
+      0.5797282780404203
+    ],
+    "provider": "onnx_musicnn",
+    "repeated_run_stable": true,
+    "response_compatible_shape": true,
+    "runs": 3,
+    "runtime_reasons": [],
+    "service": "genre-classifier-onnx",
+    "success": true,
+    "total_seconds": [
+      2.1590993179706857,
+      2.1914304179954343,
+      2.1218615049729124
+    ]
+  },
+  "production_approval": false,
+  "production_boundaries": {
+    "classify_contract_changed": false,
+    "compose_changed": false,
+    "default_provider_changed": false,
+    "dockerfile_changed": false,
+    "production_requirements_changed": false,
+    "response_shape_changed": false,
+    "tidal_parser_touched": false
+  },
+  "roadmap": "4.92",
+  "server_started": false,
+  "service": {
+    "legacy": {
+      "name": "genre-classifier",
+      "profile": "default",
+      "target": "legacy-runtime"
+    },
+    "onnx_slim": {
+      "name": "genre-classifier-onnx",
+      "profile": "onnx",
+      "target": "onnx-runtime-slim"
+    }
+  },
+  "warnings": []
+}
