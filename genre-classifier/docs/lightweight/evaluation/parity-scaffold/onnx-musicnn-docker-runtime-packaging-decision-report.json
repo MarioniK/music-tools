@@ -1,0 +1,56 @@
+{
+  "schema_version": "0.1",
+  "report_type": "onnx_musicnn_docker_runtime_packaging_decision_report",
+  "roadmap": "4.80",
+  "decision_gate_only": true,
+  "not_production_decision": true,
+  "docker_implementation_done": false,
+  "docker_build_run": false,
+  "docker_compose_run": false,
+  "classify_called": false,
+  "network_http_called": false,
+  "production_approval": false,
+  "current_proven_path": {
+    "optional_install_import_validated": true,
+    "runtime_readiness_validated": true,
+    "patch_to_mapping_validated": true,
+    "provider_direct_smoke_validated": true,
+    "route_level_classify_opt_in_validated": true,
+    "network_http_smoke_validated": false,
+    "docker_runtime_validated": false
+  },
+  "packaging_decision": {
+    "default_runtime_remains_legacy_only": true,
+    "default_provider": "legacy_musicnn",
+    "onnx_musicnn_explicit_opt_in_only": true,
+    "optional_dependencies_in_default_production_requirements": false,
+    "requirements_optional_onnx_default_install_path": false,
+    "recommended_next_implementation": "optional Docker target/profile or explicit build arg",
+    "artifact_delivery": "explicit mounted artifacts",
+    "runtime_downloads_by_default": false,
+    "artifacts_committed_to_repo": false
+  },
+  "required_explicit_config": {
+    "provider_env": "GENRE_PROVIDER=onnx_musicnn",
+    "onnx_model_path_required": true,
+    "classes_metadata_path_required": true
+  },
+  "production_boundaries": {
+    "production_requirements_changed": false,
+    "dockerfile_changed": false,
+    "compose_changed": false,
+    "provider_default_changed": false,
+    "classify_contract_changed": false,
+    "response_shape_changed": false,
+    "tidal_parser_touched": false
+  },
+  "risks": [
+    "essentia-tensorflow dependency weight remains high",
+    "optional ONNX runtime image size must be measured in implementation step",
+    "TensorFlow/CUDA import warnings may remain noisy",
+    "Roadmap 4.79 validated route-level boundary only, not network/Docker runtime"
+  ],
+  "blockers": [],
+  "next_step_recommendation": "Roadmap 4.81 - implement optional ONNX Docker target/profile without changing default provider or default production install path."
+}
+
