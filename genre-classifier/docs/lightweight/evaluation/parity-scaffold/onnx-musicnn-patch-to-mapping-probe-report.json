@@ -1,0 +1,106 @@
+{
+  "schema_version": "0.1",
+  "report_type": "onnx_musicnn_patch_to_mapping_probe_report",
+  "roadmap": "4.77",
+  "not_production_decision": true,
+  "isolated_vertical_probe_only": true,
+  "classify_called": false,
+  "runtime_smoke_run": false,
+  "production_approval": false,
+  "python": {
+    "version": "3.11.2",
+    "executable": "/tmp/music-tools-onnx-parity/venv/bin/python"
+  },
+  "onnxruntime": {
+    "expected_version": "1.25.1",
+    "installed_version": "1.25.1",
+    "import_ok": true,
+    "available_providers": [
+      "AzureExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "cpu_execution_provider_available": true
+  },
+  "artifacts": {
+    "implicit_discovery_used": false,
+    "onnx_model_path_provided": true,
+    "onnx_model_path_external": true,
+    "onnx_model_path": "/tmp/music-tools-onnx-parity/msd-musicnn-1.onnx",
+    "classes_path_provided": true,
+    "classes_path_external": true,
+    "classes_path": "/tmp/music-tools-onnx-parity/msd-musicnn-1.json",
+    "patch_path_provided": true,
+    "patch_path_external": true,
+    "patch_path": "/tmp/music-tools-roadmap-4.77-patch-to-mapping/musicnn_patch.npy"
+  },
+  "patch_input": {
+    "available": true,
+    "shape": [
+      187,
+      96
+    ],
+    "expected_shape": [
+      187,
+      96
+    ],
+    "shape_match": true
+  },
+  "onnx_outputs": {
+    "inference_run": true,
+    "output_names": [
+      "activations",
+      "embeddings"
+    ],
+    "activations_shape": [
+      50
+    ],
+    "embeddings_shape": [
+      200
+    ]
+  },
+  "mapping": {
+    "classes_count": 50,
+    "activations_count": 50,
+    "classes_activations_count_match": true,
+    "candidate_genres": [
+      {
+        "tag": "electronic",
+        "prob": 0.2679
+      },
+      {
+        "tag": "rock",
+        "prob": 0.1716
+      },
+      {
+        "tag": "indie",
+        "prob": 0.1285
+      },
+      {
+        "tag": "pop",
+        "prob": 0.1112
+      },
+      {
+        "tag": "dance",
+        "prob": 0.0952
+      }
+    ],
+    "candidate_genres_pretty": [
+      "indie rock",
+      "electronic",
+      "rock",
+      "indie",
+      "pop"
+    ]
+  },
+  "production_boundaries": {
+    "production_requirements_changed": false,
+    "docker_changed": false,
+    "provider_default_unchanged": true,
+    "onnx_musicnn_disabled_by_default": true,
+    "tidal_parser_touched": false,
+    "response_shape_changed": false
+  },
+  "blockers": [],
+  "warnings": [],
+  "next_step_recommendation": "Proceed to Roadmap 4.78 explicit provider direct smoke only after this isolated patch-to-mapping probe is reviewed."
+}
