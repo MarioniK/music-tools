@@ -28,11 +28,10 @@ services:
       - "8022:8021"
     environment:
       GENRE_PROVIDER: onnx_musicnn
-      ONNX_MUSICNN_MODEL_PATH: /opt/genre-classifier/onnx/model.onnx
-      ONNX_MUSICNN_METADATA_PATH: /opt/genre-classifier/onnx/model.json
+      ONNX_MUSICNN_MODEL_PATH: /opt/genre-classifier/onnx/msd-musicnn-1.onnx
+      ONNX_MUSICNN_METADATA_PATH: /opt/genre-classifier/onnx/msd-musicnn-1.json
     volumes:
-      - ./artifacts/onnx-musicnn/model.onnx:/opt/genre-classifier/onnx/model.onnx:ro
-      - ./artifacts/onnx-musicnn/model.json:/opt/genre-classifier/onnx/model.json:ro
+      - /opt/music-tools/artifacts/genre-classifier/onnx:/opt/genre-classifier/onnx:ro
       - ./app/models:/app/app/models
       - ./app/tmp:/app/app/tmp
       - ./app/templates:/app/app/templates
