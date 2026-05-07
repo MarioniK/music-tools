@@ -1,0 +1,93 @@
+{
+  "roadmap": "4.98",
+  "tidal_parser_genre_classifier_integration_smoke_design": true,
+  "documentation_only": true,
+  "runtime_smoke_run": false,
+  "docker_build_run": false,
+  "docker_compose_run": false,
+  "classify_called": false,
+  "parse_request_called": false,
+  "network_http_called": false,
+  "inference_run": false,
+  "preprocessing_run": false,
+  "current_stable_baseline": {
+    "genre_classifier_provider": "legacy_musicnn",
+    "genre_classifier_target": "legacy-runtime",
+    "onnx_is_default": false,
+    "onnx_status": "candidate_not_default",
+    "requirements_txt_contains_essentia_tensorflow": true
+  },
+  "design": {
+    "integration_path": "tidal-parser -> genre-classifier",
+    "legacy_baseline_smoke_next": "4.99",
+    "onnx_candidate_integration_smoke_later": "4.100",
+    "default_switch_blocked_until_integration_smoke_passes": true,
+    "standalone_classify_smoke_considered_insufficient": true
+  },
+  "future_legacy_smoke": {
+    "roadmap": "4.99",
+    "purpose": "prove current stable parser-flow baseline",
+    "provider": "legacy_musicnn",
+    "default_switch": false,
+    "success_criteria": [
+      "tidal-parser successful response",
+      "genre-classifier file_processing_succeeded",
+      "no user-facing Reference ID error",
+      "response shape preserved",
+      "audio classification present or graceful degradation documented"
+    ]
+  },
+  "future_onnx_candidate_smoke": {
+    "roadmap": "4.100",
+    "purpose": "test ONNX candidate in full parser-flow without default switch",
+    "provider": "onnx_musicnn",
+    "default_switch": false,
+    "requires_explicit_classifier_url_or_profile_override": true,
+    "success_criteria": [
+      "tidal-parser successful response using ONNX candidate classifier endpoint",
+      "genre-classifier logs show provider_name=onnx_musicnn",
+      "no 5xx",
+      "response shape preserved",
+      "output drift accepted if controlled and documented"
+    ]
+  },
+  "evidence_to_collect": [
+    "command/request used",
+    "HTTP status",
+    "response shape/excerpt",
+    "tidal-parser logs tail",
+    "genre-classifier logs tail",
+    "request_id or Reference ID",
+    "provider selected",
+    "duration if available"
+  ],
+  "failure_handling": [
+    "collect Reference ID on parser error",
+    "collect genre-classifier traceback on classifier failure",
+    "record timeout boundary",
+    "treat response shape change as blocker",
+    "keep legacy default if ONNX integration smoke fails"
+  ],
+  "guardrails": [
+    "No ONNX default switch before full integration smoke passes.",
+    "Do not remove legacy Essentia dependency while legacy is default or fallback.",
+    "Do not commit ONNX artifacts.",
+    "Do not enable runtime downloads by default.",
+    "Do not combine tidal-parser config migration with default switch."
+  ],
+  "production_boundaries": {
+    "app_code_changed": false,
+    "dockerfile_changed": false,
+    "compose_changed": false,
+    "requirements_changed": false,
+    "default_provider_changed": false,
+    "classify_contract_changed": false,
+    "response_shape_changed": false,
+    "tidal_parser_touched": false,
+    "artifacts_committed": false
+  },
+  "blockers": [],
+  "warnings": [
+    "This step is a design gate only; no smoke was executed."
+  ]
+}
