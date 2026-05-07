@@ -1,0 +1,117 @@
+{
+  "blockers": [],
+  "classify_called": false,
+  "container_env": {
+    "env_match": true,
+    "metadata_env_path": "/opt/genre-classifier/onnx/msd-musicnn-1.json",
+    "model_env_path": "/opt/genre-classifier/onnx/msd-musicnn-1.onnx",
+    "provider_env": "onnx_musicnn"
+  },
+  "default_service_touched": false,
+  "docker_compose_run_command_used": true,
+  "docker_compose_up_run": false,
+  "mounted_artifacts": {
+    "metadata_checksum_match": true,
+    "metadata_exists": true,
+    "model_checksum_match": true,
+    "model_exists": true
+  },
+  "network_http_called": false,
+  "not_production_decision": true,
+  "optional_slim_provider_direct_smoke": true,
+  "production_approval": false,
+  "production_boundaries": {
+    "classify_contract_changed": false,
+    "compose_changed": false,
+    "default_provider_changed": false,
+    "dockerfile_changed": false,
+    "production_requirements_changed": false,
+    "response_shape_changed": false,
+    "tidal_parser_touched": false
+  },
+  "provider_direct_smoke": {
+    "activations_shape": [
+      50
+    ],
+    "audio_path": "/tmp/music-tools-onnx-parity/fixtures/john_bartmann__earning_happiness__cc0.mp3",
+    "embeddings_shape": [
+      200
+    ],
+    "genres": [
+      {
+        "prob": 0.2679,
+        "tag": "electronic"
+      },
+      {
+        "prob": 0.1716,
+        "tag": "rock"
+      },
+      {
+        "prob": 0.1285,
+        "tag": "indie"
+      },
+      {
+        "prob": 0.1112,
+        "tag": "pop"
+      },
+      {
+        "prob": 0.0952,
+        "tag": "dance"
+      },
+      {
+        "prob": 0.0878,
+        "tag": "alternative"
+      },
+      {
+        "prob": 0.0741,
+        "tag": "progressive rock"
+      },
+      {
+        "prob": 0.0666,
+        "tag": "electronica"
+      }
+    ],
+    "genres_non_empty": true,
+    "genres_pretty": [
+      "indie rock",
+      "alternative rock",
+      "electronic",
+      "rock",
+      "indie",
+      "pop",
+      "dance",
+      "alternative"
+    ],
+    "genres_pretty_non_empty": true,
+    "patch_shape": [
+      187,
+      96
+    ],
+    "response_compatible_shape": true,
+    "success": true
+  },
+  "roadmap": "4.91",
+  "runtime_imports": {
+    "cpu_execution_provider_available": true,
+    "essentia_standard_import_ok": true,
+    "lazy_optional_imports_preserved": true,
+    "onnxruntime_import_ok": true,
+    "provider_module_import_ok": true,
+    "tensorflow_absent": true,
+    "tensorflow_input_musiccnn_available": true
+  },
+  "server_started": false,
+  "service": {
+    "name": "genre-classifier-onnx",
+    "profile": "onnx",
+    "target": "onnx-runtime-slim"
+  },
+  "timing": {
+    "mapping_seconds": 0.0006856010295450687,
+    "max_rss_kb": 293652,
+    "onnx_inference_seconds": 0.04586882598232478,
+    "preprocessing_seconds": 0.6169600180000998,
+    "total_seconds": 0.6740973470150493
+  },
+  "warnings": []
+}
