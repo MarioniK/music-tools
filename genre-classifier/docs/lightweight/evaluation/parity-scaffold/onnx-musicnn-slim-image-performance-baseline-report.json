@@ -1,0 +1,184 @@
+{
+  "blockers": [],
+  "classify_called": false,
+  "comparison_to_full_image_baseline": {
+    "avg_onnx_inference_seconds_full": 0.052076000000000004,
+    "avg_onnx_inference_seconds_slim": 0.04593166435370222,
+    "avg_preprocessing_seconds_full": 0.10189033333333335,
+    "avg_preprocessing_seconds_slim": 0.10223855633133401,
+    "avg_total_seconds_full": 1.7580143333333333,
+    "avg_total_seconds_slim": 1.6655609513400123,
+    "max_rss_kb_full": 280012,
+    "max_rss_kb_slim": 292768,
+    "performance_signal": "same/faster",
+    "runtime_regression_detected": false
+  },
+  "decision_signal": {
+    "image_size_benefit_confirmed": true,
+    "recommendation": "Use onnx-runtime-slim as preferred optional ONNX image candidate; continue with optional container/profile smoke before production readiness.",
+    "runtime_regression_detected": false,
+    "slim_runtime_functional": true
+  },
+  "docker_compose_run": false,
+  "full_image_baseline_from_4_83": {
+    "max_rss_kb": 280012,
+    "onnx_inference_seconds": [
+      0.058606,
+      0.050385,
+      0.047237
+    ],
+    "preprocessing_seconds": [
+      0.108405,
+      0.100992,
+      0.096274
+    ],
+    "total_seconds": [
+      1.873967,
+      1.745251,
+      1.654825
+    ]
+  },
+  "full_pipeline_slim_image": {
+    "activations_shape": [
+      50
+    ],
+    "embeddings_shape": [
+      200
+    ],
+    "essentia_import_ok": true,
+    "essentia_standard_import_ok": true,
+    "genres_non_empty": true,
+    "genres_pretty_non_empty": true,
+    "patch_shape": [
+      187,
+      96
+    ],
+    "success": true,
+    "tensorflow_import_ok": false,
+    "tensorflow_input_musiccnn_available": true
+  },
+  "image": {
+    "exists": true,
+    "full_baseline_size_bytes": 3479268977,
+    "size_bytes": 1572225060,
+    "size_reduction_bytes": 1907043917,
+    "size_reduction_percent": 54.81
+  },
+  "image_tag": "music-tools-genre-classifier-onnx:roadmap-4.85-slim",
+  "network_http_called": false,
+  "not_production_decision": true,
+  "package_status": {
+    "essentia_standard_used": true,
+    "essentia_tensorflow_installed": true,
+    "new_heavy_modules_loaded_during_preprocessing": [],
+    "onnxruntime_used": true,
+    "tensorflow_import_ok": false,
+    "tensorflow_input_musiccnn_used": true,
+    "tensorflow_installed": false
+  },
+  "production_approval": false,
+  "production_boundaries": {
+    "classify_contract_changed": false,
+    "compose_changed": false,
+    "default_provider_changed": false,
+    "dockerfile_changed": false,
+    "production_requirements_changed": false,
+    "response_shape_changed": false,
+    "tidal_parser_touched": false
+  },
+  "rebuild_run": false,
+  "resource_usage": {
+    "max_rss_kb": 292768,
+    "method": "python_resource_getrusage"
+  },
+  "reused_existing_slim_image": true,
+  "roadmap": "4.86",
+  "slim_benchmark": {
+    "audio_loading_seconds": [
+      0.47982149198651314,
+      0.48219263000646606,
+      0.48035160201834515
+    ],
+    "genres": [
+      {
+        "prob": 0.2679,
+        "tag": "electronic"
+      },
+      {
+        "prob": 0.1716,
+        "tag": "rock"
+      },
+      {
+        "prob": 0.1285,
+        "tag": "indie"
+      },
+      {
+        "prob": 0.1112,
+        "tag": "pop"
+      },
+      {
+        "prob": 0.0952,
+        "tag": "dance"
+      },
+      {
+        "prob": 0.0878,
+        "tag": "alternative"
+      },
+      {
+        "prob": 0.0741,
+        "tag": "progressive rock"
+      },
+      {
+        "prob": 0.0666,
+        "tag": "electronica"
+      }
+    ],
+    "genres_pretty": [
+      "indie rock",
+      "alternative rock",
+      "electronic",
+      "rock",
+      "indie",
+      "pop",
+      "dance",
+      "alternative"
+    ],
+    "import_seconds": [
+      0.1344776789774187,
+      0.13160419499035925,
+      0.13197761500487104
+    ],
+    "mapping_seconds": [
+      0.0006606830283999443,
+      0.0006553310086019337,
+      0.0006417270051315427
+    ],
+    "onnx_inference_seconds": [
+      0.04621256300015375,
+      0.04558186500798911,
+      0.04600056505296379
+    ],
+    "onnx_session_seconds": [
+      0.010443347040563822,
+      0.008565675001591444,
+      0.00852808600757271
+    ],
+    "preprocessing_seconds": [
+      0.10119331197347492,
+      0.10137239802861586,
+      0.10414995899191126
+    ],
+    "repeated_run_stable": true,
+    "runs": 3,
+    "success": true,
+    "total_seconds": [
+      1.6646497760084458,
+      1.6584076710278168,
+      1.6736254069837742
+    ]
+  },
+  "slim_image_performance_baseline": true,
+  "warnings": [
+    "tensorflow_not_installed_in_slim_image"
+  ]
+}
