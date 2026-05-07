@@ -19,6 +19,11 @@ REPORT_PATH = (
     / "docs/lightweight/evaluation/parity-scaffold/"
     / "onnx-musicnn-optional-docker-target-profile-report.json"
 )
+BUILD_VALIDATION_REPORT_PATH = (
+    SERVICE_ROOT
+    / "docs/lightweight/evaluation/parity-scaffold/"
+    / "onnx-musicnn-optional-docker-build-validation-report.json"
+)
 
 EXPECTED_OPTIONAL_REQUIREMENTS = [
     "onnxruntime==1.25.1",
@@ -243,4 +248,74 @@ def test_optional_packaging_report_records_current_static_state():
     assert (
         report["next_step_recommendation"]
         == "Roadmap 4.82 - optional Docker build/static runtime validation without default switch."
+    )
+
+
+def test_optional_docker_build_validation_report_records_runtime_checks():
+    report = json.loads(_read_text(BUILD_VALIDATION_REPORT_PATH))
+
+    assert report["roadmap"] == "4.82"
+    assert report["optional_docker_build_validation"] is True
+    assert report["not_production_decision"] is True
+    assert report["production_approval"] is False
+    assert report["docker_build_run"] is True
+    assert report["docker_compose_run"] is False
+    assert report["classify_called"] is False
+    assert report["network_http_called"] is False
+    assert report["production_inference_run"] is False
+
+    docker = report["docker"]
+    assert docker["context"] == "genre-classifier"
+    assert docker["target"] == "onnx-runtime"
+    assert docker["image_tag"] == "music-tools-genre-classifier-onnx:roadmap-4.82"
+    assert docker["build_success"] is True
+    assert docker["build_duration_seconds"] == 124
+    assert (
+        docker["image_id"]
+        == "sha256:c1c8101f93012ce23a545b7f5c95ef28732825343e253443e9c94995271ac1d7"
+    )
+    assert docker["image_size"] == 3479268978
+
+    runtime_checks = report["runtime_static_checks"]
+    assert runtime_checks["pip_show_onnxruntime_ok"] is True
+    assert runtime_checks["pip_show_essentia_tensorflow_ok"] is True
+    assert runtime_checks["onnxruntime_import_ok"] is True
+    assert runtime_checks["onnxruntime_version"] == "1.25.1"
+    assert runtime_checks["onnxruntime_available_providers"] == [
+        "AzureExecutionProvider",
+        "CPUExecutionProvider",
+    ]
+    assert runtime_checks["essentia_import_ok"] is True
+    assert runtime_checks["essentia_standard_import_ok"] is True
+    assert runtime_checks["tensorflow_input_musicnn_available"] is True
+
+    default_runtime = report["default_runtime"]
+    assert default_runtime["provider"] == "legacy_musicnn"
+    assert default_runtime["legacy_only"] is True
+    assert default_runtime["build_run"] is False
+    assert default_runtime["compose_run"] is False
+
+    optional_runtime = report["optional_onnx_runtime"]
+    assert optional_runtime["provider"] == "onnx_musicnn"
+    assert optional_runtime["explicit_opt_in_only"] is True
+    assert optional_runtime["uses_requirements_optional_onnx"] is True
+    assert optional_runtime["artifacts_delivery"] == "mounted_paths"
+    assert optional_runtime["artifacts_baked_into_image"] is False
+    assert optional_runtime["runtime_downloads_by_default"] is False
+
+    production_boundaries = report["production_boundaries"]
+    assert production_boundaries["production_requirements_changed"] is False
+    assert production_boundaries["default_provider_changed"] is False
+    assert production_boundaries["classify_contract_changed"] is False
+    assert production_boundaries["response_shape_changed"] is False
+    assert production_boundaries["tidal_parser_touched"] is False
+
+    assert report["blockers"] == []
+    assert report["warnings"] == [
+        "TensorFlow/CUDA warnings appeared during import checks but did not block validation.",
+        "No /classify or network HTTP smoke was run in this roadmap step.",
+    ]
+    assert (
+        report["next_step_recommendation"]
+        == "Roadmap 4.83 - optional ONNX Compose profile config/static validation or optional container smoke without /classify, depending on 4.82 outcome."
     )

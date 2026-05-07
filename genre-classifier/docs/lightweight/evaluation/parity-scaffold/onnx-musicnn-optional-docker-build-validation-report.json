@@ -1,0 +1,62 @@
+{
+  "schema_version": "0.1",
+  "report_type": "onnx_musicnn_optional_docker_build_validation_report",
+  "roadmap": "4.82",
+  "optional_docker_build_validation": true,
+  "not_production_decision": true,
+  "production_approval": false,
+  "docker_build_run": true,
+  "docker_compose_run": false,
+  "classify_called": false,
+  "network_http_called": false,
+  "production_inference_run": false,
+  "docker": {
+    "context": "genre-classifier",
+    "target": "onnx-runtime",
+    "image_tag": "music-tools-genre-classifier-onnx:roadmap-4.82",
+    "build_success": true,
+    "build_duration_seconds": 124,
+    "image_id": "sha256:c1c8101f93012ce23a545b7f5c95ef28732825343e253443e9c94995271ac1d7",
+    "image_size": 3479268978
+  },
+  "runtime_static_checks": {
+    "pip_show_onnxruntime_ok": true,
+    "pip_show_essentia_tensorflow_ok": true,
+    "onnxruntime_import_ok": true,
+    "onnxruntime_version": "1.25.1",
+    "onnxruntime_available_providers": [
+      "AzureExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "essentia_import_ok": true,
+    "essentia_standard_import_ok": true,
+    "tensorflow_input_musicnn_available": true
+  },
+  "default_runtime": {
+    "provider": "legacy_musicnn",
+    "legacy_only": true,
+    "build_run": false,
+    "compose_run": false
+  },
+  "optional_onnx_runtime": {
+    "provider": "onnx_musicnn",
+    "explicit_opt_in_only": true,
+    "uses_requirements_optional_onnx": true,
+    "artifacts_delivery": "mounted_paths",
+    "artifacts_baked_into_image": false,
+    "runtime_downloads_by_default": false
+  },
+  "production_boundaries": {
+    "production_requirements_changed": false,
+    "default_provider_changed": false,
+    "classify_contract_changed": false,
+    "response_shape_changed": false,
+    "tidal_parser_touched": false
+  },
+  "blockers": [],
+  "warnings": [
+    "TensorFlow/CUDA warnings appeared during import checks but did not block validation.",
+    "No /classify or network HTTP smoke was run in this roadmap step."
+  ],
+  "next_step_recommendation": "Roadmap 4.83 - optional ONNX Compose profile config/static validation or optional container smoke without /classify, depending on 4.82 outcome."
+}
