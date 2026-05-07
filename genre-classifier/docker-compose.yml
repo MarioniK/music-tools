@@ -21,7 +21,7 @@ services:
       - onnx
     build:
       context: .
-      target: onnx-runtime
+      target: onnx-runtime-slim
     container_name: genre-classifier-onnx
     restart: unless-stopped
     ports:

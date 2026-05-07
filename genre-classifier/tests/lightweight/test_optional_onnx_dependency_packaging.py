@@ -19,6 +19,11 @@ REPORT_PATH = (
     / "docs/lightweight/evaluation/parity-scaffold/"
     / "onnx-musicnn-optional-docker-target-profile-report.json"
 )
+OPTIONAL_SLIM_COMPOSE_VALIDATION_REPORT_PATH = (
+    SERVICE_ROOT
+    / "docs/lightweight/evaluation/parity-scaffold/"
+    / "onnx-musicnn-optional-slim-compose-profile-validation-report.json"
+)
 BUILD_VALIDATION_REPORT_PATH = (
     SERVICE_ROOT
     / "docs/lightweight/evaluation/parity-scaffold/"
@@ -168,15 +173,19 @@ def test_dockerfile_keeps_legacy_default_runtime_and_optional_onnx_target():
 def test_compose_adds_optional_onnx_profile_without_switching_default_service():
     compose = _read_text(COMPOSE_PATH)
 
-    assert "target: legacy-runtime" in compose
-    assert "target: onnx-runtime" in compose
+    assert re.search(r"^\s*target:\s*legacy-runtime\s*$", compose, re.MULTILINE)
+    assert re.search(r"^\s*target:\s*onnx-runtime-slim\s*$", compose, re.MULTILINE)
+    assert re.search(r"^\s*target:\s*onnx-runtime\s*$", compose, re.MULTILINE) is None
     assert "profiles:" in compose
     assert "onnx_musicnn" in compose
-    assert "GENRE_PROVIDER: onnx_musicnn" in compose
+    assert compose.count("GENRE_PROVIDER: onnx_musicnn") == 1
     assert "ONNX_MUSICNN_MODEL_PATH: /opt/genre-classifier/onnx/model.onnx" in compose
     assert "ONNX_MUSICNN_METADATA_PATH: /opt/genre-classifier/onnx/model.json" in compose
-    assert "./artifacts/onnx-musicnn/model.onnx:/opt/genre-classifier/onnx/model.onnx:ro" in compose
-    assert "./artifacts/onnx-musicnn/model.json:/opt/genre-classifier/onnx/model.json:ro" in compose
+    assert compose.count("./artifacts/onnx-musicnn/model.onnx:/opt/genre-classifier/onnx/model.onnx:ro") == 1
+    assert compose.count("./artifacts/onnx-musicnn/model.json:/opt/genre-classifier/onnx/model.json:ro") == 1
+    assert "GENRE_PROVIDER" not in compose.split("genre-classifier:\n", 1)[1].split(
+        "genre-classifier-onnx:\n", 1
+    )[0]
     assert "requirements-optional-onnx.txt" not in compose
 
 
@@ -325,3 +334,45 @@ def test_optional_docker_build_validation_report_records_runtime_checks():
         report["next_step_recommendation"]
         == "Roadmap 4.83 - optional ONNX Compose profile config/static validation or optional container smoke without /classify, depending on 4.82 outcome."
     )
+
+
+def test_optional_slim_compose_profile_validation_report_records_current_static_state():
+    report = json.loads(_read_text(OPTIONAL_SLIM_COMPOSE_VALIDATION_REPORT_PATH))
+
+    assert report["roadmap"] == "4.87"
+    assert report["optional_slim_compose_profile_validation"] is True
+    assert report["not_production_decision"] is True
+    assert report["production_approval"] is False
+    assert report["docker_compose_run"] is False
+    assert report["docker_build_run"] is False
+    assert report["classify_called"] is False
+    assert report["network_http_called"] is False
+
+    implementation = report["implementation"]
+    assert implementation["compose_changed"] is True
+    assert implementation["dockerfile_changed"] is False
+    assert implementation["default_service_target"] == "legacy-runtime"
+    assert implementation["optional_onnx_service_target"] == "onnx-runtime-slim"
+    assert implementation["full_onnx_runtime_target_preserved"] is True
+    assert implementation["slim_target_preferred_for_compose"] is True
+    assert implementation["default_provider_changed"] is False
+    assert implementation["optional_provider_env"] == "GENRE_PROVIDER=onnx_musicnn"
+    assert implementation["explicit_artifact_mounts_only"] is True
+    assert implementation["runtime_downloads_by_default"] is False
+    assert implementation["artifacts_baked_into_image"] is False
+
+    validated_baseline = report["validated_baseline"]
+    assert validated_baseline["slim_image_size_bytes"] == 1572225060
+    assert validated_baseline["size_reduction_percent"] == 54.81
+    assert validated_baseline["roadmap_4_86_runtime_regression_detected"] is False
+    assert validated_baseline["roadmap_4_86_performance_signal"] == "same/faster"
+
+    production_boundaries = report["production_boundaries"]
+    assert production_boundaries["production_requirements_changed"] is False
+    assert production_boundaries["default_provider_changed"] is False
+    assert production_boundaries["classify_contract_changed"] is False
+    assert production_boundaries["response_shape_changed"] is False
+    assert production_boundaries["tidal_parser_touched"] is False
+
+    assert report["blockers"] == []
+    assert report["warnings"] == []
