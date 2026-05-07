@@ -2,11 +2,37 @@ services:
   genre-classifier:
     build:
       context: .
-      target: legacy-runtime
+      target: onnx-runtime-slim
     container_name: genre-classifier
     restart: unless-stopped
     ports:
       - "8021:8021"
+    environment:
+      GENRE_PROVIDER: onnx_musicnn
+      ONNX_MUSICNN_MODEL_PATH: /opt/genre-classifier/onnx/msd-musicnn-1.onnx
+      ONNX_MUSICNN_METADATA_PATH: /opt/genre-classifier/onnx/msd-musicnn-1.json
+    volumes:
+      - /opt/music-tools-artifacts/genre-classifier/onnx:/opt/genre-classifier/onnx:ro
+      - ./app/models:/app/app/models
+      - ./app/tmp:/app/app/tmp
+      - ./app/templates:/app/app/templates
+      - ./app/static:/app/app/static
+      - ./app/main.py:/app/app/main.py
+    networks:
+      - musicnet
+
+  genre-classifier-legacy:
+    profiles:
+      - legacy
+    build:
+      context: .
+      target: legacy-runtime
+    container_name: genre-classifier-legacy
+    restart: unless-stopped
+    ports:
+      - "8023:8021"
+    environment:
+      GENRE_PROVIDER: legacy_musicnn
     volumes:
       - ./app/models:/app/app/models
       - ./app/tmp:/app/app/tmp

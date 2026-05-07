@@ -3,10 +3,10 @@ import pytest
 from app.core import settings
 
 
-def test_get_configured_genre_provider_name_defaults_to_legacy(monkeypatch):
+def test_get_configured_genre_provider_name_defaults_to_onnx(monkeypatch):
     monkeypatch.delenv("GENRE_PROVIDER", raising=False)
 
-    assert settings.get_configured_genre_provider_name() == settings.GENRE_PROVIDER_LEGACY
+    assert settings.get_configured_genre_provider_name() == settings.GENRE_PROVIDER_ONNX
 
 
 def test_get_configured_genre_provider_name_accepts_explicit_llm(monkeypatch):
@@ -18,7 +18,7 @@ def test_get_configured_genre_provider_name_accepts_explicit_llm(monkeypatch):
 def test_supported_genre_providers_include_disabled_by_default_onnx():
     assert settings.GENRE_PROVIDER_ONNX == "onnx_musicnn"
     assert settings.GENRE_PROVIDER_ONNX in settings.SUPPORTED_GENRE_PROVIDERS
-    assert settings.DEFAULT_GENRE_PROVIDER == settings.GENRE_PROVIDER_LEGACY
+    assert settings.DEFAULT_GENRE_PROVIDER == settings.GENRE_PROVIDER_ONNX
 
 
 def test_onnx_musicnn_artifact_paths_default_to_unset(monkeypatch):
@@ -50,7 +50,7 @@ def test_onnx_musicnn_artifact_paths_do_not_default_to_tmp_locations(monkeypatch
 def test_get_configured_genre_provider_name_falls_back_to_default_for_blank_value(monkeypatch):
     monkeypatch.setenv("GENRE_PROVIDER", "   ")
 
-    assert settings.get_configured_genre_provider_name() == settings.GENRE_PROVIDER_LEGACY
+    assert settings.get_configured_genre_provider_name() == settings.GENRE_PROVIDER_ONNX
 
 
 def test_get_configured_llm_client_name_defaults_to_stub(monkeypatch):

@@ -1,0 +1,64 @@
+{
+  "roadmap": "4.103",
+  "controlled_onnx_default_switch": true,
+  "switch_executed": true,
+  "switch_success": true,
+  "rollback_executed": false,
+  "default_provider_before": "legacy_musicnn",
+  "default_provider_after": "onnx_musicnn",
+  "default_target_before": "legacy-runtime",
+  "default_target_after": "onnx-runtime-slim",
+  "legacy_provider_preserved": true,
+  "legacy_runtime_preserved": true,
+  "legacy_rollback_profile_present": true,
+  "external_artifacts": {
+    "host_path": "/opt/music-tools-artifacts/genre-classifier/onnx",
+    "container_path": "/opt/genre-classifier/onnx",
+    "model_checksum_match": true,
+    "metadata_checksum_match": true,
+    "artifacts_committed": false
+  },
+  "validation": {
+    "compose_config_success": true,
+    "legacy_profile_config_success": true,
+    "default_service_build_success": true,
+    "default_service_recreated": true,
+    "genre_classifier_health_status": 200,
+    "tidal_parser_health_status": 200
+  },
+  "post_switch_integration_smoke": {
+    "run": true,
+    "endpoint": "POST /",
+    "tidal_url": "https://tidal.com/track/498894205/u",
+    "http_status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "total_time_seconds": 1.328663,
+    "reference_id_error_present": false,
+    "response_excerpt_recorded": true,
+    "audio_classification_present": true,
+    "tidal_parser_audio_classifier_success": true,
+    "genre_classifier_file_processing_succeeded": true,
+    "provider_log_confirmed": true,
+    "provider_selected": "onnx_musicnn"
+  },
+  "production_boundaries": {
+    "tidal_parser_code_changed": false,
+    "classify_contract_changed": false,
+    "response_shape_changed": false,
+    "legacy_removed": false,
+    "artifacts_committed": false
+  },
+  "known_risks": [
+    "Evidence still uses one parser request/audio fixture.",
+    "ONNX output drift remains expected and documented.",
+    "Default runtime depends on external ONNX artifacts.",
+    "Legacy rollback path must be kept."
+  ],
+  "blockers": [],
+  "warnings": [
+    "Evidence still uses one parser request/audio fixture.",
+    "ONNX output drift remains expected and documented.",
+    "Default runtime depends on external ONNX artifacts.",
+    "Legacy rollback path must be kept."
+  ]
+}

@@ -147,7 +147,7 @@ def test_production_requirements_remain_separate_from_optional_packaging():
 
     assert "requirements-optional-onnx.txt" not in production_requirements
     assert "onnxruntime" not in production_requirements
-    assert "essentia-tensorflow" not in production_requirements
+    assert "essentia-tensorflow==2.1b6.dev1389" in production_requirements
     assert "tensorflow==2.21.0" in production_requirements
 
 
@@ -175,40 +175,52 @@ def test_dockerfile_keeps_legacy_default_runtime_and_optional_onnx_target():
     assert "runtime downloads" not in dockerfile.lower()
 
 
-def test_compose_adds_optional_onnx_profile_without_switching_default_service():
+def test_compose_switches_default_service_and_preserves_legacy_rollback_profile():
     compose = _read_text(COMPOSE_PATH)
 
-    assert re.search(r"^\s*target:\s*legacy-runtime\s*$", compose, re.MULTILINE)
     assert re.search(r"^\s*target:\s*onnx-runtime-slim\s*$", compose, re.MULTILINE)
+    assert re.search(r"^\s*target:\s*legacy-runtime\s*$", compose, re.MULTILINE)
     assert re.search(r"^\s*target:\s*onnx-runtime\s*$", compose, re.MULTILINE) is None
     assert "profiles:" in compose
+    assert "legacy" in compose
     assert "onnx_musicnn" in compose
-    assert compose.count("GENRE_PROVIDER: onnx_musicnn") == 1
+    assert compose.count("GENRE_PROVIDER: onnx_musicnn") == 2
+    assert "GENRE_PROVIDER: legacy_musicnn" in compose
     assert "ONNX_MUSICNN_MODEL_PATH: /opt/genre-classifier/onnx/msd-musicnn-1.onnx" in compose
     assert "ONNX_MUSICNN_METADATA_PATH: /opt/genre-classifier/onnx/msd-musicnn-1.json" in compose
     assert (
         compose.count(
             "/opt/music-tools-artifacts/genre-classifier/onnx:/opt/genre-classifier/onnx:ro"
         )
-        == 1
+        == 2
     )
     assert "./artifacts/onnx-musicnn/model.onnx" not in compose
     assert "./artifacts/onnx-musicnn/model.json" not in compose
-    assert "GENRE_PROVIDER" not in compose.split("genre-classifier:\n", 1)[1].split(
+    default_service = compose.split("genre-classifier:\n", 1)[1].split(
+        "genre-classifier-legacy:\n", 1
+    )[0]
+    assert "GENRE_PROVIDER: onnx_musicnn" in default_service
+    assert "ONNX_MUSICNN_MODEL_PATH: /opt/genre-classifier/onnx/msd-musicnn-1.onnx" in default_service
+    assert "ONNX_MUSICNN_METADATA_PATH: /opt/genre-classifier/onnx/msd-musicnn-1.json" in default_service
+    legacy_service = compose.split("genre-classifier-legacy:\n", 1)[1].split(
         "genre-classifier-onnx:\n", 1
     )[0]
+    assert "GENRE_PROVIDER: legacy_musicnn" in legacy_service
+    assert "ONNX_MUSICNN_MODEL_PATH" not in legacy_service
+    assert "ONNX_MUSICNN_METADATA_PATH" not in legacy_service
     assert "requirements-optional-onnx.txt" not in compose
 
 
-def test_settings_keep_legacy_default_provider_and_disabled_by_default_onnx():
+def test_settings_switch_default_provider_to_onnx_and_keep_legacy_available():
     settings_text = _read_text(SETTINGS_PATH)
     factory_text = _read_text(FACTORY_PATH)
 
-    assert settings.DEFAULT_GENRE_PROVIDER == settings.GENRE_PROVIDER_LEGACY == "legacy_musicnn"
+    assert settings.DEFAULT_GENRE_PROVIDER == settings.GENRE_PROVIDER_ONNX == "onnx_musicnn"
+    assert settings.GENRE_PROVIDER_LEGACY == "legacy_musicnn"
     assert settings.DEFAULT_ONNX_MUSICNN_MODEL_PATH is None
     assert settings.DEFAULT_ONNX_MUSICNN_METADATA_PATH is None
     assert settings.GENRE_PROVIDER_ONNX == "onnx_musicnn"
-    assert settings_text.count('DEFAULT_GENRE_PROVIDER = "legacy_musicnn"') == 1
+    assert settings_text.count('DEFAULT_GENRE_PROVIDER = "onnx_musicnn"') == 1
     assert settings_text.count("DEFAULT_ONNX_MUSICNN_MODEL_PATH = None") == 1
     assert settings_text.count("DEFAULT_ONNX_MUSICNN_METADATA_PATH = None") == 1
     assert "if provider_name == genre_provider_onnx:" in factory_text
