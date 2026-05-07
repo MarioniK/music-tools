@@ -17,7 +17,7 @@ FACTORY_PATH = SERVICE_ROOT / "app/providers/factory.py"
 REPORT_PATH = (
     SERVICE_ROOT
     / "docs/lightweight/evaluation/parity-scaffold/"
-    / "onnx-musicnn-optional-dependency-packaging-validation-report.json"
+    / "onnx-musicnn-optional-docker-target-profile-report.json"
 )
 
 EXPECTED_OPTIONAL_REQUIREMENTS = [
@@ -136,14 +136,37 @@ def test_production_requirements_remain_separate_from_optional_packaging():
     assert "tensorflow==2.21.0" in production_requirements
 
 
-def test_dockerfile_and_compose_do_not_enable_optional_install_or_onnx_default():
+def test_dockerfile_keeps_legacy_default_runtime_and_optional_onnx_target():
     dockerfile = _read_text(DOCKERFILE_PATH)
+
+    assert "FROM runtime-base AS legacy-runtime" in dockerfile
+    assert "FROM runtime-base AS onnx-runtime" in dockerfile
+    assert "COPY requirements.txt /app/requirements.txt" in dockerfile
+    assert "pip install --no-cache-dir --requirement /app/requirements.txt" in dockerfile
+    assert "COPY requirements-optional-onnx.txt /app/requirements-optional-onnx.txt" in dockerfile
+    assert "pip install --no-cache-dir --requirement /app/requirements-optional-onnx.txt" in dockerfile
+    assert dockerfile.index("COPY requirements.txt /app/requirements.txt") < dockerfile.index(
+        "COPY requirements-optional-onnx.txt /app/requirements-optional-onnx.txt"
+    )
+    assert "COPY app /app/app" in dockerfile
+    assert "model.onnx" not in dockerfile
+    assert "model.json" not in dockerfile
+    assert "runtime downloads" not in dockerfile.lower()
+
+
+def test_compose_adds_optional_onnx_profile_without_switching_default_service():
     compose = _read_text(COMPOSE_PATH)
 
-    assert "requirements-optional-onnx.txt" not in dockerfile
+    assert "target: legacy-runtime" in compose
+    assert "target: onnx-runtime" in compose
+    assert "profiles:" in compose
+    assert "onnx_musicnn" in compose
+    assert "GENRE_PROVIDER: onnx_musicnn" in compose
+    assert "ONNX_MUSICNN_MODEL_PATH: /opt/genre-classifier/onnx/model.onnx" in compose
+    assert "ONNX_MUSICNN_METADATA_PATH: /opt/genre-classifier/onnx/model.json" in compose
+    assert "./artifacts/onnx-musicnn/model.onnx:/opt/genre-classifier/onnx/model.onnx:ro" in compose
+    assert "./artifacts/onnx-musicnn/model.json:/opt/genre-classifier/onnx/model.json:ro" in compose
     assert "requirements-optional-onnx.txt" not in compose
-    assert "onnx_musicnn" not in compose
-    assert "GENRE_PROVIDER=onnx_musicnn" not in compose
 
 
 def test_settings_keep_legacy_default_provider_and_disabled_by_default_onnx():
@@ -173,30 +196,51 @@ def test_classify_contract_and_response_shape_remain_unchanged():
 def test_optional_packaging_report_records_current_static_state():
     report = json.loads(_read_text(REPORT_PATH))
 
-    assert report["roadmap"] == "4.74"
-    assert report["validation_gate"] is True
+    assert report["roadmap"] == "4.81"
+    assert report["optional_docker_packaging_implementation"] is True
     assert report["not_production_decision"] is True
-    assert report["optional_requirements_present"] is True
-    assert report["optional_requirements_file"] == "genre-classifier/requirements-optional-onnx.txt"
-    assert report["expected_pinned_dependencies"] == EXPECTED_OPTIONAL_REQUIREMENTS
-    assert report["pinned_dependencies_valid"] is True
-    assert report["production_requirements_reference_optional_file"] is False
-    assert report["production_requirements_include_onnxruntime"] is False
-    assert report["production_requirements_include_essentia_tensorflow"] is False
-    assert report["docker_installs_optional_requirements"] is False
-    assert report["compose_sets_onnx_provider_by_default"] is False
-    assert report["provider_default_unchanged"] is True
-    assert report["default_provider"] == "legacy_musicnn"
-    assert report["onnx_musicnn_disabled_by_default"] is True
-    assert report["classify_contract_unchanged"] is True
-    assert report["response_shape_unchanged"] is True
-    assert report["runtime_smoke_approved"] is False
     assert report["production_approval"] is False
-    assert report["production_dependency_changes"] is False
-    assert report["docker_changes"] is False
-    assert report["tidal_parser_touched"] is False
+    assert report["docker_build_run"] is False
+    assert report["docker_compose_run"] is False
+    assert report["classify_called"] is False
+    assert report["network_http_called"] is False
+    implementation = report["implementation"]
+    assert implementation["dockerfile_changed"] is True
+    assert implementation["compose_changed"] is True
+    assert implementation["optional_target_added"] is True
+    assert implementation["optional_profile_added"] is True
+    assert implementation["optional_build_arg_added"] is False
+    assert implementation["default_install_path_unchanged"] is True
+    assert implementation["optional_requirements_installed_only_in_optional_path"] is True
+    assert implementation["runtime_downloads_by_default"] is False
+    assert implementation["artifacts_baked_into_image"] is False
+    assert implementation["mounted_artifacts_required"] is True
+    default_runtime = report["default_runtime"]
+    assert default_runtime["provider"] == "legacy_musicnn"
+    assert default_runtime["legacy_only"] is True
+    assert default_runtime["installs_optional_onnx_deps"] is False
+    assert default_runtime["uses_requirements_optional_onnx"] is False
+    optional_runtime = report["optional_onnx_runtime"]
+    assert optional_runtime["provider"] == "onnx_musicnn"
+    assert optional_runtime["explicit_opt_in_only"] is True
+    assert optional_runtime["uses_requirements_optional_onnx"] is True
+    assert optional_runtime["requires_explicit_model_path"] is True
+    assert optional_runtime["requires_explicit_classes_path"] is True
+    assert optional_runtime["artifacts_delivery"] == "mounted_paths"
+    production_boundaries = report["production_boundaries"]
+    assert production_boundaries["production_requirements_changed"] is False
+    assert production_boundaries["default_provider_changed"] is False
+    assert production_boundaries["classify_contract_changed"] is False
+    assert production_boundaries["response_shape_changed"] is False
+    assert production_boundaries["tidal_parser_touched"] is False
+    validation = report["validation"]
+    assert validation["roadmap_4_80_report_json_valid"] is True
+    assert validation["requirements_optional_onnx_pinned"] is True
+    assert validation["production_requirements_clean"] is True
+    assert validation["static_validation_passed"] is True
     assert report["blockers"] == []
+    assert report["warnings"] == []
     assert (
         report["next_step_recommendation"]
-        == "Roadmap 4.75 may perform an isolated optional install probe only after explicit approval, without Docker/runtime migration."
+        == "Roadmap 4.82 - optional Docker build/static runtime validation without default switch."
     )

@@ -1,5 +1,5 @@
 ARG PYTHON_BASE_IMAGE=python:3.12.13-slim-bookworm@sha256:58525e1a8dada8e72d6f8a11a0ddff8d981fd888549108db52455d577f927f77
-FROM ${PYTHON_BASE_IMAGE}
+FROM ${PYTHON_BASE_IMAGE} AS runtime-base
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -22,3 +22,11 @@ COPY app /app/app
 EXPOSE 8021
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8021"]
+
+FROM runtime-base AS onnx-runtime
+
+COPY requirements-optional-onnx.txt /app/requirements-optional-onnx.txt
+
+RUN python -m pip install --no-cache-dir --requirement /app/requirements-optional-onnx.txt
+
+FROM runtime-base AS legacy-runtime
