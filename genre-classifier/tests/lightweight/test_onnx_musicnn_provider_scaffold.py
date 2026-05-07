@@ -211,14 +211,16 @@ def test_provider_runtime_status_reports_missing_tensorflow_input_musiccnn_bound
     assert "TensorflowInputMusiCNN unavailable" in status["reasons"]
 
 
-def test_provider_classify_reports_disabled_scaffold_state(tmp_path, monkeypatch):
+def test_provider_classify_uses_explicit_artifacts_for_opt_in_smoke(tmp_path, monkeypatch):
     model_path = tmp_path / "msd-musicnn-1.onnx"
     metadata_path = tmp_path / "msd-musicnn-1.json"
+    audio_path = tmp_path / "fixture.mp3"
     model_path.write_bytes(b"stub model")
     metadata_path.write_text(
         json.dumps({"classes": ["dream-pop", "ambient"]}),
         encoding="utf-8",
     )
+    audio_path.write_bytes(b"stub audio")
 
     provider = _build_provider(model_path=model_path, metadata_path=metadata_path)
     monkeypatch.setattr(provider, "_load_onnxruntime", lambda: object())
@@ -227,9 +229,17 @@ def test_provider_classify_reports_disabled_scaffold_state(tmp_path, monkeypatch
         "_load_essentia_standard",
         lambda: SimpleNamespace(TensorflowInputMusiCNN=object()),
     )
+    monkeypatch.setattr(provider, "_build_tensorflow_input_patch", lambda *_: [[0.91, 0.73]])
+    monkeypatch.setattr(provider, "_run_onnx_inference", lambda *_: [0.91, 0.73])
 
-    with pytest.raises(RuntimeError, match="disabled-by-default"):
-        provider.classify("/tmp/audio.wav")
+    provider_result = provider.classify(str(audio_path))
+
+    assert provider_result.provider_name == "onnx_musicnn"
+    assert provider_result.model_name == "onnx-musicnn-scaffold"
+    assert [(item.tag, item.score) for item in provider_result.genres] == [
+        ("dream pop", 0.91),
+        ("ambient", 0.73),
+    ]
 
 
 def test_provider_classify_reports_missing_onnxruntime_as_controlled_failure(tmp_path, monkeypatch):

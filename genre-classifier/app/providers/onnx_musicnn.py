@@ -28,13 +28,13 @@ class OnnxMusiCNNProvider(GenreProvider):
         self._top_n = top_n
 
     def classify(self, audio_path: str) -> ProviderResult:
-        runtime_status = self.describe_runtime_status()
-        if not runtime_status["available"]:
-            raise RuntimeError(self._format_unsupported_message(runtime_status))
+        """Выполняет explicit opt-in классификацию через локальные артефакты.
 
-        raise RuntimeError(
-            "onnx_musicnn provider scaffold is disabled-by-default and inference is not implemented"
-        )
+        Default provider не меняется: этот путь активируется только когда
+        `GENRE_PROVIDER=onnx_musicnn` выбран явно.
+        """
+
+        return self.classify_with_explicit_artifacts(audio_path)
 
     def classify_with_explicit_artifacts(self, audio_path: str, top_n: Optional[int] = None) -> ProviderResult:
         """Выполняет explicit-only direct smoke через локальные артефакты.

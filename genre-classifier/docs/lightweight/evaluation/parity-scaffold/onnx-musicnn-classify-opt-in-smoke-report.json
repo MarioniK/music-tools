@@ -1,0 +1,110 @@
+{
+  "artifacts": {
+    "audio_path_external": true,
+    "audio_path_provided": true,
+    "classes_path_external": true,
+    "classes_path_provided": true,
+    "implicit_discovery_used": false,
+    "onnx_model_path_external": true,
+    "onnx_model_path_provided": true
+  },
+  "blockers": [],
+  "classify_opt_in_smoke_only": true,
+  "classify_response": {
+    "called": true,
+    "genres": [
+      {
+        "prob": 0.2679,
+        "tag": "electronic"
+      },
+      {
+        "prob": 0.1716,
+        "tag": "rock"
+      },
+      {
+        "prob": 0.1285,
+        "tag": "indie"
+      },
+      {
+        "prob": 0.1112,
+        "tag": "pop"
+      },
+      {
+        "prob": 0.0952,
+        "tag": "dance"
+      },
+      {
+        "prob": 0.0878,
+        "tag": "alternative"
+      },
+      {
+        "prob": 0.0741,
+        "tag": "progressive rock"
+      },
+      {
+        "prob": 0.0666,
+        "tag": "electronica"
+      }
+    ],
+    "genres_non_empty": true,
+    "genres_pretty": [
+      "indie rock",
+      "alternative rock",
+      "electronic",
+      "rock",
+      "indie",
+      "pop",
+      "dance",
+      "alternative"
+    ],
+    "genres_pretty_non_empty": true,
+    "message": "\u0410\u0443\u0434\u0438\u043e \u043f\u0440\u043e\u0430\u043d\u0430\u043b\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u043e",
+    "ok": true,
+    "required_fields_present": {
+      "genres": true,
+      "genres_pretty": true,
+      "message": true,
+      "ok": true
+    },
+    "response_shape_changed": false,
+    "status_code": 200
+  },
+  "docker_build": false,
+  "docker_run": false,
+  "explicit_opt_in_only": true,
+  "generated_at": "2026-05-07T13:21:54.883107Z",
+  "local_boundary": {
+    "content_type": "audio/mpeg",
+    "kind": "direct_async_route_coroutine",
+    "method": "POST",
+    "multipart_field": "file",
+    "path": "/classify"
+  },
+  "network_http_called": false,
+  "next_step_recommendation": "Proceed to Roadmap 4.80 Docker/runtime packaging decision only after explicit /classify opt-in smoke succeeds.",
+  "not_production_decision": true,
+  "production_approval": false,
+  "production_boundaries": {
+    "classify_contract_changed": false,
+    "docker_changed": false,
+    "production_requirements_changed": false,
+    "provider_default_unchanged": true,
+    "response_shape_changed": false,
+    "tidal_parser_touched": false
+  },
+  "provider": {
+    "default_provider_changed": false,
+    "explicit_artifacts_used": true,
+    "lazy_optional_imports_preserved": false,
+    "requested_provider": "onnx_musicnn"
+  },
+  "python": {
+    "executable": "/tmp/music-tools-roadmap-4.75-onnx-install-probe/venv/bin/python",
+    "version": "3.11.2"
+  },
+  "roadmap": "4.79",
+  "testclient_used": false,
+  "warnings": [
+    "DIRECT_ROUTE_BOUNDARY_USED"
+  ]
+}
