@@ -1,0 +1,97 @@
+{
+  "roadmap": "4.93",
+  "optional_slim_classify_smoke": true,
+  "not_production_decision": true,
+  "production_approval": false,
+  "service": {
+    "name": "genre-classifier-onnx",
+    "profile": "onnx",
+    "target": "onnx-runtime-slim",
+    "provider": "onnx_musicnn"
+  },
+  "docker": {
+    "compose_up_run": true,
+    "default_service_started": false,
+    "service_stopped_after_smoke": true
+  },
+  "health": {
+    "called": true,
+    "ok": true,
+    "status_code": 200
+  },
+  "classify_smoke": {
+    "called": true,
+    "status_code": 200,
+    "json_parse_ok": true,
+    "ok": true,
+    "required_fields_present": true,
+    "response_shape": [
+      "ok",
+      "message",
+      "genres",
+      "genres_pretty"
+    ],
+    "genres_non_empty": true,
+    "genres_pretty_non_empty": true,
+    "genres": [
+      {
+        "tag": "electronic",
+        "prob": 0.4209
+      },
+      {
+        "tag": "dance",
+        "prob": 0.2404
+      },
+      {
+        "tag": "house",
+        "prob": 0.1625
+      },
+      {
+        "tag": "electro",
+        "prob": 0.1121
+      },
+      {
+        "tag": "electronica",
+        "prob": 0.1058
+      },
+      {
+        "tag": "pop",
+        "prob": 0.0791
+      },
+      {
+        "tag": "rock",
+        "prob": 0.0723
+      },
+      {
+        "tag": "indie",
+        "prob": 0.0688
+      }
+    ],
+    "genres_pretty": [
+      "indie rock",
+      "electronic",
+      "dance",
+      "house",
+      "electro",
+      "electronica",
+      "pop",
+      "rock"
+    ]
+  },
+  "artifacts": {
+    "persistent_mount_used": true,
+    "model_checksum_match": true,
+    "metadata_checksum_match": true
+  },
+  "production_boundaries": {
+    "production_requirements_changed": false,
+    "dockerfile_changed": false,
+    "compose_changed": false,
+    "default_provider_changed": false,
+    "classify_contract_changed": false,
+    "response_shape_changed": false,
+    "tidal_parser_touched": false
+  },
+  "blockers": [],
+  "warnings": []
+}
