@@ -1,0 +1,81 @@
+{
+  "roadmap": "4.102",
+  "onnx_default_switch_readiness_gate": true,
+  "documentation_only": true,
+  "runtime_smoke_run": false,
+  "docker_build_run": false,
+  "docker_compose_run": false,
+  "docker_compose_up_run": false,
+  "classify_called": false,
+  "parse_request_called": false,
+  "network_http_called": false,
+  "inference_run": false,
+  "preprocessing_run": false,
+  "current_default": {
+    "provider": "legacy_musicnn",
+    "target": "legacy-runtime",
+    "onnx_is_default": false
+  },
+  "evidence": {
+    "legacy_integration_smoke_4_99": {
+      "passed": true,
+      "provider": "legacy_musicnn",
+      "http_status": 200,
+      "reference_id_error_present": false,
+      "file_processing_succeeded": true,
+      "response_contains_audio_genres": true
+    },
+    "onnx_candidate_integration_smoke_4_101": {
+      "passed": true,
+      "provider": "onnx_musicnn",
+      "http_status": 200,
+      "reference_id_error_present": false,
+      "file_processing_succeeded": true,
+      "provider_log_confirmed": true,
+      "production_mutated": false,
+      "default_switch": false
+    }
+  },
+  "gap_closure": {
+    "standalone_classify_was_insufficient": true,
+    "full_integration_smoke_now_completed_for_legacy": true,
+    "full_integration_smoke_now_completed_for_onnx_candidate": true,
+    "integration_gap_from_4_97_closed_for_tested_request": true
+  },
+  "readiness_decision": {
+    "onnx_candidate_eligible_for_future_controlled_default_switch": true,
+    "default_switch_approved_in_this_step": false,
+    "production_default_changed_in_this_step": false,
+    "requires_separate_switch_step": true,
+    "requires_immediate_post_switch_integration_smoke": true,
+    "legacy_rollback_must_remain": true
+  },
+  "remaining_risks": [
+    "Only one parser request/audio fixture has been tested.",
+    "ONNX output drift remains expected and must stay documented.",
+    "Default ONNX runtime requires external artifacts to remain provisioned.",
+    "Legacy must remain available as rollback.",
+    "Post-switch integration smoke is mandatory after any future switch."
+  ],
+  "recommended_next_step": {
+    "roadmap": "4.103",
+    "title": "controlled ONNX default switch execution",
+    "must_be_separate_step": true,
+    "must_include_rollback_plan": true,
+    "must_include_post_switch_integration_smoke": true
+  },
+  "production_boundaries": {
+    "app_code_changed": false,
+    "dockerfile_changed": false,
+    "compose_changed": false,
+    "requirements_changed": false,
+    "default_provider_changed": false,
+    "tidal_parser_code_changed": false,
+    "artifacts_committed": false
+  },
+  "blockers": [],
+  "warnings": [
+    "This readiness gate does not switch default runtime.",
+    "Evidence is based on one tested parser request."
+  ]
+}
