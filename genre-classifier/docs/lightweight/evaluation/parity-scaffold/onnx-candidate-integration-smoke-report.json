@@ -1,0 +1,68 @@
+{
+  "roadmap": "4.101",
+  "onnx_candidate_integration_smoke": true,
+  "runtime_smoke_run": true,
+  "default_switch": false,
+  "production_tidal_parser_mutated": false,
+  "production_genre_classifier_mutated": false,
+  "docker_build_run": true,
+  "docker_compose_up_run_for_onnx_candidate": true,
+  "docker_compose_run_run": false,
+  "one_off_tidal_parser_container_used": true,
+  "parse_request_called": true,
+  "network_http_called": true,
+  "direct_classify_called": false,
+  "current_stable_baseline": {
+    "genre_classifier_provider": "legacy_musicnn",
+    "genre_classifier_target": "legacy-runtime",
+    "onnx_is_default": false,
+    "legacy_integration_smoke_passed": true
+  },
+  "onnx_candidate": {
+    "service": "genre-classifier-onnx",
+    "profile": "onnx",
+    "target": "onnx-runtime-slim",
+    "url_from_one_off_tidal_parser": "http://genre-classifier-onnx:8021/classify",
+    "health_status_code": 200,
+    "provider_selected": "onnx_musicnn"
+  },
+  "request": {
+    "endpoint": "POST /",
+    "method": "POST",
+    "tidal_url": "https://tidal.com/track/498894205/u",
+    "audio_fixture": "/tmp/upload.mp3",
+    "http_status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "total_time_seconds": 3.139677,
+    "response_excerpt_recorded": true,
+    "reference_id_error_present": false
+  },
+  "integration_result": {
+    "success": true,
+    "tidal_parser_successful_response": true,
+    "onnx_genre_classifier_file_processing_succeeded": true,
+    "onnx_provider_log_confirmed": true,
+    "response_shape_preserved": true,
+    "audio_classification_present": true,
+    "request_id": "8198daeb1d7a46a483b1e50bf0ba5ce6",
+    "reference_id": null
+  },
+  "production_after_smoke": {
+    "legacy_tidal_parser_health_ok": true,
+    "legacy_genre_classifier_health_ok": true,
+    "legacy_default_unchanged": true,
+    "onnx_candidate_stopped_after_smoke": true
+  },
+  "production_boundaries": {
+    "app_code_changed": false,
+    "dockerfile_changed": false,
+    "compose_changed": false,
+    "requirements_changed": false,
+    "default_provider_changed": false,
+    "tidal_parser_code_changed": false,
+    "artifacts_committed": false
+  },
+  "blockers": [],
+  "warnings": []
+}
+
