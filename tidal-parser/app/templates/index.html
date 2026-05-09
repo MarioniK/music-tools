@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
   <link rel="alternate icon" href="/static/favicon.svg" />
   <link rel="apple-touch-icon" href="/static/favicon.svg" />
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/style.css?v=roadmap-5-0-3" />
 </head>
 
 <body>
@@ -170,8 +170,32 @@
       <div class="audio-block">
         <div class="audio-title">Вывод для блога</div>
         <div class="blog-output">
-          <div class="blog-line">{{ result.blog_output.line1 }}</div>
-          <div class="blog-line blog-tags">{{ result.blog_output.line2 }}</div>
+          <div class="blog-line-row">
+            <div class="blog-line">{{ result.blog_output.line1 }}</div>
+            <button
+              type="button"
+              class="copy-btn"
+              data-copy-text="{{ result.blog_output.line1 | e }}"
+              data-default-label="Copy"
+              aria-label="Copy release line"
+            >
+              <span class="copy-btn-icon" aria-hidden="true">⧉</span>
+              <span class="copy-btn-label">Copy</span>
+            </button>
+          </div>
+          <div class="blog-line-row">
+            <div class="blog-line blog-tags">{{ result.blog_output.line2 }}</div>
+            <button
+              type="button"
+              class="copy-btn"
+              data-copy-text="{{ result.blog_output.line2 | e }}"
+              data-default-label="Copy"
+              aria-label="Copy tags line"
+            >
+              <span class="copy-btn-icon" aria-hidden="true">⧉</span>
+              <span class="copy-btn-label">Copy</span>
+            </button>
+          </div>
         </div>
       </div>
       {% endif %}
@@ -191,23 +215,147 @@
     (function () {
       const urlInput = document.getElementById("url-input");
       const clearButton = document.getElementById("clear-url-button");
-
-      if (!urlInput || !clearButton) {
-        return;
-      }
+      const form = urlInput ? urlInput.form : null;
+      const copyButtons = document.querySelectorAll(".copy-btn");
+      const restoreTimers = new WeakMap();
+      let autoSubmitTimer = null;
+      let submitInProgress = false;
 
       function syncClearButton() {
         clearButton.hidden = urlInput.value.trim() === "";
       }
 
-      clearButton.addEventListener("click", function () {
-        urlInput.value = "";
-        syncClearButton();
-        urlInput.focus();
-      });
+      function looksLikeUrl(value) {
+        return /^(https?:\/\/|www\.)\S+/i.test(value) || /tidal\.com\/\S+/i.test(value);
+      }
 
-      urlInput.addEventListener("input", syncClearButton);
-      syncClearButton();
+      function markButtonCopied(button) {
+        const labelNode = button.querySelector(".copy-btn-label");
+        const defaultLabel = button.dataset.defaultLabel || (labelNode ? labelNode.textContent : button.textContent);
+        button.dataset.defaultLabel = defaultLabel;
+
+        const previousTimer = restoreTimers.get(button);
+        if (previousTimer) {
+          window.clearTimeout(previousTimer);
+        }
+
+        if (labelNode) {
+          labelNode.textContent = "Copied";
+        } else {
+          button.textContent = "Copied";
+        }
+        restoreTimers.set(
+          button,
+          window.setTimeout(function () {
+            if (labelNode) {
+              labelNode.textContent = defaultLabel;
+            } else {
+              button.textContent = defaultLabel;
+            }
+          }, 1200)
+        );
+      }
+
+      async function copyText(text, button) {
+        if (navigator.clipboard && window.isSecureContext) {
+          try {
+            await navigator.clipboard.writeText(text);
+            markButtonCopied(button);
+            return;
+          } catch (error) {
+            // Если clipboard API недоступен по permission, попробуем fallback ниже.
+          }
+        }
+
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "readonly");
+        textarea.style.position = "fixed";
+        textarea.style.top = "-9999px";
+        textarea.style.left = "-9999px";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+
+        let success = false;
+        try {
+          success = document.execCommand("copy");
+        } catch (error) {
+          success = false;
+        } finally {
+          document.body.removeChild(textarea);
+        }
+
+        if (success) {
+          markButtonCopied(button);
+          return;
+        }
+
+        throw new Error("Copy failed");
+      }
+
+      if (urlInput && clearButton) {
+        clearButton.addEventListener("click", function () {
+          urlInput.value = "";
+          syncClearButton();
+          urlInput.focus();
+        });
+
+        urlInput.addEventListener("input", syncClearButton);
+        urlInput.addEventListener("paste", function () {
+          if (!form || submitInProgress) {
+            return;
+          }
+
+          if (autoSubmitTimer) {
+            window.clearTimeout(autoSubmitTimer);
+          }
+
+          autoSubmitTimer = window.setTimeout(function () {
+            autoSubmitTimer = null;
+
+            if (submitInProgress) {
+              return;
+            }
+
+            const value = urlInput.value.trim();
+            if (!value || !looksLikeUrl(value)) {
+              return;
+            }
+
+            if (typeof form.requestSubmit === "function") {
+              form.requestSubmit();
+            } else {
+              const submitButton = form.querySelector('button[type="submit"]');
+              if (submitButton) {
+                submitButton.click();
+              } else {
+                form.submit();
+              }
+            }
+          }, 0);
+        });
+
+        form.addEventListener("submit", function () {
+          submitInProgress = true;
+        });
+
+        syncClearButton();
+      }
+
+      copyButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          const text = button.dataset.copyText || "";
+          if (!text) {
+            return;
+          }
+
+          copyText(text, button).catch(function () {
+            // If copy fails, leave the UI unchanged.
+          });
+        });
+      });
     })();
   </script>
 </body>
