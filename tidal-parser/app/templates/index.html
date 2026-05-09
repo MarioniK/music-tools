@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
   <link rel="alternate icon" href="/static/favicon.svg" />
   <link rel="apple-touch-icon" href="/static/favicon.svg" />
-  <link rel="stylesheet" href="/static/style.css?v=roadmap-5-0-3" />
+  <link rel="stylesheet" href="/static/style.css?v=roadmap-5-1" />
 </head>
 
 <body>
@@ -167,9 +167,79 @@
       {% endif %}
 
       {% if result.blog_output %}
+      {%- if result.cover_url -%}
+      {%- set cover_url = result.cover_url -%}
+      {%- elif result.image_url -%}
+      {%- set cover_url = result.image_url -%}
+      {%- else -%}
+      {%- set cover_url = "—" -%}
+      {%- endif -%}
+
+      {%- if result.final_genres and result.final_genres|length > 0 -%}
+      {%- set prompt_genres = result.final_genres | join(", ") -%}
+      {%- elif result.genres and result.genres|length > 0 -%}
+      {%- set prompt_genres = result.genres | join(", ") -%}
+      {%- else -%}
+      {%- set prompt_genres = "—" -%}
+      {%- endif -%}
+
+      {%- set music_prompt -%}
+Подготовь материал для музыкального поста.
+
+Релиз:
+{{ result.blog_output.line1 | safe }}
+
+Тип релиза:
+{{ (result.release_kind or "неизвестно") | safe }}
+
+TIDAL URL:
+{{ (result.source_url or "—") | safe }}
+
+Cover URL:
+{{ cover_url | safe }}
+
+Черновые жанры:
+{{ prompt_genres | safe }}
+
+Черновые теги:
+{{ result.blog_output.line2 | safe }}
+
+Задачи:
+- Найди Qobuz review по этому релизу.
+- Если Qobuz review найден, переведи его близко к тексту, но литературно.
+- Если Qobuz review не найден, кратко скажи, что рецензия Qobuz не найдена, и не выдумывай её.
+- Подбери YouTube-видео: официальный клип, official audio или live/session.
+- Подбери фото артиста/группы эпохи релиза.
+- Собери каркас DTF-поста.
+- В конце добавь теги по моему шаблону.
+
+Важно:
+- Не использовать запрещённые фразы:
+  - «это не просто»
+  - «не просто»
+  - «это тот случай»
+  - «тот случай, когда»
+  - «один из тех случаев»
+  - «один из тех редких»
+- Использовать кавычки «ёлочки» для названий альбомов, треков, книг.
+- Теги должны оставаться в пользовательском формате.
+      {%- endset -%}
+
       <div class="audio-block">
         <div class="audio-title">Вывод для блога</div>
         <div class="blog-output">
+          <div class="blog-prompt-row">
+            <button
+              type="button"
+              class="copy-btn"
+              data-copy-text="{{ music_prompt | e }}"
+              data-default-label="Copy Music prompt"
+              aria-label="Copy Music prompt"
+            >
+              <span class="copy-btn-icon" aria-hidden="true">⧉</span>
+              <span class="copy-btn-label">Copy Music prompt</span>
+            </button>
+          </div>
           <div class="blog-line-row">
             <div class="blog-line">{{ result.blog_output.line1 }}</div>
             <button

@@ -244,6 +244,15 @@ a {
   background: #0f141d;
 }
 
+.blog-prompt-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 .blog-line-row + .blog-line-row {
   margin-top: 8px;
 }
