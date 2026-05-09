@@ -537,6 +537,67 @@ def test_build_blog_output_uses_country_tag_not_display_country():
     assert "#unitedstates" not in blog_output["line2"]
 
 
+def test_build_blog_output_splits_multiple_artist_tags():
+    result = _valid_result()
+    result["artist"] = "Allison Russell, Kara Jackson, Denitia & Explore! Pop Choir"
+    result["title"] = "Cold April"
+
+    blog_output = main.build_blog_output(result)
+
+    assert blog_output["line1"] == "Allison Russell, Kara Jackson, Denitia & Explore! Pop Choir — «Cold April»"
+    assert "#allisonrussell" in blog_output["line2"]
+    assert "#karajackson" in blog_output["line2"]
+    assert "#denitia" in blog_output["line2"]
+    assert "#explorepopchoir" in blog_output["line2"]
+    assert "#allisonrussellkarajacksondenitiaandexplorepopchoir" not in blog_output["line2"]
+
+
+def test_build_blog_output_preserves_single_artist_tag():
+    result = _valid_result()
+    result["artist"] = "Lykke Li"
+    result["title"] = "The Afterparty"
+
+    blog_output = main.build_blog_output(result)
+
+    assert blog_output["line1"] == "Lykke Li — «The Afterparty»"
+    assert "#lykkeli" in blog_output["line2"]
+
+
+def test_build_blog_output_cleans_artist_punctuation_in_tags():
+    result = _valid_result()
+    result["artist"] = "Explore! Pop Choir"
+    result["title"] = "Title"
+
+    blog_output = main.build_blog_output(result)
+
+    assert "#explorepopchoir" in blog_output["line2"]
+    assert "#explore!popchoir" not in blog_output["line2"]
+
+
+def test_cached_blog_output_splits_multiple_artist_tags(tmp_path, monkeypatch):
+    db_path = _make_test_db(tmp_path)
+    monkeypatch.setattr(main, "get_db_connection", _db_connection_factory(db_path))
+
+    result = _valid_result()
+    result["artist"] = "Allison Russell, Kara Jackson, Denitia & Explore! Pop Choir"
+    result["title"] = "Cold April"
+    result["blog_output"] = {
+        "line1": "stale line",
+        "line2": "#music #music2024 #allisonrussellkarajacksondenitiaandexplorepopchoir",
+    }
+
+    main.save_cached_result(result)
+
+    cached = main.get_cached_result(main.build_cache_key(result["source_url"]))
+
+    assert cached["blog_output"]["line1"] == "Allison Russell, Kara Jackson, Denitia & Explore! Pop Choir — «Cold April»"
+    assert "#allisonrussell" in cached["blog_output"]["line2"]
+    assert "#karajackson" in cached["blog_output"]["line2"]
+    assert "#denitia" in cached["blog_output"]["line2"]
+    assert "#explorepopchoir" in cached["blog_output"]["line2"]
+    assert "#allisonrussellkarajacksondenitiaandexplorepopchoir" not in cached["blog_output"]["line2"]
+
+
 def test_merge_prefer_better_does_not_preserve_stale_note():
     old_result = _valid_result()
     old_result["note"] = "stale note"

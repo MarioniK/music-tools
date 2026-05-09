@@ -254,6 +254,47 @@ def slugify_for_tag(value):
     return value
 
 
+def split_artist_tags(artist):
+    artist = clean_text(artist) or ""
+    if not artist:
+        return []
+
+    parts = [artist]
+
+    for separator in (",", "+", "/"):
+        next_parts = []
+        for part in parts:
+            next_parts.extend([item.strip() for item in part.split(separator)])
+        parts = next_parts
+
+    final_parts = []
+    for part in parts:
+        if not part:
+            continue
+
+        if " & " in part:
+            final_parts.extend([item.strip() for item in part.split(" & ")])
+            continue
+
+        if re.search(r"\s+(?:feat\.?|featuring|with)\s+", part, flags=re.IGNORECASE):
+            final_parts.extend(
+                [item.strip() for item in re.split(r"\s+(?:feat\.?|featuring|with)\s+", part, flags=re.IGNORECASE)]
+            )
+            continue
+
+        final_parts.append(part)
+
+    seen = set()
+    tags = []
+    for part in final_parts:
+        tag = slugify_for_tag(part)
+        if tag and tag not in seen:
+            seen.add(tag)
+            tags.append(tag)
+
+    return tags
+
+
 def score_similarity(a, b):
     a = (clean_text(a) or "").lower()
     b = (clean_text(b) or "").lower()
@@ -661,7 +702,7 @@ def build_blog_output(result):
     country_tag = result.get("artist_country_tag")
     final_genres = [g for g in result.get("final_genres", []) if is_allowed_final_genre(g)]
 
-    artist_tag = slugify_for_tag(artist)
+    artist_tags = split_artist_tags(artist)
     genre_tags = [genre_to_blog_tag(g) for g in final_genres if genre_to_blog_tag(g)]
 
     tags = ["#music"]
@@ -669,7 +710,7 @@ def build_blog_output(result):
     if year:
         tags.append("#music{}".format(year))
 
-    if artist_tag:
+    for artist_tag in artist_tags:
         tags.append("#{}".format(artist_tag))
 
     if country_tag:
