@@ -183,6 +183,9 @@
       {%- set prompt_genres = "—" -%}
       {%- endif -%}
 
+      {%- set artist_query = result.artist or "artist" -%}
+      {%- set title_query = result.title or (result.blog_output.line1 if result.blog_output else "release title") -%}
+
       {%- set music_prompt -%}
 Подготовь материал для музыкального поста.
 
@@ -210,6 +213,19 @@ Cover URL:
 - Если Qobuz review не найден, кратко скажи, что рецензия Qobuz не найдена, и не выдумывай её.
 - Подбери YouTube-видео: официальный клип, official audio или live/session.
 - Подбери фото артиста/группы эпохи релиза.
+- Связанные мои посты на DTF:
+  - Найди мои старые посты по этому артисту/релизу в двух блогах:
+    - https://dtf.ru/id702314
+    - https://dtf.ru/marionik
+  - Предпочитай внешний поиск с оператором site:, потому что встроенный поиск DTF работает плохо.
+  - Если найдёшь релевантные старые посты, предложи, куда их аккуратно вставить в новый материал как внутренние ссылки.
+  - Если ничего не найдёшь, кратко скажи, что связанных постов не найдено.
+  - Не выдумывай ссылки на мои посты.
+- Поисковые запросы для старых постов:
+  - site:dtf.ru/id702314 "{{ artist_query }}"
+  - site:dtf.ru/marionik "{{ artist_query }}"
+  - site:dtf.ru/id702314 "{{ title_query }}"
+  - site:dtf.ru/marionik "{{ title_query }}"
 - Собери каркас DTF-поста.
 - В конце добавь теги по моему шаблону.
 
@@ -225,6 +241,8 @@ Cover URL:
 - Теги должны оставаться в пользовательском формате.
       {%- endset -%}
 
+      <textarea id="music-prompt-copy-target" hidden readonly aria-hidden="true">{{ music_prompt | e }}</textarea>
+
       <div class="audio-block">
         <div class="audio-title">Вывод для блога</div>
         <div class="blog-output">
@@ -232,7 +250,7 @@ Cover URL:
             <button
               type="button"
               class="copy-btn"
-              data-copy-text="{{ music_prompt | e }}"
+              data-copy-target="music-prompt-copy-target"
               data-default-label="Copy Music prompt"
               aria-label="Copy Music prompt"
             >
@@ -365,6 +383,22 @@ Cover URL:
         throw new Error("Copy failed");
       }
 
+      function getCopyText(button) {
+        const targetId = button.dataset.copyTarget;
+        if (targetId) {
+          const target = document.getElementById(targetId);
+          if (target) {
+            if (typeof target.value === "string") {
+              return target.value;
+            }
+
+            return target.textContent || "";
+          }
+        }
+
+        return button.dataset.copyText || "";
+      }
+
       if (urlInput && clearButton) {
         clearButton.addEventListener("click", function () {
           urlInput.value = "";
@@ -416,7 +450,7 @@ Cover URL:
 
       copyButtons.forEach(function (button) {
         button.addEventListener("click", function () {
-          const text = button.dataset.copyText || "";
+          const text = getCopyText(button);
           if (!text) {
             return;
           }
