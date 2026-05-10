@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
   <link rel="alternate icon" href="/static/favicon.svg" />
   <link rel="apple-touch-icon" href="/static/favicon.svg" />
-  <link rel="stylesheet" href="/static/style.css?v=roadmap-5-1" />
+  <link rel="stylesheet" href="/static/style.css?v=roadmap-5-2" />
 </head>
 
 <body>
@@ -214,18 +214,20 @@ Cover URL:
 - Подбери YouTube-видео: официальный клип, official audio или live/session.
 - Подбери фото артиста/группы эпохи релиза.
 - Связанные мои посты на DTF:
-  - Найди мои старые посты по этому артисту/релизу в двух блогах:
+  - Найди мои старые посты по этому артисту/релизу на DTF.
+  - Мои посты могут быть в двух блогах:
     - https://dtf.ru/id702314
     - https://dtf.ru/marionik
-  - Предпочитай внешний поиск с оператором site:, потому что встроенный поиск DTF работает плохо.
+  - Внешний поиск работает лучше встроенного поиска DTF.
+  - Используй устойчивые маркеры моих материалов: `MarioniK` и `О музыке`.
   - Если найдёшь релевантные старые посты, предложи, куда их аккуратно вставить в новый материал как внутренние ссылки.
   - Если ничего не найдёшь, кратко скажи, что связанных постов не найдено.
   - Не выдумывай ссылки на мои посты.
 - Поисковые запросы для старых постов:
-  - site:dtf.ru/id702314 "{{ artist_query }}"
-  - site:dtf.ru/marionik "{{ artist_query }}"
-  - site:dtf.ru/id702314 "{{ title_query }}"
-  - site:dtf.ru/marionik "{{ title_query }}"
+  - site:dtf.ru "{{ artist_query }}" "MarioniK"
+  - site:dtf.ru "{{ title_query }}" "MarioniK"
+  - site:dtf.ru "{{ artist_query }}" "О музыке"
+  - site:dtf.ru "{{ title_query }}" "О музыке"
 - Собери каркас DTF-поста.
 - В конце добавь теги по моему шаблону.
 
@@ -242,6 +244,21 @@ Cover URL:
       {%- endset -%}
 
       <textarea id="music-prompt-copy-target" hidden readonly aria-hidden="true">{{ music_prompt | e }}</textarea>
+      {%- set release_line = result.blog_output.line1 if result.blog_output and result.blog_output.line1 else (result.artist or result.title or "release") -%}
+      {%- set search_subject = result.artist or release_line -%}
+      {%- set search_title = result.title or release_line -%}
+      {%- set search_year = result.release_year -%}
+      {%- set qobuz_review_query = 'site:qobuz.com "' ~ search_subject ~ '" "' ~ search_title ~ '"' -%}
+      {%- set reviews_query = '"' ~ search_subject ~ '" "' ~ search_title ~ '" review' -%}
+      {%- set youtube_official_query = search_subject ~ ' ' ~ search_title ~ ' official video' -%}
+      {%- set youtube_live_query = search_subject ~ ' ' ~ search_title ~ ' live session' -%}
+      {%- if search_year -%}
+      {%- set artist_photo_query = search_subject ~ ' ' ~ search_year ~ ' press photo' -%}
+      {%- else -%}
+      {%- set artist_photo_query = search_subject ~ ' press photo' -%}
+      {%- endif -%}
+      {%- set marionik_query = 'site:dtf.ru "' ~ search_subject ~ '" "MarioniK"' -%}
+      {%- set id702314_query = 'site:dtf.ru "' ~ search_title ~ '" "MarioniK"' -%}
 
       <div class="audio-block">
         <div class="audio-title">Вывод для блога</div>
@@ -257,6 +274,18 @@ Cover URL:
               <span class="copy-btn-icon" aria-hidden="true">⧉</span>
               <span class="copy-btn-label">Copy Music prompt</span>
             </button>
+          </div>
+          <div class="search-helpers">
+            <div class="search-helper-title">Search helpers</div>
+            <div class="search-helper-links">
+              <a class="search-helper-link" href="https://www.google.com/search?q={{ qobuz_review_query | urlencode }}" target="_blank" rel="noopener noreferrer">Qobuz review</a>
+              <a class="search-helper-link" href="https://www.google.com/search?q={{ reviews_query | urlencode }}" target="_blank" rel="noopener noreferrer">Reviews</a>
+              <a class="search-helper-link" href="https://www.youtube.com/results?search_query={{ youtube_official_query | urlencode }}" target="_blank" rel="noopener noreferrer">YouTube official</a>
+              <a class="search-helper-link" href="https://www.youtube.com/results?search_query={{ youtube_live_query | urlencode }}" target="_blank" rel="noopener noreferrer">YouTube live/session</a>
+              <a class="search-helper-link" href="https://www.google.com/search?tbm=isch&q={{ artist_photo_query | urlencode }}" target="_blank" rel="noopener noreferrer">Artist photo</a>
+              <a class="search-helper-link" href="https://www.google.com/search?q={{ marionik_query | urlencode }}" target="_blank" rel="noopener noreferrer">My DTF: artist</a>
+              <a class="search-helper-link" href="https://www.google.com/search?q={{ id702314_query | urlencode }}" target="_blank" rel="noopener noreferrer">My DTF: release</a>
+            </div>
           </div>
           <div class="blog-line-row">
             <div class="blog-line">{{ result.blog_output.line1 }}</div>
