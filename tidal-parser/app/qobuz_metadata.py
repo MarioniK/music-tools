@@ -59,6 +59,21 @@ def _is_allowed_qobuz_url(url: str) -> bool:
     return _is_allowed_qobuz_host(_normalize_host(parsed.netloc))
 
 
+def extract_open_qobuz_album_id(url: str):
+    """Возвращает token альбома из open.qobuz.com deep-link, если он безопасно распознан."""
+
+    parsed = urlparse((url or "").strip())
+    if _normalize_host(parsed.netloc) != "open.qobuz.com":
+        return None
+
+    parts = [part for part in parsed.path.split("/") if part]
+    if len(parts) != 2 or parts[0] != "album":
+        return None
+
+    album_id = _clean_text(parts[1])
+    return album_id or None
+
+
 class _QobuzRedirectHandler(HTTPRedirectHandler):
     """Ограничивает редиректы только Qobuz-хостами."""
 
@@ -370,6 +385,8 @@ def _finalize_identity(candidate, source_url, warnings, method_sources):
             "input_state": "extracted_release_identity",
             "provider": "qobuz",
             "source_url": source_url,
+            "resolved_metadata_url": None,
+            "qobuz_album_id": None,
             "artist": None,
             "title": None,
             "year": None,
@@ -388,6 +405,8 @@ def _finalize_identity(candidate, source_url, warnings, method_sources):
     candidate.setdefault("release_date", None)
     candidate.setdefault("release_type", None)
     candidate.setdefault("cover_url", None)
+    candidate.setdefault("resolved_metadata_url", None)
+    candidate.setdefault("qobuz_album_id", None)
 
     if candidate.get("year") is None and candidate.get("release_date") and re.match(r"^\d{4}", candidate["release_date"]):
         candidate["year"] = int(candidate["release_date"][:4])
@@ -415,6 +434,8 @@ def _finalize_identity(candidate, source_url, warnings, method_sources):
         "input_state": "extracted_release_identity",
         "provider": "qobuz",
         "source_url": source_url,
+        "resolved_metadata_url": candidate.get("resolved_metadata_url"),
+        "qobuz_album_id": candidate.get("qobuz_album_id"),
         "artist": candidate.get("artist"),
         "title": candidate.get("title"),
         "year": candidate.get("year"),
@@ -426,6 +447,17 @@ def _finalize_identity(candidate, source_url, warnings, method_sources):
         "confidence": confidence,
         "warnings": warnings,
     }
+
+
+def _identity_has_release_fields(identity):
+    return bool(identity and identity.get("artist") and identity.get("title"))
+
+
+def _build_open_qobuz_candidate_urls(album_id):
+    return [
+        "https://play.qobuz.com/album/{}".format(album_id),
+        "https://www.qobuz.com/album/{}".format(album_id),
+    ]
 
 
 def _fetch_qobuz_html(url):
@@ -445,6 +477,35 @@ def _fetch_qobuz_html(url):
         truncated = len(raw_bytes) > MAX_QOBUZ_HTML_BYTES
         html_text = raw_bytes[:MAX_QOBUZ_HTML_BYTES].decode(response.headers.get_content_charset() or "utf-8", errors="replace")
         return html_text, content_type, truncated
+
+
+def _extract_qobuz_identity_from_url(url):
+    warnings = []
+
+    try:
+        html_text, content_type, truncated = _fetch_qobuz_html(url)
+    except HTTPError as exc:
+        warnings.append("Не удалось загрузить Qobuz страницу: HTTP {}.".format(getattr(exc, "code", "error")))
+        return _finalize_identity(None, url, warnings, set())
+    except URLError:
+        warnings.append("Не удалось загрузить Qobuz страницу.")
+        return _finalize_identity(None, url, warnings, set())
+    except Exception:
+        warnings.append("Не удалось загрузить Qobuz страницу.")
+        return _finalize_identity(None, url, warnings, set())
+
+    content_type = (content_type or "").lower()
+    if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
+        warnings.append("Qobuz response does not look like HTML.")
+
+    if truncated:
+        warnings.append("Qobuz HTML was truncated to 1 MB.")
+
+    identity = parse_qobuz_release_identity_from_html(html_text, url)
+    if warnings:
+        identity["warnings"] = warnings + identity.get("warnings", [])
+
+    return identity
 
 
 def parse_qobuz_release_identity_from_html(html_text, source_url):
@@ -499,37 +560,51 @@ def extract_qobuz_release_identity(url):
     warnings = []
     parsed_url = urlparse(normalized_url)
     normalized_host = _normalize_host(parsed_url.netloc)
+    open_qobuz_album_id = extract_open_qobuz_album_id(normalized_url)
+    open_qobuz_warning = (
+        "Open Qobuz links may not expose release metadata. Use a regular qobuz.com album page or TIDAL URL for full parsing."
+    )
 
     if not _is_allowed_qobuz_url(normalized_url):
         warnings.append("Qobuz extraction доступен только для HTTP/HTTPS ссылок на qobuz.com.")
         return _finalize_identity(None, normalized_url, warnings, set())
 
     if normalized_host == "open.qobuz.com":
-        warnings.append(
-            "Open Qobuz links may not expose release metadata. Use a regular qobuz.com album page or TIDAL URL for full parsing."
-        )
+        warnings.append(open_qobuz_warning)
 
-    try:
-        html_text, content_type, truncated = _fetch_qobuz_html(normalized_url)
-    except HTTPError as exc:
-        warnings.append("Не удалось загрузить Qobuz страницу: HTTP {}.".format(getattr(exc, "code", "error")))
-        return _finalize_identity(None, normalized_url, warnings, set())
-    except URLError:
-        warnings.append("Не удалось загрузить Qobuz страницу.")
-        return _finalize_identity(None, normalized_url, warnings, set())
-    except Exception:
-        warnings.append("Не удалось загрузить Qobuz страницу.")
-        return _finalize_identity(None, normalized_url, warnings, set())
+    identity = _extract_qobuz_identity_from_url(normalized_url)
+    identity["source_url"] = normalized_url
+    if normalized_host == "open.qobuz.com" and open_qobuz_warning not in identity.get("warnings", []):
+        identity["warnings"] = [open_qobuz_warning] + identity.get("warnings", [])
+    if open_qobuz_album_id:
+        identity["qobuz_album_id"] = open_qobuz_album_id
 
-    content_type = (content_type or "").lower()
-    if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
-        warnings.append("Qobuz response does not look like HTML.")
+    if _identity_has_release_fields(identity):
+        return identity
 
-    if truncated:
-        warnings.append("Qobuz HTML was truncated to 1 MB.")
+    if open_qobuz_album_id:
+        candidate_warnings = list(identity.get("warnings", []))
+        candidate_warnings.append("Open Qobuz link did not expose release metadata.")
 
-    identity = parse_qobuz_release_identity_from_html(html_text, normalized_url)
-    if warnings:
-        identity["warnings"] = warnings + identity.get("warnings", [])
+        for candidate_url in _build_open_qobuz_candidate_urls(open_qobuz_album_id):
+            candidate_identity = _extract_qobuz_identity_from_url(candidate_url)
+            if _identity_has_release_fields(candidate_identity):
+                candidate_identity = dict(candidate_identity)
+                candidate_identity["source_url"] = normalized_url
+                candidate_identity["resolved_metadata_url"] = candidate_url
+                candidate_identity["qobuz_album_id"] = open_qobuz_album_id
+                candidate_identity["extraction_method"] = "{}_candidate".format(
+                    candidate_identity.get("extraction_method") or "mixed"
+                )
+                candidate_identity["warnings"] = candidate_warnings + [
+                    "Qobuz metadata was extracted via a candidate URL: {}.".format(candidate_url)
+                ] + candidate_identity.get("warnings", [])
+                return candidate_identity
+
+        candidate_warnings.append("Tried Qobuz candidate URLs but release identity was not extracted.")
+        identity["warnings"] = candidate_warnings
+
+    if not identity.get("warnings"):
+        identity["warnings"] = warnings
 
     return identity

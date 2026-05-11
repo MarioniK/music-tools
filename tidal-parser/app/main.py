@@ -517,14 +517,19 @@ def _build_manual_release_result(detection):
 
 
 def _build_qobuz_identity_result(detection, extracted):
+    has_identity = bool(extracted.get("artist") or extracted.get("title"))
     return {
         **extracted,
         "input_state": "extracted_release_identity",
         "input_detection": detection,
         "provider": "qobuz",
         "provider_label": "Qobuz",
-        "message": "Qobuz metadata extracted from HTML page. Full resolver is not implemented yet.",
-        "next_step": "This is a minimal identity extraction only. For now, use a TIDAL URL for full parsing.",
+        "message": (
+            "Метаданные Qobuz извлечены из HTML-страницы. Полный resolver пока не реализован."
+            if has_identity
+            else "Метаданные Qobuz были проверены, но идентичность релиза извлечь не удалось. Полный resolver пока не реализован."
+        ),
+        "next_step": "Сейчас это только минимальное извлечение данных. Для полного разбора используй TIDAL-ссылку.",
     }
 
 

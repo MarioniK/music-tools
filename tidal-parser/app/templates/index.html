@@ -110,8 +110,19 @@
         <span class="label">Провайдер:</span>
         <span>{{ result.provider_label or result.provider or "—" }}</span>
       </div>
-      {% if not result.artist and not result.title %}
-      <div class="note">Release identity was not extracted from this Qobuz page.</div>
+      {% if result.qobuz_album_id %}
+      <div class="row">
+        <span class="label">Qobuz album ID:</span>
+        <span>{{ result.qobuz_album_id }}</span>
+      </div>
+      {% endif %}
+      {% if result.resolved_metadata_url %}
+      <div class="row">
+        <span class="label">Metadata URL:</span>
+        <span>
+          <a href="{{ result.resolved_metadata_url }}" target="_blank" rel="noopener noreferrer">{{ result.resolved_metadata_url }}</a>
+        </span>
+      </div>
       {% endif %}
       <div class="row">
         <span class="label">Исполнитель:</span>

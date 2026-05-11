@@ -2,7 +2,27 @@ import pytest
 
 from app import main
 from app import qobuz_metadata
-from app.qobuz_metadata import extract_qobuz_release_identity, parse_qobuz_release_identity_from_html
+from app.qobuz_metadata import (
+    extract_open_qobuz_album_id,
+    extract_qobuz_release_identity,
+    parse_qobuz_release_identity_from_html,
+)
+
+
+def test_extract_open_qobuz_album_id_basic():
+    assert extract_open_qobuz_album_id("https://open.qobuz.com/album/dqqfml14w232y") == "dqqfml14w232y"
+
+
+def test_extract_open_qobuz_album_id_with_query_and_trailing_slash():
+    assert extract_open_qobuz_album_id("https://open.qobuz.com/album/dqqfml14w232y/?x=1") == "dqqfml14w232y"
+
+
+def test_extract_open_qobuz_album_id_rejects_non_open_host():
+    assert extract_open_qobuz_album_id("https://www.qobuz.com/album/dqqfml14w232y") is None
+
+
+def test_extract_open_qobuz_album_id_rejects_non_album_path():
+    assert extract_open_qobuz_album_id("https://open.qobuz.com/track/abc") is None
 
 
 def test_parse_qobuz_release_identity_from_html_uses_json_ld():
@@ -117,6 +137,87 @@ def test_extract_qobuz_release_identity_warns_for_open_qobuz_links(monkeypatch):
     assert result["confidence"] == "low"
     assert any("open qobuz links" in warning.lower() for warning in result["warnings"])
     assert any("generic metadata" in warning.lower() for warning in result["warnings"])
+
+
+def test_extract_qobuz_release_identity_uses_open_qobuz_candidate_url(monkeypatch):
+    def fake_fetch_html(url):
+        if url == "https://open.qobuz.com/album/dqqfml14w232y":
+            return (
+                """
+                <html>
+                  <head>
+                    <title>Open Qobuz</title>
+                  </head>
+                </html>
+                """,
+                "text/html; charset=utf-8",
+                False,
+            )
+
+        return (
+            """
+            <html>
+              <head>
+                <script type="application/ld+json">
+                {
+                  "@context": "https://schema.org",
+                  "@type": "MusicAlbum",
+                  "name": "The Afterparty",
+                  "byArtist": {"@type": "MusicGroup", "name": "Lykke Li"},
+                  "datePublished": "2026-01-10",
+                  "image": "https://images.qobuz.com/candidate-cover.jpg"
+                }
+                </script>
+                <title>Lykke Li - The Afterparty | Qobuz</title>
+              </head>
+            </html>
+            """,
+            "text/html; charset=utf-8",
+            False,
+        )
+
+    monkeypatch.setattr(qobuz_metadata, "_fetch_qobuz_html", fake_fetch_html)
+
+    result = extract_qobuz_release_identity("https://open.qobuz.com/album/dqqfml14w232y")
+
+    assert result["input_state"] == "extracted_release_identity"
+    assert result["source_url"] == "https://open.qobuz.com/album/dqqfml14w232y"
+    assert result["qobuz_album_id"] == "dqqfml14w232y"
+    assert result["resolved_metadata_url"] in {
+        "https://play.qobuz.com/album/dqqfml14w232y",
+        "https://www.qobuz.com/album/dqqfml14w232y",
+    }
+    assert result["artist"] == "Lykke Li"
+    assert result["title"] == "The Afterparty"
+    assert result["confidence"] == "high"
+    assert any("candidate url" in warning.lower() for warning in result["warnings"])
+
+
+def test_extract_qobuz_release_identity_reports_failed_open_qobuz_candidates(monkeypatch):
+    def fake_fetch_html(url):
+        return (
+            """
+            <html>
+              <head>
+                <title>Open Qobuz</title>
+              </head>
+            </html>
+            """,
+            "text/html; charset=utf-8",
+            False,
+        )
+
+    monkeypatch.setattr(qobuz_metadata, "_fetch_qobuz_html", fake_fetch_html)
+
+    result = extract_qobuz_release_identity("https://open.qobuz.com/album/dqqfml14w232y")
+
+    assert result["input_state"] == "extracted_release_identity"
+    assert result["qobuz_album_id"] == "dqqfml14w232y"
+    assert result["resolved_metadata_url"] is None
+    assert result["title"] is None
+    assert result["confidence"] == "low"
+    assert any("open qobuz link did not expose release metadata" in warning.lower() for warning in result["warnings"])
+    assert any("candidate urls" in warning.lower() for warning in result["warnings"])
 
 
 @pytest.mark.asyncio
