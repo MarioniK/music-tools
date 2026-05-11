@@ -28,6 +28,7 @@ from app.genre_normalization import (
     normalize_genres,
 )
 from app.input_detection import detect_music_input
+from app.qobuz_metadata import extract_qobuz_release_identity
 from app.pipeline_logging import logger, run_timed_stage, run_timed_stage_sync
 from app import settings
 from app import metrics
@@ -512,6 +513,18 @@ def _build_manual_release_result(detection):
         "warnings": detection.get("warnings", []),
         "message": "Manual release identity detected. TIDAL resolver is not implemented yet.",
         "next_step": "Next step will be optional TIDAL resolver. For now, use a TIDAL URL for full parsing.",
+    }
+
+
+def _build_qobuz_identity_result(detection, extracted):
+    return {
+        **extracted,
+        "input_state": "extracted_release_identity",
+        "input_detection": detection,
+        "provider": "qobuz",
+        "provider_label": "Qobuz",
+        "message": "Qobuz metadata extracted from HTML page. Full resolver is not implemented yet.",
+        "next_step": "This is a minimal identity extraction only. For now, use a TIDAL URL for full parsing.",
     }
 
 
@@ -1028,6 +1041,21 @@ async def parse_form(
 
         if detection.get("input_type") == "manual_release_line":
             result = _build_manual_release_result(detection)
+            metrics.increment_parse_success_total()
+            return templates.TemplateResponse(
+                "index.html",
+                {
+                    "request": request,
+                    "result": result,
+                    "error": None,
+                    "error_request_id": None,
+                    "form_url": url,
+                },
+            )
+
+        if detection.get("input_type") == "url" and detection.get("provider") == "qobuz":
+            extracted = await asyncio.to_thread(extract_qobuz_release_identity, detection.get("normalized_input"))
+            result = _build_qobuz_identity_result(detection, extracted)
             metrics.increment_parse_success_total()
             return templates.TemplateResponse(
                 "index.html",

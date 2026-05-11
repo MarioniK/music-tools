@@ -58,6 +58,8 @@
       <div class="result-header">
         {% if result.input_state == "manual_release_identity" %}
         <h2>Ручной ввод</h2>
+        {% elif result.input_state == "extracted_release_identity" %}
+        <h2>Qobuz identity</h2>
         {% elif result.input_state == "unsupported_input" %}
         <h2>Неподдерживаемый ввод</h2>
         {% else %}
@@ -103,6 +105,57 @@
       </div>
       <div class="note">{{ result.message }}</div>
       <div class="note">{{ result.next_step }}</div>
+      {% elif result.input_state == "extracted_release_identity" %}
+      <div class="row">
+        <span class="label">Провайдер:</span>
+        <span>{{ result.provider_label or result.provider or "—" }}</span>
+      </div>
+      {% if not result.artist and not result.title %}
+      <div class="note">Release identity was not extracted from this Qobuz page.</div>
+      {% endif %}
+      <div class="row">
+        <span class="label">Исполнитель:</span>
+        <span>{{ result.artist or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Название:</span>
+        <span>{{ result.title or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Год:</span>
+        <span>{{ result.year or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Дата:</span>
+        <span>{{ result.release_date or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Тип релиза:</span>
+        <span>{{ result.release_type or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Cover URL:</span>
+        <span>
+          {% if result.cover_url %}
+          <a href="{{ result.cover_url }}" target="_blank" rel="noopener noreferrer">Открыть cover</a>
+          {% else %}
+          —
+          {% endif %}
+        </span>
+      </div>
+      <div class="row">
+        <span class="label">Метод:</span>
+        <span>{{ result.extraction_method or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Уверенность:</span>
+        <span>{{ result.confidence or "—" }}</span>
+      </div>
+      <div class="note">{{ result.message }}</div>
+      <div class="note">{{ result.next_step }}</div>
+      {% if result.warnings and result.warnings|length > 0 %}
+      <div class="note">{{ result.warnings | join(" ") }}</div>
+      {% endif %}
       {% elif result.input_state == "unsupported_input" %}
       <div class="row">
         <span class="label">Провайдер:</span>
