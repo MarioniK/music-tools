@@ -185,6 +185,34 @@
 
       {%- set artist_query = result.artist or "artist" -%}
       {%- set title_query = result.title or (result.blog_output.line1 if result.blog_output else "release title") -%}
+      {%- set release_type_source = result.release_kind or result.entity_type -%}
+      {%- set release_type_normalized = release_type_source | lower if release_type_source else "" -%}
+      {%- set is_ep_like = release_type_normalized == "ep" -%}
+      {%- set is_single_like = release_type_normalized in ["single", "track"] or result.entity_type == "track" -%}
+      {%- set is_album_like = not is_ep_like and not is_single_like -%}
+      {%- if is_ep_like -%}
+      {%- set prompt_release_type_label = "EP" -%}
+      {%- elif is_single_like -%}
+      {%- set prompt_release_type_label = "single-track" -%}
+      {%- else -%}
+      {%- set prompt_release_type_label = "album" -%}
+      {%- endif -%}
+      {%- set release_year_value = result.release_year -%}
+      {%- set release_period = "new" -%}
+      {%- if release_year_value is number and release_year_value < 2015 -%}
+      {%- set release_period = "nostalgia" -%}
+      {%- elif release_year_value is number and release_year_value < 2026 -%}
+      {%- set release_period = "middle" -%}
+      {%- elif release_year_value is number and release_year_value >= 2026 -%}
+      {%- set release_period = "new" -%}
+      {%- endif -%}
+      {%- if release_period == "nostalgia" -%}
+      {%- set prompt_release_period_label = "nostalgia (<2015)" -%}
+      {%- elif release_period == "new" -%}
+      {%- set prompt_release_period_label = "new/current" -%}
+      {%- else -%}
+      {%- set prompt_release_period_label = "middle/catalog/current (2015-2025)" -%}
+      {%- endif -%}
 
       {%- set music_prompt -%}
 Подготовь материал для музыкального поста.
@@ -193,7 +221,10 @@
 {{ result.blog_output.line1 | safe }}
 
 Тип релиза:
-{{ (result.release_kind or "неизвестно") | safe }}
+{{ prompt_release_type_label | safe }}
+
+Период релиза:
+{{ prompt_release_period_label | safe }}
 
 TIDAL URL:
 {{ (result.source_url or "—") | safe }}
@@ -208,11 +239,83 @@ Cover URL:
 {{ result.blog_output.line2 | safe }}
 
 Задачи:
+{%- if is_single_like %}
+{%- if release_period == "nostalgia" %}
+- Не ищи Qobuz review по этому релизу.
+- Возьми в приоритет Wikipedia, сетевые журналы и архивные музыкальные материалы.
+- Если информация есть, укажи топы и чарты.
+- Если информация есть, укажи награды и номинации.
+- Если клип существует, расскажи о нём.
+- Подбери официальный клип или live/session, если официального клипа нет.
+- Пиши информационно, без GPT-like сравнительных оборотов и без чрезмерной художественности.
+- По тегам: используй #nostalgie. Не используй #newrelease.
+{%- elif release_period == "new" %}
+- Не ищи Qobuz review по этому релизу.
+- В приоритете Stereogum, затем жанровые и релевантные медиа.
+- Переводи максимально близко к источнику, но небуквально.
+- Устойчивые выражения адаптируй на русский, а не переводи в лоб.
+- Подбери официальный клип или live/session, если это лучшее подтверждение релиза.
+- По тегам: используй #newrelease и #dailylist. Не используй #daylilist.
+{%- else %}
+- Не ищи Qobuz review по этому релизу.
+- В приоритете сетевые журналы, интервью, премьеры, официальные страницы и жанровые медиа.
+- Пиши информационно и контекстно, без GPT-like сравнительных оборотов.
+- Подбери официальный клип, official audio или live/session.
+- По тегам: не используй #nostalgie. Не используй #newrelease, если релиз уже не новый.
+{%- endif %}
+{%- else %}
+{%- if release_period == "nostalgia" %}
 - Найди Qobuz review по этому релизу.
 - Если Qobuz review найден, переведи его близко к тексту, но литературно.
 - Если Qobuz review не найден, кратко скажи, что рецензия Qobuz не найдена, и не выдумывай её.
 - Подбери YouTube-видео: официальный клип, official audio или live/session.
 - Подбери фото артиста/группы эпохи релиза.
+- По тегам для альбома:
+  - используй #longplay и #nostalgie.
+  - не используй #newalbum и #newrelease.
+- По тегам для EP:
+  - используй #ep и #nostalgie.
+  - не используй #newalbum и #newrelease.
+{%- elif is_album_like and release_period == "new" %}
+- Найди Qobuz review по этому релизу.
+- Если Qobuz review найден, переведи его близко к тексту, но литературно.
+- Если Qobuz review не найден, кратко скажи, что рецензия Qobuz не найдена, и не выдумывай её.
+- Подбери YouTube-видео: официальный клип, official audio или live/session.
+- Подбери фото артиста/группы эпохи релиза.
+- По тегам для альбома:
+  - используй #newalbum и #newrelease.
+  - не используй #nostalgie.
+- По тегам для EP:
+  - используй #newep и #newrelease.
+  - не используй #nostalgie.
+{%- elif release_period == "new" %}
+- Найди Qobuz review по этому релизу.
+- Если Qobuz review найден, переведи его близко к тексту, но литературно.
+- Если Qobuz review не найден, кратко скажи, что рецензия Qobuz не найдена, и не выдумывай её.
+- Подбери YouTube-видео: официальный клип, official audio или live/session.
+- Подбери фото артиста/группы эпохи релиза.
+- По тегам для альбома:
+  - используй #newalbum и #newrelease.
+  - не используй #nostalgie.
+- По тегам для EP:
+  - используй #newep и #newrelease.
+  - не используй #nostalgie.
+{%- else %}
+- Найди Qobuz review по этому релизу.
+- Если Qobuz review найден, переведи его близко к тексту, но литературно.
+- Если Qobuz review не найден, кратко скажи, что рецензия Qobuz не найдена, и не выдумывай её.
+- Подбери YouTube-видео: официальный клип, official audio или live/session.
+- Подбери фото артиста/группы эпохи релиза.
+- По тегам для альбома:
+  - используй #longplay.
+  - не используй #nostalgie.
+  - не используй #newalbum и #newrelease.
+- По тегам для EP:
+  - используй #ep.
+  - не используй #nostalgie.
+  - не используй #newep и #newrelease.
+{%- endif %}
+{%- endif %}
 - Связанные мои посты на DTF:
   - Найди мои старые посты по этому артисту/релизу на DTF.
   - Мои посты могут быть в двух блогах:
@@ -230,6 +333,14 @@ Cover URL:
   - site:dtf.ru "{{ title_query }}" "О музыке"
 - Собери каркас DTF-поста.
 - В конце добавь теги по моему шаблону.
+- Жанры в тегах пиши латиницей, lowercase, одним словом.
+- Если в названии жанра есть символ амперсанд, заменяй его на `n`, а не удаляй.
+- Примеры: R and B -> `#rnb`, contemporary R and B -> `#contemporaryrnb`, drum and bass -> `#drumnbass`, rock and roll -> `#rocknroll`.
+- `#dailylist` добавляй только там, где это явно указано правилами, прежде всего для новых single-track 2026 года.
+- Не добавляй `#dailylist` автоматически для nostalgia и middle-period релизов.
+- Не используй ошибочное написание `#daylilist`.
+- В самом конце добавь описание релиза тремя словами.
+- Первое слово в этой строке должно начинаться с заглавной буквы.
 
 Важно:
 - Не использовать запрещённые фразы:
