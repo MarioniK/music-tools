@@ -388,7 +388,7 @@ async def test_parse_api_unexpected_exception_returns_500(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_parse_form_empty_input_returns_html_400():
+async def test_parse_form_empty_input_returns_html_200():
     parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
     request = _make_request()
     request.state.request_id = "req-form-empty"
@@ -400,14 +400,14 @@ async def test_parse_form_empty_input_returns_html_400():
         audio=None,
     )
 
-    assert response.status_code == 400
     body = response.body.decode("utf-8")
-    assert "Нужна ссылка TIDAL на track или album." in body
-    assert "Reference ID: req-form-empty" in body
+    assert response.status_code == 200
+    assert "Unsupported input. Paste a TIDAL URL or use Artist — «Release» format." in body
+    assert "Reference ID: req-form-empty" not in body
 
 
 @pytest.mark.asyncio
-async def test_parse_form_invalid_url_returns_html_400():
+async def test_parse_form_invalid_url_returns_html_200():
     parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
     request = _make_request()
     request.state.request_id = "req-form-invalid"
@@ -420,9 +420,33 @@ async def test_parse_form_invalid_url_returns_html_400():
     )
 
     body = response.body.decode("utf-8")
-    assert response.status_code == 400
-    assert "Не удалось распознать ссылку TIDAL" in body
-    assert "Reference ID: req-form-invalid" in body
+    assert response.status_code == 200
+    assert "Unsupported input. Paste a TIDAL URL or use Artist — «Release» format." in body
+    assert "Неподдерживаемый URL провайдер." in body
+    assert "Reference ID: req-form-invalid" not in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_manual_release_line_returns_identity_block():
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    request = _make_request()
+    request.state.request_id = "req-form-manual"
+
+    response = await parse_form_handler(
+        request,
+        url='Lykke Li — «The Afterparty» (2026)',
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert "Ручной ввод" in body
+    assert "Lykke Li" in body
+    assert "The Afterparty" in body
+    assert "2026" in body
+    assert "Manual release identity detected. TIDAL resolver is not implemented yet." in body
+    assert "Next step will be optional TIDAL resolver. For now, use a TIDAL URL for full parsing." in body
 
 
 @pytest.mark.asyncio

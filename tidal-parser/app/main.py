@@ -6,6 +6,7 @@ import sqlite3
 import tempfile
 import time
 import unicodedata
+from urllib.parse import urlparse
 from pathlib import Path
 
 import httpx
@@ -26,6 +27,7 @@ from app.genre_normalization import (
     normalize_audio_prediction_genres,
     normalize_genres,
 )
+from app.input_detection import detect_music_input
 from app.pipeline_logging import logger, run_timed_stage, run_timed_stage_sync
 from app import settings
 from app import metrics
@@ -300,6 +302,13 @@ def split_artist_tags(artist):
     return tags
 
 
+def _normalize_tidal_host(netloc):
+    host = (netloc or "").lower().strip()
+    if ":" in host:
+        host = host.split(":", 1)[0]
+    return host
+
+
 def score_similarity(a, b):
     a = (clean_text(a) or "").lower()
     b = (clean_text(b) or "").lower()
@@ -421,13 +430,20 @@ def merge_prefer_better(old_result, new_result):
 
 
 def extract_tidal_id(url):
+    parsed = urlparse(url)
+    host = _normalize_tidal_host(parsed.netloc)
+    path = parsed.path or ""
+
+    if host != "tidal.com" and not host.endswith(".tidal.com"):
+        raise ValueError("Не удалось распознать ссылку TIDAL. Нужна ссылка на track или album.")
+
     patterns = [
-        (r"tidal\.com/(?:browse/)?track/(\d+)", "track"),
-        (r"tidal\.com/(?:browse/)?album/(\d+)", "album"),
+        (r"/(?:browse/)?track/(\d+)", "track"),
+        (r"/(?:browse/)?album/(\d+)", "album"),
     ]
 
     for pattern, entity_type in patterns:
-        match = re.search(pattern, url)
+        match = re.search(pattern, path)
         if match:
             return {"type": entity_type, "id": match.group(1)}
 
@@ -445,6 +461,58 @@ def validate_user_input_url(url):
         raise ClientInputError(str(e))
 
     return normalized
+
+
+def _provider_label(provider):
+    return {
+        "tidal": "TIDAL",
+        "qobuz": "Qobuz",
+        "spotify": "Spotify",
+        "apple_music": "Apple Music",
+        "yandex_music": "Yandex Music",
+        "manual": "manual",
+        "unknown": "unknown",
+    }.get(provider, provider or "unknown")
+
+
+def _build_unsupported_input_result(detection):
+    provider = detection.get("provider") or "unknown"
+    provider_label = _provider_label(provider)
+    if provider in {"qobuz", "spotify", "apple_music", "yandex_music"}:
+        message = (
+            "{} link detected. Automatic parsing is not supported yet. Use a TIDAL link "
+            "for full parsing, or enter Artist — «Release» once resolver support is added."
+        ).format(provider_label)
+    else:
+        message = "Unsupported input. Paste a TIDAL URL or use Artist — «Release» format."
+
+    return {
+        "input_state": "unsupported_input",
+        "input_detection": detection,
+        "provider": provider,
+        "provider_label": provider_label,
+        "message": message,
+        "warnings": detection.get("warnings", []),
+        "confidence": detection.get("confidence"),
+        "raw_input": detection.get("raw_input"),
+        "normalized_input": detection.get("normalized_input"),
+    }
+
+
+def _build_manual_release_result(detection):
+    return {
+        "input_state": "manual_release_identity",
+        "input_detection": detection,
+        "provider": "manual",
+        "provider_label": "manual",
+        "artist": detection.get("artist"),
+        "title": detection.get("title"),
+        "release_year": detection.get("year"),
+        "confidence": detection.get("confidence"),
+        "warnings": detection.get("warnings", []),
+        "message": "Manual release identity detected. TIDAL resolver is not implemented yet.",
+        "next_step": "Next step will be optional TIDAL resolver. For now, use a TIDAL URL for full parsing.",
+    }
 
 
 async def fetch_html(url):
@@ -919,30 +987,60 @@ async def parse_form(
     request_id = getattr(request.state, "request_id", None)
     metrics.increment_requests_total()
     try:
-        url = validate_user_input_url(url)
-        result = await build_result(url, force_refresh=(force_refresh == "1"))
+        detection = detect_music_input(url)
 
-        if audio and audio.filename:
-            audio_bytes = await audio.read()
-            if audio_bytes:
-                audio_info = await asyncio.to_thread(
-                    classify_audio_file,
-                    audio_bytes,
-                    audio.filename,
-                )
-                result["audio_genres_raw"] = audio_info.get("raw", [])
-                result["audio_genres_pretty"] = audio_info.get("pretty", [])
-                result["final_genres"] = merge_final_genres(
-                    result.get("genres", []),
-                    result.get("audio_genres_pretty", []),
-                    result.get("entity_type"),
-                )
-                result["blog_output"] = build_blog_output(result)
-                result["from_cache"] = False
-                result["audio_note"] = None
-        elif force_refresh == "1":
-            result["audio_note"] = "Обновление без кэша не повторяет аудио-анализ. Если нужен новый audio-анализ, загрузи файл заново."
+        if detection.get("input_type") == "url" and detection.get("provider") == "tidal":
+            url = validate_user_input_url(url)
+            result = await build_result(url, force_refresh=(force_refresh == "1"))
 
+            if audio and audio.filename:
+                audio_bytes = await audio.read()
+                if audio_bytes:
+                    audio_info = await asyncio.to_thread(
+                        classify_audio_file,
+                        audio_bytes,
+                        audio.filename,
+                    )
+                    result["audio_genres_raw"] = audio_info.get("raw", [])
+                    result["audio_genres_pretty"] = audio_info.get("pretty", [])
+                    result["final_genres"] = merge_final_genres(
+                        result.get("genres", []),
+                        result.get("audio_genres_pretty", []),
+                        result.get("entity_type"),
+                    )
+                    result["blog_output"] = build_blog_output(result)
+                    result["from_cache"] = False
+                    result["audio_note"] = None
+            elif force_refresh == "1":
+                result["audio_note"] = "Обновление без кэша не повторяет аудио-анализ. Если нужен новый audio-анализ, загрузи файл заново."
+
+            metrics.increment_parse_success_total()
+            return templates.TemplateResponse(
+                "index.html",
+                {
+                    "request": request,
+                    "result": result,
+                    "error": None,
+                    "error_request_id": None,
+                    "form_url": url,
+                },
+            )
+
+        if detection.get("input_type") == "manual_release_line":
+            result = _build_manual_release_result(detection)
+            metrics.increment_parse_success_total()
+            return templates.TemplateResponse(
+                "index.html",
+                {
+                    "request": request,
+                    "result": result,
+                    "error": None,
+                    "error_request_id": None,
+                    "form_url": url,
+                },
+            )
+
+        result = _build_unsupported_input_result(detection)
         metrics.increment_parse_success_total()
         return templates.TemplateResponse(
             "index.html",

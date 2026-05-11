@@ -58,6 +58,7 @@ h1 {
   min-width: 280px;
 }
 
+#url-input,
 input[type="url"] {
   flex: 1;
   width: 100%;

@@ -9,21 +9,21 @@
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
   <link rel="alternate icon" href="/static/favicon.svg" />
   <link rel="apple-touch-icon" href="/static/favicon.svg" />
-  <link rel="stylesheet" href="/static/style.css?v=roadmap-5-2" />
+  <link rel="stylesheet" href="/static/style.css?v=roadmap-5-3-0-input-fix" />
 </head>
 
 <body>
   <div class="container">
     <h1>TIDAL Parser</h1>
-    <p class="subtitle">Вставь ссылку TIDAL и, при желании, загрузи mp3-фрагмент для анализа по аудио.</p>
+    <p class="subtitle">Вставь TIDAL, Qobuz, Spotify, Apple Music, Yandex Music ссылку или ручную строку вида Artist — «Release». При желании загрузи mp3-фрагмент для анализа по аудио.</p>
 
     <form method="post" class="card form-card" enctype="multipart/form-data">
       <div class="url-input-wrap">
         <input
           id="url-input"
-          type="url"
+          type="text"
           name="url"
-          placeholder="https://tidal.com/track/498894205/u"
+          placeholder="https://tidal.com/track/498894205/u или Artist — «Release»"
           value="{{ form_url or '' }}"
           required
         />
@@ -56,9 +56,16 @@
     {% if result %}
     <div class="card result">
       <div class="result-header">
+        {% if result.input_state == "manual_release_identity" %}
+        <h2>Ручной ввод</h2>
+        {% elif result.input_state == "unsupported_input" %}
+        <h2>Неподдерживаемый ввод</h2>
+        {% else %}
         <h2>Результат</h2>
+        {% endif %}
       </div>
 
+      {% if not result.input_state %}
       <div class="result-toolbar">
         {% if result.from_cache %}
         <div class="badge">Ответ из кэша</div>
@@ -75,7 +82,41 @@
           <button type="submit" class="secondary-btn danger-btn">Сбросить кэш</button>
         </form>
       </div>
+      {% endif %}
 
+      {% if result.input_state == "manual_release_identity" %}
+      <div class="row">
+        <span class="label">Исполнитель:</span>
+        <span>{{ result.artist or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Название:</span>
+        <span>{{ result.title or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Год:</span>
+        <span>{{ result.release_year or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Уверенность:</span>
+        <span>{{ result.confidence or "—" }}</span>
+      </div>
+      <div class="note">{{ result.message }}</div>
+      <div class="note">{{ result.next_step }}</div>
+      {% elif result.input_state == "unsupported_input" %}
+      <div class="row">
+        <span class="label">Провайдер:</span>
+        <span>{{ result.provider_label or result.provider or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Уверенность:</span>
+        <span>{{ result.confidence or "—" }}</span>
+      </div>
+      <div class="note">{{ result.message }}</div>
+      {% if result.warnings and result.warnings|length > 0 %}
+      <div class="note">{{ result.warnings | join(" ") }}</div>
+      {% endif %}
+      {% else %}
       <div class="row">
         <span class="label">Исполнитель:</span>
         <span>{{ result.artist or "—" }}</span>
@@ -426,6 +467,7 @@ Cover URL:
           </div>
         </div>
       </div>
+      {% endif %}
       {% endif %}
 
       {% if result.audio_note %}
