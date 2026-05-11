@@ -103,6 +103,16 @@
         <span class="label">Уверенность:</span>
         <span>{{ result.confidence or "—" }}</span>
       </div>
+      <div class="row">
+        <span class="label">Поиск в TIDAL:</span>
+        <span>
+          {% if result.tidal_search_url %}
+          <a href="{{ result.tidal_search_url }}" target="_blank" rel="noopener noreferrer">Открыть поиск в TIDAL</a>
+          {% else %}
+          Для поиска в TIDAL нужны исполнитель и название релиза.
+          {% endif %}
+        </span>
+      </div>
       <div class="note">{{ result.message }}</div>
       <div class="note">{{ result.next_step }}</div>
       {% elif result.input_state == "extracted_release_identity" %}
@@ -161,6 +171,16 @@
       <div class="row">
         <span class="label">Уверенность:</span>
         <span>{{ result.confidence or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Поиск в TIDAL:</span>
+        <span>
+          {% if result.tidal_search_url %}
+          <a href="{{ result.tidal_search_url }}" target="_blank" rel="noopener noreferrer">Открыть поиск в TIDAL</a>
+          {% else %}
+          Для поиска в TIDAL нужны исполнитель и название релиза.
+          {% endif %}
+        </span>
       </div>
       <div class="note">{{ result.message }}</div>
       <div class="note">{{ result.next_step }}</div>

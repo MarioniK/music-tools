@@ -6,7 +6,7 @@ import sqlite3
 import tempfile
 import time
 import unicodedata
-from urllib.parse import urlparse
+from urllib.parse import quote_plus, urlparse
 from pathlib import Path
 
 import httpx
@@ -500,7 +500,34 @@ def _build_unsupported_input_result(detection):
     }
 
 
+def build_tidal_search_query(artist, title, year=None):
+    artist = clean_text(artist)
+    title = clean_text(title)
+    if not artist or not title:
+        return None
+
+    parts = [artist, title]
+    year = clean_text(year)
+    if year:
+        parts.append(year)
+
+    return " ".join(parts)
+
+
+def build_tidal_search_url(artist, title, year=None):
+    query = build_tidal_search_query(artist, title, year)
+    if not query:
+        return None
+
+    return "https://tidal.com/search?q={}".format(quote_plus(query))
+
+
 def _build_manual_release_result(detection):
+    tidal_search_query = build_tidal_search_query(
+        detection.get("artist"),
+        detection.get("title"),
+        detection.get("year"),
+    )
     return {
         "input_state": "manual_release_identity",
         "input_detection": detection,
@@ -509,21 +536,38 @@ def _build_manual_release_result(detection):
         "artist": detection.get("artist"),
         "title": detection.get("title"),
         "release_year": detection.get("year"),
+        "tidal_search_query": tidal_search_query,
+        "tidal_search_url": build_tidal_search_url(
+            detection.get("artist"),
+            detection.get("title"),
+            detection.get("year"),
+        ),
         "confidence": detection.get("confidence"),
         "warnings": detection.get("warnings", []),
-        "message": "Manual release identity detected. TIDAL resolver is not implemented yet.",
-        "next_step": "Next step will be optional TIDAL resolver. For now, use a TIDAL URL for full parsing.",
+        "message": "Ручная идентичность релиза определена. Автоматический TIDAL resolver пока не реализован.",
+        "next_step": "Для полного разбора используй TIDAL-ссылку или открой поиск в TIDAL.",
     }
 
 
 def _build_qobuz_identity_result(detection, extracted):
     has_identity = bool(extracted.get("artist") or extracted.get("title"))
+    tidal_search_query = build_tidal_search_query(
+        extracted.get("artist"),
+        extracted.get("title"),
+        extracted.get("year"),
+    )
     return {
         **extracted,
         "input_state": "extracted_release_identity",
         "input_detection": detection,
         "provider": "qobuz",
         "provider_label": "Qobuz",
+        "tidal_search_query": tidal_search_query,
+        "tidal_search_url": build_tidal_search_url(
+            extracted.get("artist"),
+            extracted.get("title"),
+            extracted.get("year"),
+        ),
         "message": (
             "Метаданные Qobuz извлечены из HTML-страницы. Полный resolver пока не реализован."
             if has_identity
