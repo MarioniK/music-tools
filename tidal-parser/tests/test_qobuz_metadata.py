@@ -41,7 +41,7 @@ def test_parse_qobuz_release_identity_from_html_uses_json_ld():
           "@context": "https://schema.org",
           "@type": "MusicAlbum",
           "name": "The Afterparty",
-          "byArtist": {"@type": "MusicGroup", "name": "Lykke Li"},
+          "byArtist": {"@type": "MusicGroup", "name": {"@type": "Person", "name": "Lykke Li"}},
           "datePublished": "2026-01-10",
           "image": "https://images.qobuz.com/cover.jpg"
         }
@@ -61,6 +61,39 @@ def test_parse_qobuz_release_identity_from_html_uses_json_ld():
     assert result["release_date"] == "2026-01-10"
     assert result["release_type"] == "album"
     assert result["cover_url"] == "https://images.qobuz.com/cover.jpg"
+    assert result["extraction_method"] in {"json_ld", "mixed"}
+    assert result["confidence"] == "high"
+    assert result["warnings"] == []
+
+
+def test_parse_qobuz_release_identity_from_html_uses_qobuz_title_pattern_for_artist():
+    html = """
+    <html>
+      <head>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "MusicAlbum",
+          "name": "Look For Your Mind!",
+          "datePublished": "2026-05-08",
+          "image": "https://images.qobuz.com/fallback-cover.jpg"
+        }
+        </script>
+        <title>Look For Your Mind!, The Lemon Twigs - Qobuz</title>
+      </head>
+    </html>
+    """
+
+    result = parse_qobuz_release_identity_from_html(html, "https://www.qobuz.com/us-en/album/look-for-your-mind-the-lemon-twigs/dqqfml14w232y")
+
+    assert result["input_state"] == "extracted_release_identity"
+    assert result["provider"] == "qobuz"
+    assert result["artist"] == "The Lemon Twigs"
+    assert result["title"] == "Look For Your Mind!"
+    assert result["year"] == 2026
+    assert result["release_date"] == "2026-05-08"
+    assert result["release_type"] == "album"
+    assert result["cover_url"] == "https://images.qobuz.com/fallback-cover.jpg"
     assert result["extraction_method"] in {"json_ld", "mixed"}
     assert result["confidence"] == "high"
     assert result["warnings"] == []

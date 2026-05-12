@@ -24,6 +24,14 @@ _GENERIC_QOBUZ_TITLES = {
     "qobuz - open",
     "open - qobuz",
 }
+_GENERIC_QOBUZ_ARTISTS = _GENERIC_QOBUZ_TITLES | {
+    "music",
+    "album",
+    "track",
+    "single",
+    "ep",
+    "release",
+}
 
 
 def _clean_text(value):
@@ -162,6 +170,54 @@ def _extract_name(value):
     return _clean_text(value)
 
 
+def _is_generic_qobuz_artist(value):
+    cleaned = _strip_qobuz_suffix(value)
+    if not cleaned:
+        return True
+
+    normalized = re.sub(r"\s+", " ", cleaned).strip().lower()
+    if normalized in _GENERIC_QOBUZ_ARTISTS:
+        return True
+
+    if re.fullmatch(r"(?:qobuz|open qobuz|listen on qobuz|music|album|track|single|ep|release)", normalized):
+        return True
+
+    return False
+
+
+def _extract_qobuz_artist_name(value):
+    if isinstance(value, dict):
+        nested_name = value.get("name")
+        if isinstance(nested_name, (dict, list)):
+            artist = _extract_qobuz_artist_name(nested_name)
+            if artist:
+                return artist
+        else:
+            direct_name = _clean_text(nested_name)
+            if direct_name and not _is_generic_qobuz_artist(direct_name):
+                return direct_name
+
+        for key in ("byArtist", "artist", "creator", "performer", "member", "@graph", "@list"):
+            artist = _extract_qobuz_artist_name(value.get(key))
+            if artist:
+                return artist
+
+        return None
+
+    if isinstance(value, list):
+        for item in value:
+            artist = _extract_qobuz_artist_name(item)
+            if artist:
+                return artist
+        return None
+
+    text = _clean_text(value)
+    if text and not _is_generic_qobuz_artist(text):
+        return text
+
+    return None
+
+
 def _extract_cover_url(value):
     if isinstance(value, dict):
         return _clean_text(value.get("url") or value.get("contentUrl") or value.get("image"))
@@ -216,7 +272,7 @@ def _parse_json_ld_candidate(obj):
         return None, 0
 
     candidate = {
-        "artist": _extract_name(obj.get("byArtist") or obj.get("artist") or obj.get("creator")),
+        "artist": _extract_qobuz_artist_name(obj.get("byArtist") or obj.get("artist") or obj.get("creator")),
         "title": _clean_text(obj.get("name")),
         "year": None,
         "release_date": _extract_date(obj),
@@ -311,6 +367,61 @@ def _split_title_artist(value):
                 return artist, title
 
     return None, cleaned
+
+
+def _extract_artist_from_qobuz_title_source(title_source, known_title=None):
+    cleaned = _strip_qobuz_suffix(title_source)
+    if not cleaned or _is_generic_qobuz_title(cleaned):
+        return None
+
+    normalized_cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    normalized_title = _clean_text(known_title)
+    if normalized_title:
+        normalized_title = re.sub(r"\s+", " ", normalized_title).strip()
+        lowered_cleaned = normalized_cleaned.lower()
+        lowered_title = normalized_title.lower()
+
+        if lowered_cleaned.startswith(lowered_title):
+            remainder = normalized_cleaned[len(normalized_title) :].strip()
+            if remainder.startswith(","):
+                remainder = remainder[1:].strip()
+            remainder = re.sub(r"^[\-\–—:\|]+", "", remainder).strip()
+            if remainder and not _is_generic_qobuz_artist(remainder):
+                return remainder
+
+        if lowered_cleaned.startswith(lowered_title + ","):
+            remainder = normalized_cleaned[len(normalized_title) + 1 :].strip()
+            remainder = re.sub(r"^[\-\–—:\|]+", "", remainder).strip()
+            if remainder and not _is_generic_qobuz_artist(remainder):
+                return remainder
+
+    if normalized_title and normalized_cleaned.count(",") == 1:
+        left, right = [part.strip() for part in normalized_cleaned.split(",", 1)]
+        if left.lower() == normalized_title.lower():
+            right = re.sub(r"^[\-\–—:\|]+", "", right).strip()
+            if right and not _is_generic_qobuz_artist(right):
+                return right
+
+    return None
+
+
+def _extract_qobuz_artist_fallback(meta, title_source, known_title=None):
+    for key in (
+        "music:musician",
+        "music:musicians",
+        "music:artist",
+        "artist",
+        "author",
+        "article:author",
+        "dc.creator",
+        "creator",
+        "twitter:creator",
+    ):
+        artist = _clean_text(meta.get(key))
+        if artist and not _is_generic_qobuz_artist(artist):
+            return artist
+
+    return _extract_artist_from_qobuz_title_source(title_source, known_title)
 
 
 def _build_open_graph_identity(meta):
@@ -546,6 +657,15 @@ def parse_qobuz_release_identity_from_html(html_text, source_url):
     elif candidate and candidate is title_identity and (og_identity or json_ld_identity):
         candidate = dict(title_identity)
         candidate["extraction_method"] = "mixed"
+
+    if candidate and not candidate.get("artist"):
+        artist_fallback = _extract_qobuz_artist_fallback(parser.meta, parser.title_text, candidate.get("title"))
+        if artist_fallback:
+            candidate = dict(candidate)
+            candidate["artist"] = artist_fallback
+            if candidate.get("extraction_method") != "mixed":
+                candidate["extraction_method"] = "mixed"
+            method_sources.add("artist_fallback")
 
     if not candidate:
         warnings.append("Не удалось найти Qobuz metadata в HTML.")
