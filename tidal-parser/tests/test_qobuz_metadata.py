@@ -425,6 +425,8 @@ async def test_parse_form_qobuz_track_url_renders_track_id_notice(monkeypatch):
     assert "google.com/search" not in body
     assert "Copy Music prompt" not in body
     assert "Copy release line" not in body
+    assert "Найди Qobuz review" not in body
+    assert "Не ищи Qobuz review" not in body
 
 
 def test_extract_qobuz_release_identity_uses_open_qobuz_candidate_url(monkeypatch):
@@ -561,6 +563,58 @@ async def test_parse_form_qobuz_url_renders_extracted_identity(monkeypatch):
     assert "Sepultura — «Nation» (2001)" in body
     assert "Copy Music prompt" in body
     assert "Copy release line" in body
+    assert "Найди Qobuz review по этому релизу." in body
+    assert "Не ищи Qobuz review по этому релизу." not in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_qobuz_ep_url_renders_qobuz_review_prompt(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+
+    monkeypatch.setattr(
+        main,
+        "extract_qobuz_release_identity",
+        lambda url: {
+            "input_state": "extracted_release_identity",
+            "provider": "qobuz",
+            "source_url": url,
+            "artist": "Sepultura",
+            "title": "Nation",
+            "year": None,
+            "release_date": "2001-03-12",
+            "release_type": "ep",
+            "cover_url": "https://images.qobuz.com/cover.jpg",
+            "extraction_method": "json_ld",
+            "confidence": "high",
+            "warnings": [],
+            "qobuz_album_id": None,
+            "qobuz_track_id": None,
+        },
+    )
+
+    response = await parse_form_handler(
+        main.Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/",
+                "headers": [],
+                "query_string": b"",
+                "server": ("testserver", 80),
+                "client": ("127.0.0.1", 12345),
+                "scheme": "http",
+            }
+        ),
+        url="https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629",
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert "Qobuz identity" in body
+    assert "Найди Qobuz review по этому релизу." in body
+    assert "Не ищи Qobuz review по этому релизу." not in body
 
 
 @pytest.mark.asyncio
