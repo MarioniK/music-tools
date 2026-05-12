@@ -626,8 +626,8 @@ def _identity_has_release_fields(identity):
 
 def _build_open_qobuz_candidate_urls(album_id):
     return [
-        "https://play.qobuz.com/album/{}".format(album_id),
-        "https://www.qobuz.com/album/{}".format(album_id),
+        "https://www.qobuz.com/us-en/album/{}".format(album_id),
+        "https://www.qobuz.com/gb-en/album/{}".format(album_id),
     ]
 
 
@@ -647,14 +647,21 @@ def _fetch_qobuz_html(url):
         raw_bytes = response.read(MAX_QOBUZ_HTML_BYTES + 1)
         truncated = len(raw_bytes) > MAX_QOBUZ_HTML_BYTES
         html_text = raw_bytes[:MAX_QOBUZ_HTML_BYTES].decode(response.headers.get_content_charset() or "utf-8", errors="replace")
-        return html_text, content_type, truncated
+        return html_text, content_type, truncated, response.geturl()
 
 
 def _extract_qobuz_identity_from_url(url):
     warnings = []
+    final_url = url
+    source_parts = [part for part in urlparse(url).path.split("/") if part]
+    source_album_id = source_parts[-1] if source_parts else None
 
     try:
-        html_text, content_type, truncated = _fetch_qobuz_html(url)
+        fetch_result = _fetch_qobuz_html(url)
+        if isinstance(fetch_result, tuple) and len(fetch_result) >= 4:
+            html_text, content_type, truncated, final_url = fetch_result[:4]
+        else:
+            html_text, content_type, truncated = fetch_result
     except HTTPError as exc:
         warnings.append("Не удалось загрузить Qobuz страницу: HTTP {}.".format(getattr(exc, "code", "error")))
         try:
@@ -683,6 +690,16 @@ def _extract_qobuz_identity_from_url(url):
         warnings.append("Qobuz HTML was truncated to 1 MB.")
 
     identity = parse_qobuz_release_identity_from_html(html_text, url)
+    if identity and identity.get("artist") and identity.get("title"):
+        final_host = _normalize_host(urlparse(final_url).netloc)
+        if (
+            final_host == "www.qobuz.com"
+            and final_url != url
+            and source_album_id
+            and "/album/" in final_url
+            and final_url.rstrip("/").endswith("/{}".format(source_album_id))
+        ):
+            identity["resolved_metadata_url"] = final_url
     if warnings:
         identity["warnings"] = warnings + identity.get("warnings", [])
 
@@ -810,16 +827,18 @@ def extract_qobuz_release_identity(url):
 
         for candidate_url in _build_open_qobuz_candidate_urls(open_qobuz_album_id):
             candidate_identity = _extract_qobuz_identity_from_url(candidate_url)
+            candidate_warnings.extend(candidate_identity.get("warnings", []))
             if _identity_has_release_fields(candidate_identity):
                 candidate_identity = dict(candidate_identity)
                 candidate_identity["source_url"] = normalized_url
-                candidate_identity["resolved_metadata_url"] = candidate_url
+                resolved_metadata_url = candidate_identity.get("resolved_metadata_url") or candidate_url
+                candidate_identity["resolved_metadata_url"] = resolved_metadata_url
                 candidate_identity["qobuz_album_id"] = open_qobuz_album_id
                 candidate_identity["extraction_method"] = "{}_candidate".format(
                     candidate_identity.get("extraction_method") or "mixed"
                 )
                 candidate_identity["warnings"] = candidate_warnings + [
-                    "Qobuz metadata was extracted via a candidate URL: {}.".format(candidate_url)
+                    "Qobuz metadata was extracted via a candidate URL: {}.".format(resolved_metadata_url)
                 ] + candidate_identity.get("warnings", [])
                 return candidate_identity
 

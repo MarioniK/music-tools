@@ -430,7 +430,10 @@ async def test_parse_form_qobuz_track_url_renders_track_id_notice(monkeypatch):
 
 
 def test_extract_qobuz_release_identity_uses_open_qobuz_candidate_url(monkeypatch):
+    fetch_calls = []
+
     def fake_fetch_html(url):
+        fetch_calls.append(url)
         if url == "https://open.qobuz.com/album/dqqfml14w232y":
             return (
                 """
@@ -442,6 +445,31 @@ def test_extract_qobuz_release_identity_uses_open_qobuz_candidate_url(monkeypatc
                 """,
                 "text/html; charset=utf-8",
                 False,
+                "https://open.qobuz.com/album/dqqfml14w232y",
+            )
+
+        if url == "https://www.qobuz.com/us-en/album/dqqfml14w232y":
+            return (
+                """
+                <html>
+                  <head>
+                    <script type="application/ld+json">
+                    {
+                      "@context": "https://schema.org",
+                      "@type": "MusicAlbum",
+                      "name": "The Afterparty",
+                      "byArtist": {"@type": "MusicGroup", "name": "Lykke Li"},
+                      "datePublished": "2026-01-10",
+                      "image": "https://images.qobuz.com/candidate-cover.jpg"
+                    }
+                    </script>
+                    <title>Lykke Li - The Afterparty | Qobuz</title>
+                  </head>
+                </html>
+                """,
+                "text/html; charset=utf-8",
+                False,
+                "https://www.qobuz.com/us-en/album/the-afterparty-lykke-li/dqqfml14w232y",
             )
 
         return (
@@ -464,6 +492,7 @@ def test_extract_qobuz_release_identity_uses_open_qobuz_candidate_url(monkeypatc
             """,
             "text/html; charset=utf-8",
             False,
+            url,
         )
 
     monkeypatch.setattr(qobuz_metadata, "_fetch_qobuz_html", fake_fetch_html)
@@ -474,17 +503,23 @@ def test_extract_qobuz_release_identity_uses_open_qobuz_candidate_url(monkeypatc
     assert result["source_url"] == "https://open.qobuz.com/album/dqqfml14w232y"
     assert result["qobuz_album_id"] == "dqqfml14w232y"
     assert result["resolved_metadata_url"] in {
-        "https://play.qobuz.com/album/dqqfml14w232y",
-        "https://www.qobuz.com/album/dqqfml14w232y",
+        "https://www.qobuz.com/us-en/album/the-afterparty-lykke-li/dqqfml14w232y",
     }
     assert result["artist"] == "Lykke Li"
     assert result["title"] == "The Afterparty"
     assert result["confidence"] == "high"
     assert any("candidate url" in warning.lower() for warning in result["warnings"])
+    assert fetch_calls == [
+        "https://open.qobuz.com/album/dqqfml14w232y",
+        "https://www.qobuz.com/us-en/album/dqqfml14w232y",
+    ]
 
 
 def test_extract_qobuz_release_identity_reports_failed_open_qobuz_candidates(monkeypatch):
+    fetch_calls = []
+
     def fake_fetch_html(url):
+        fetch_calls.append(url)
         return (
             """
             <html>
@@ -495,6 +530,7 @@ def test_extract_qobuz_release_identity_reports_failed_open_qobuz_candidates(mon
             """,
             "text/html; charset=utf-8",
             False,
+            url,
         )
 
     monkeypatch.setattr(qobuz_metadata, "_fetch_qobuz_html", fake_fetch_html)
@@ -508,6 +544,127 @@ def test_extract_qobuz_release_identity_reports_failed_open_qobuz_candidates(mon
     assert result["confidence"] == "low"
     assert any("open qobuz link did not expose release metadata" in warning.lower() for warning in result["warnings"])
     assert any("candidate urls" in warning.lower() for warning in result["warnings"])
+    assert fetch_calls == [
+        "https://open.qobuz.com/album/dqqfml14w232y",
+        "https://www.qobuz.com/us-en/album/dqqfml14w232y",
+        "https://www.qobuz.com/gb-en/album/dqqfml14w232y",
+    ]
+
+
+def test_extract_qobuz_release_identity_stops_after_first_successful_locale_candidate(monkeypatch):
+    fetch_calls = []
+
+    def fake_fetch_html(url):
+        fetch_calls.append(url)
+        if url == "https://open.qobuz.com/album/dqqfml14w232y":
+            return (
+                "<html><head><title>Open Qobuz</title></head></html>",
+                "text/html; charset=utf-8",
+                False,
+                "https://open.qobuz.com/album/dqqfml14w232y",
+            )
+
+        if url == "https://www.qobuz.com/us-en/album/dqqfml14w232y":
+            return (
+                """
+                <html>
+                  <head>
+                    <script type="application/ld+json">
+                    {
+                      "@context": "https://schema.org",
+                      "@type": "MusicAlbum",
+                      "name": "The Afterparty",
+                      "byArtist": {"@type": "MusicGroup", "name": "Lykke Li"},
+                      "datePublished": "2026-01-10",
+                      "image": "https://images.qobuz.com/candidate-cover.jpg"
+                    }
+                    </script>
+                    <title>Lykke Li - The Afterparty | Qobuz</title>
+                  </head>
+                </html>
+                """,
+                "text/html; charset=utf-8",
+                False,
+                "https://www.qobuz.com/us-en/album/the-afterparty-lykke-li/dqqfml14w232y",
+            )
+
+        raise AssertionError("gb-en fallback should not be called after first success")
+
+    monkeypatch.setattr(qobuz_metadata, "_fetch_qobuz_html", fake_fetch_html)
+
+    result = extract_qobuz_release_identity("https://open.qobuz.com/album/dqqfml14w232y")
+
+    assert result["resolved_metadata_url"] == "https://www.qobuz.com/us-en/album/the-afterparty-lykke-li/dqqfml14w232y"
+    assert fetch_calls == [
+        "https://open.qobuz.com/album/dqqfml14w232y",
+        "https://www.qobuz.com/us-en/album/dqqfml14w232y",
+    ]
+
+
+def test_extract_qobuz_release_identity_continues_on_429_then_uses_second_locale_candidate(monkeypatch):
+    fetch_calls = []
+    headers = Message()
+    headers["Content-Type"] = "text/html; charset=utf-8"
+    error = HTTPError(
+        "https://www.qobuz.com/us-en/album/dqqfml14w232y",
+        429,
+        "Too Many Requests",
+        headers,
+        BytesIO(b"<html><head><title>Rate limited</title></head></html>"),
+    )
+
+    def fake_fetch_html(url):
+        fetch_calls.append(url)
+        if url == "https://open.qobuz.com/album/dqqfml14w232y":
+            return (
+                "<html><head><title>Open Qobuz</title></head></html>",
+                "text/html; charset=utf-8",
+                False,
+                "https://open.qobuz.com/album/dqqfml14w232y",
+            )
+
+        if url == "https://www.qobuz.com/us-en/album/dqqfml14w232y":
+            raise error
+
+        if url == "https://www.qobuz.com/gb-en/album/dqqfml14w232y":
+            return (
+                """
+                <html>
+                  <head>
+                    <script type="application/ld+json">
+                    {
+                      "@context": "https://schema.org",
+                      "@type": "MusicAlbum",
+                      "name": "The Afterparty",
+                      "byArtist": {"@type": "MusicGroup", "name": "Lykke Li"},
+                      "datePublished": "2026-01-10",
+                      "image": "https://images.qobuz.com/candidate-cover.jpg"
+                    }
+                    </script>
+                    <title>Lykke Li - The Afterparty | Qobuz</title>
+                  </head>
+                </html>
+                """,
+                "text/html; charset=utf-8",
+                False,
+                "https://www.qobuz.com/gb-en/album/the-afterparty-lykke-li/dqqfml14w232y",
+            )
+
+        raise AssertionError("unexpected fetch url")
+
+    monkeypatch.setattr(qobuz_metadata, "_fetch_qobuz_html", fake_fetch_html)
+
+    result = extract_qobuz_release_identity("https://open.qobuz.com/album/dqqfml14w232y")
+
+    assert result["artist"] == "Lykke Li"
+    assert result["title"] == "The Afterparty"
+    assert result["resolved_metadata_url"] == "https://www.qobuz.com/gb-en/album/the-afterparty-lykke-li/dqqfml14w232y"
+    assert any("429" in warning for warning in result["warnings"])
+    assert fetch_calls == [
+        "https://open.qobuz.com/album/dqqfml14w232y",
+        "https://www.qobuz.com/us-en/album/dqqfml14w232y",
+        "https://www.qobuz.com/gb-en/album/dqqfml14w232y",
+    ]
 
 
 @pytest.mark.asyncio
