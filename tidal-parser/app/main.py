@@ -518,6 +518,15 @@ def build_tidal_search_url(artist, title, year=None):
     return "https://tidal.com/search?q={}".format(quote_plus(query))
 
 
+def build_qobuz_album_id_search_url(qobuz_album_id):
+    qobuz_album_id = clean_text(qobuz_album_id)
+    if not qobuz_album_id:
+        return None
+
+    query = 'site:qobuz.com "{}"'.format(qobuz_album_id)
+    return "https://www.google.com/search?q={}".format(quote_plus(query))
+
+
 def _build_manual_release_result(detection):
     tidal_search_query = build_tidal_search_query(
         detection.get("artist"),
@@ -552,12 +561,14 @@ def _build_qobuz_identity_result(detection, extracted):
         extracted.get("title"),
         extracted.get("year"),
     )
+    qobuz_album_id = extracted.get("qobuz_album_id")
     return {
         **extracted,
         "input_state": "extracted_release_identity",
         "input_detection": detection,
         "provider": "qobuz",
         "provider_label": "Qobuz",
+        "qobuz_album_id_search_url": build_qobuz_album_id_search_url(qobuz_album_id),
         "tidal_search_query": tidal_search_query,
         "tidal_search_url": build_tidal_search_url(
             extracted.get("artist"),

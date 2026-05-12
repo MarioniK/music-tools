@@ -126,6 +126,14 @@
         <span>{{ result.qobuz_album_id }}</span>
       </div>
       {% endif %}
+      {% if result.qobuz_album_id_search_url %}
+      <div class="row">
+        <span class="label">Найти страницу Qobuz по album ID:</span>
+        <span>
+          <a href="{{ result.qobuz_album_id_search_url }}" target="_blank" rel="noopener noreferrer">Открыть поиск в Google</a>
+        </span>
+      </div>
+      {% endif %}
       {% if result.resolved_metadata_url %}
       <div class="row">
         <span class="label">Metadata URL:</span>

@@ -1,4 +1,5 @@
 import pytest
+from urllib.parse import parse_qs, urlparse
 
 from app import main
 from app import qobuz_metadata
@@ -7,6 +8,12 @@ from app.qobuz_metadata import (
     extract_qobuz_release_identity,
     parse_qobuz_release_identity_from_html,
 )
+
+
+def _extract_query_param(url, name="q"):
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+    return query.get(name, [None])[0]
 
 
 def test_extract_open_qobuz_album_id_basic():
@@ -139,6 +146,63 @@ def test_extract_qobuz_release_identity_warns_for_open_qobuz_links(monkeypatch):
     assert any("generic metadata" in warning.lower() for warning in result["warnings"])
 
 
+def test_build_qobuz_album_id_search_url_uses_encoded_album_id():
+    url = main.build_qobuz_album_id_search_url("dqqfml14w232y")
+
+    assert url.startswith("https://www.google.com/search")
+    query = _extract_query_param(url)
+    assert query == 'site:qobuz.com "dqqfml14w232y"'
+    assert "dqqfml14w232y" in query
+
+
+def test_qobuz_identity_result_includes_album_id_search_url_without_artist_title():
+    result = main._build_qobuz_identity_result(
+        {"provider": "qobuz"},
+        {
+            "artist": None,
+            "title": None,
+            "year": None,
+            "release_date": None,
+            "release_type": None,
+            "cover_url": None,
+            "extraction_method": "none",
+            "confidence": "low",
+            "warnings": [],
+            "source_url": "https://open.qobuz.com/album/dqqfml14w232y",
+            "qobuz_album_id": "dqqfml14w232y",
+        },
+    )
+
+    assert result["qobuz_album_id_search_url"] is not None
+    assert "google.com/search" in result["qobuz_album_id_search_url"]
+    assert _extract_query_param(result["qobuz_album_id_search_url"]) == 'site:qobuz.com "dqqfml14w232y"'
+    assert result["tidal_search_url"] is None
+
+
+def test_qobuz_identity_result_includes_both_helpers_when_identity_exists():
+    result = main._build_qobuz_identity_result(
+        {"provider": "qobuz"},
+        {
+            "artist": "Lykke Li",
+            "title": "The Afterparty",
+            "year": 2026,
+            "release_date": "2026-01-10",
+            "release_type": "album",
+            "cover_url": None,
+            "extraction_method": "json_ld",
+            "confidence": "high",
+            "warnings": [],
+            "source_url": "https://www.qobuz.com/us-en/album/example/abc",
+            "qobuz_album_id": "abc123",
+        },
+    )
+
+    assert result["tidal_search_url"] is not None
+    assert result["qobuz_album_id_search_url"] is not None
+    assert "google.com/search" in result["qobuz_album_id_search_url"]
+    assert _extract_query_param(result["qobuz_album_id_search_url"]) == 'site:qobuz.com "abc123"'
+
+
 def test_extract_qobuz_release_identity_uses_open_qobuz_candidate_url(monkeypatch):
     def fake_fetch_html(url):
         if url == "https://open.qobuz.com/album/dqqfml14w232y":
@@ -268,3 +332,55 @@ async def test_parse_form_qobuz_url_renders_extracted_identity(monkeypatch):
     assert "The Afterparty" in body
     assert "2026-01-10" in body
     assert "json_ld" in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_qobuz_url_renders_album_id_search_helper(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+
+    monkeypatch.setattr(
+        main,
+        "extract_qobuz_release_identity",
+        lambda url: {
+            "input_state": "extracted_release_identity",
+            "provider": "qobuz",
+            "source_url": url,
+            "artist": None,
+            "title": None,
+            "year": None,
+            "release_date": None,
+            "release_type": None,
+            "cover_url": None,
+            "extraction_method": "none",
+            "confidence": "low",
+            "warnings": [],
+            "qobuz_album_id": "dqqfml14w232y",
+            "qobuz_album_id_search_url": main.build_qobuz_album_id_search_url("dqqfml14w232y"),
+            "tidal_search_url": None,
+        },
+    )
+
+    response = await parse_form_handler(
+        main.Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/",
+                "headers": [],
+                "query_string": b"",
+                "server": ("testserver", 80),
+                "client": ("127.0.0.1", 12345),
+                "scheme": "http",
+            }
+        ),
+        url="https://open.qobuz.com/album/dqqfml14w232y",
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert "Найти страницу Qobuz по album ID" in body
+    assert "google.com/search" in body
+    assert "site%3Aqobuz.com+%22dqqfml14w232y%22" in body or 'site:qobuz.com "dqqfml14w232y"' in body
+    assert "Для поиска в TIDAL нужны исполнитель и название релиза." in body
