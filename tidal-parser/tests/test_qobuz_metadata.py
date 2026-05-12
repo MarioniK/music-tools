@@ -647,6 +647,196 @@ async def test_parse_form_qobuz_url_renders_tidal_candidates(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_parse_form_qobuz_url_renders_tidal_candidate_score_and_best_label(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+
+    monkeypatch.setattr(
+        main,
+        "extract_qobuz_release_identity",
+        lambda url: {
+            "input_state": "extracted_release_identity",
+            "provider": "qobuz",
+            "source_url": url,
+            "artist": "The Lemon Twigs",
+            "title": "Look For Your Mind!",
+            "year": 2026,
+            "release_date": "2026-05-08",
+            "release_type": "album",
+            "cover_url": "https://images.qobuz.com/cover.jpg",
+            "extraction_method": "json_ld",
+            "confidence": "high",
+            "warnings": [],
+            "qobuz_album_id": None,
+            "qobuz_track_id": None,
+        },
+    )
+
+    async def fake_lookup(*args, **kwargs):
+        return {
+            "state": "success",
+            "message": None,
+            "query": "The Lemon Twigs Look For Your Mind",
+            "release_type": "album",
+            "tidal_candidates_best_score": 95,
+            "tidal_candidates_best_candidate": {
+                "id": "498548519",
+                "type": "album",
+                "title": "Look For Your Mind!",
+                "release_date": "2026-05-08",
+                "year": "2026",
+                "tidal_url": "https://tidal.com/album/498548519",
+                "display_line": "Look For Your Mind! (2026-05-08) [album]",
+                "score": 95,
+                "score_reasons": ["title exact +60", "year exact +20", "type match +15"],
+                "is_best_candidate": True,
+            },
+            "tidal_candidates_match_state": "strong",
+            "candidates": [
+                {
+                    "id": "498548519",
+                    "type": "album",
+                    "title": "Look For Your Mind!",
+                    "release_date": "2026-05-08",
+                    "year": "2026",
+                    "tidal_url": "https://tidal.com/album/498548519",
+                    "display_line": "Look For Your Mind! (2026-05-08) [album]",
+                    "score": 95,
+                    "score_reasons": ["title exact +60", "year exact +20", "type match +15"],
+                    "is_best_candidate": True,
+                },
+                {
+                    "id": "65483367",
+                    "type": "album",
+                    "title": "A Dream Is All We Know",
+                    "release_date": "2024-06-14",
+                    "year": "2024",
+                    "tidal_url": "https://tidal.com/album/65483367",
+                    "display_line": "A Dream Is All We Know (2024-06-14) [album]",
+                    "score": 30,
+                    "score_reasons": ["title similarity 0.31 +0", "year mismatch -15", "type match +15"],
+                    "is_best_candidate": False,
+                },
+            ],
+        }
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
+
+    response = await parse_form_handler(
+        main.Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/",
+                "headers": [],
+                "query_string": b"",
+                "server": ("testserver", 80),
+                "client": ("127.0.0.1", 12345),
+                "scheme": "http",
+            }
+        ),
+        url="https://www.qobuz.com/us-en/album/look-for-your-mind-the-lemon-twigs/dqqfml14w232y",
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert "Лучший кандидат" in body
+    assert "Score" in body
+    assert "95" in body
+    assert "title exact +60" in body
+    assert "https://tidal.com/album/498548519" in body
+    assert "Кандидаты TIDAL требуют ручной проверки." not in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_qobuz_url_shows_manual_verification_note_for_weak_candidates(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+
+    monkeypatch.setattr(
+        main,
+        "extract_qobuz_release_identity",
+        lambda url: {
+            "input_state": "extracted_release_identity",
+            "provider": "qobuz",
+            "source_url": url,
+            "artist": "The Lemon Twigs",
+            "title": "Look For Your Mind!",
+            "year": 2026,
+            "release_date": "2026-05-08",
+            "release_type": "album",
+            "cover_url": "https://images.qobuz.com/cover.jpg",
+            "extraction_method": "json_ld",
+            "confidence": "high",
+            "warnings": [],
+            "qobuz_album_id": None,
+            "qobuz_track_id": None,
+        },
+    )
+
+    async def fake_lookup(*args, **kwargs):
+        return {
+            "state": "success",
+            "message": None,
+            "query": "The Lemon Twigs Look For Your Mind",
+            "release_type": "album",
+            "tidal_candidates_best_score": 42,
+            "tidal_candidates_best_candidate": {
+                "id": "65483367",
+                "type": "album",
+                "title": "A Dream Is All We Know",
+                "release_date": "2024-06-14",
+                "year": "2024",
+                "tidal_url": "https://tidal.com/album/65483367",
+                "display_line": "A Dream Is All We Know (2024-06-14) [album]",
+                "score": 42,
+                "score_reasons": ["title similarity 0.31 +0", "year mismatch -15", "type match +15"],
+                "is_best_candidate": True,
+            },
+            "tidal_candidates_match_state": "weak",
+            "candidates": [
+                {
+                    "id": "65483367",
+                    "type": "album",
+                    "title": "A Dream Is All We Know",
+                    "release_date": "2024-06-14",
+                    "year": "2024",
+                    "tidal_url": "https://tidal.com/album/65483367",
+                    "display_line": "A Dream Is All We Know (2024-06-14) [album]",
+                    "score": 42,
+                    "score_reasons": ["title similarity 0.31 +0", "year mismatch -15", "type match +15"],
+                    "is_best_candidate": True,
+                }
+            ],
+        }
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
+
+    response = await parse_form_handler(
+        main.Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/",
+                "headers": [],
+                "query_string": b"",
+                "server": ("testserver", 80),
+                "client": ("127.0.0.1", 12345),
+                "scheme": "http",
+            }
+        ),
+        url="https://www.qobuz.com/us-en/album/look-for-your-mind-the-lemon-twigs/dqqfml14w232y",
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert "Кандидаты TIDAL требуют ручной проверки." in body
+    assert "Лучший кандидат" not in body
+
+
+@pytest.mark.asyncio
 async def test_parse_form_qobuz_url_renders_tidal_candidates_error_message(monkeypatch):
     parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
 

@@ -605,6 +605,9 @@ def _build_qobuz_identity_result(detection, extracted, tidal_candidates_lookup=N
             qobuz_result["tidal_candidates_query"] = tidal_candidates_lookup.get("query")
             qobuz_result["tidal_candidates_release_type"] = tidal_candidates_lookup.get("release_type")
             qobuz_result["tidal_candidates"] = tidal_candidates_lookup.get("candidates", [])[:5]
+            qobuz_result["tidal_candidates_best_score"] = tidal_candidates_lookup.get("tidal_candidates_best_score")
+            qobuz_result["tidal_candidates_best_candidate"] = tidal_candidates_lookup.get("tidal_candidates_best_candidate")
+            qobuz_result["tidal_candidates_match_state"] = tidal_candidates_lookup.get("tidal_candidates_match_state")
 
     return qobuz_result
 

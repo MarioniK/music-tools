@@ -7,6 +7,85 @@ def test_build_tidal_openapi_search_query_strips_terminal_punctuation():
     assert tidal_openapi.build_tidal_openapi_search_query("The Lemon Twigs", 'Look For Your Mind!') == "The Lemon Twigs Look For Your Mind"
 
 
+def test_scoring_prefers_exact_title_year_and_type_match():
+    candidate = {
+        "id": "498548519",
+        "type": "album",
+        "title": "Look For Your Mind",
+        "release_date": "2026-05-08",
+        "source_relation": "albums",
+    }
+
+    score, reasons = tidal_openapi._score_tidal_candidate(candidate, "Look For Your Mind!", 2026, "album")
+
+    assert score >= 90
+    assert any(reason.startswith("title exact") for reason in reasons)
+    assert any(reason.startswith("year exact") for reason in reasons)
+    assert any(reason.startswith("type match") for reason in reasons)
+    assert any(reason.startswith("relation match") for reason in reasons)
+
+
+def test_scoring_penalizes_wrong_title_year_and_type():
+    candidate = {
+        "id": "65483367",
+        "type": "track",
+        "title": "A Dream Is All We Know",
+        "release_date": "2024-01-01",
+        "source_relation": "tracks",
+    }
+
+    score, reasons = tidal_openapi._score_tidal_candidate(candidate, "Look For Your Mind!", 2026, "album")
+
+    assert score < 75
+    assert any(reason.startswith("year mismatch") for reason in reasons)
+    assert any(reason.startswith("type mismatch") for reason in reasons)
+    assert any(reason.startswith("relation mismatch") for reason in reasons)
+
+
+def test_year_match_beats_year_mismatch():
+    exact_candidate = {
+        "id": "498548519",
+        "type": "album",
+        "title": "Look For Your Mind!",
+        "release_date": "2026-05-08",
+        "source_relation": "albums",
+    }
+    wrong_year_candidate = {
+        "id": "498548520",
+        "type": "album",
+        "title": "Look For Your Mind!",
+        "release_date": "2024-05-08",
+        "source_relation": "albums",
+    }
+
+    exact_score, _ = tidal_openapi._score_tidal_candidate(exact_candidate, "Look For Your Mind!", 2026, "album")
+    wrong_score, _ = tidal_openapi._score_tidal_candidate(wrong_year_candidate, "Look For Your Mind!", 2026, "album")
+
+    assert exact_score > wrong_score
+
+
+def test_type_mismatch_penalizes_candidate():
+    album_candidate = {
+        "id": "498548519",
+        "type": "album",
+        "title": "Look For Your Mind!",
+        "release_date": "2026-05-08",
+        "source_relation": "albums",
+    }
+    track_candidate = {
+        "id": "498548519",
+        "type": "track",
+        "title": "Look For Your Mind!",
+        "release_date": "2026-05-08",
+        "source_relation": "tracks",
+    }
+
+    album_score, _ = tidal_openapi._score_tidal_candidate(album_candidate, "Look For Your Mind!", 2026, "album")
+    track_score, _ = tidal_openapi._score_tidal_candidate(track_candidate, "Look For Your Mind!", 2026, "album")
+
+    assert album_score > track_score
+
+
 @pytest.mark.asyncio
 async def test_missing_credentials_returns_disabled_state(monkeypatch):
     monkeypatch.delenv("TIDAL_CLIENT_ID", raising=False)
@@ -172,6 +251,65 @@ async def test_title_punctuation_is_removed_before_request_dispatch(monkeypatch)
     assert result["candidates"][0]["title"] == "Look For Your Mind!"
     assert result["candidates"][0]["release_date"] == "2026-05-08"
     assert result["candidates"][0]["tidal_url"] == "https://tidal.com/album/498548519"
+
+
+@pytest.mark.asyncio
+async def test_candidates_are_sorted_by_score_descending(monkeypatch):
+    monkeypatch.setenv("TIDAL_CLIENT_ID", "client-id")
+    monkeypatch.setenv("TIDAL_CLIENT_SECRET", "client-secret")
+    tidal_openapi.reset_tidal_openapi_state()
+
+    async def fake_request_json(method, url, headers=None, data=None, params=None):
+        if url == tidal_openapi.TIDAL_TOKEN_URL:
+            return {
+                "status": 200,
+                "content_type": "application/json",
+                "json": {
+                    "access_token": "access-token",
+                    "token_type": "Bearer",
+                    "expires_in": 14400,
+                },
+            }
+
+        return {
+            "status": 200,
+            "content_type": "application/vnd.api+json",
+            "json": {
+                "data": [
+                    {"id": "65483367", "type": "albums"},
+                    {"id": "498548519", "type": "albums"},
+                ],
+                "included": [
+                    {
+                        "id": "65483367",
+                        "type": "albums",
+                        "attributes": {
+                            "title": "A Dream Is All We Know",
+                            "releaseDate": "2024-06-14",
+                        },
+                    },
+                    {
+                        "id": "498548519",
+                        "type": "albums",
+                        "attributes": {
+                            "title": "Look For Your Mind!",
+                            "releaseDate": "2026-05-08",
+                        },
+                    },
+                ],
+            },
+        }
+
+    monkeypatch.setattr(tidal_openapi, "_request_json", fake_request_json)
+
+    result = await tidal_openapi.lookup_tidal_candidates("The Lemon Twigs", "Look For Your Mind!", "album", 2026)
+
+    assert result["state"] == "success"
+    assert result["tidal_candidates_match_state"] == "strong"
+    assert result["tidal_candidates_best_score"] >= 90
+    assert result["candidates"][0]["id"] == "498548519"
+    assert result["candidates"][0]["is_best_candidate"] is True
+    assert result["candidates"][0]["score"] >= result["candidates"][1]["score"]
 
 
 @pytest.mark.asyncio

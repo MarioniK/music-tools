@@ -1,5 +1,6 @@
 import asyncio
 import base64
+from difflib import SequenceMatcher
 import html
 import logging
 import os
@@ -106,6 +107,139 @@ def _candidate_type_from_relation(relation):
     return clean_text(relation)
 
 
+def _normalize_tidal_scoring_title(title):
+    title = _normalize_tidal_search_title(title)
+    if not title:
+        return None
+    return title.lower()
+
+
+def _candidate_year_from_release_date(release_date):
+    release_date = clean_text(release_date)
+    if not release_date:
+        return None
+    if re.match(r"^\d{4}([-/.]|$)", release_date):
+        return release_date[:4]
+    return None
+
+
+def _expected_candidate_type(release_type):
+    release_type = _normalize_release_type(release_type)
+    if release_type in {"album", "ep", "lp"}:
+        return "album"
+    if release_type in {"single", "track"}:
+        return "track"
+    return None
+
+
+def _relation_bonus_set(release_type):
+    relations = _relation_for_release_type(release_type)
+    return set(relations) if relations else set()
+
+
+def _score_tidal_candidate(candidate, title, year, release_type):
+    if not isinstance(candidate, dict):
+        return 0, []
+
+    candidate_title = _normalize_tidal_scoring_title(candidate.get("title"))
+    query_title = _normalize_tidal_scoring_title(title)
+    score = 0
+    reasons = []
+
+    if candidate_title and query_title:
+        title_similarity = SequenceMatcher(None, query_title, candidate_title).ratio()
+        if candidate_title == query_title:
+            score += 60
+            reasons.append("title exact +60")
+        elif title_similarity >= 0.95:
+            score += 55
+            reasons.append("title similarity {:.2f} +55".format(title_similarity))
+        elif title_similarity >= 0.88:
+            score += 45
+            reasons.append("title similarity {:.2f} +45".format(title_similarity))
+        elif title_similarity >= 0.75:
+            score += 20
+            reasons.append("title similarity {:.2f} +20".format(title_similarity))
+        elif title_similarity > 0:
+            reasons.append("title similarity {:.2f} +0".format(title_similarity))
+    elif query_title:
+        reasons.append("title unavailable +0")
+
+    candidate_year = candidate.get("year") or _candidate_year_from_release_date(candidate.get("release_date"))
+    query_year = clean_text(year)
+    if query_year and candidate_year:
+        if query_year == candidate_year:
+            score += 20
+            reasons.append("year exact +20")
+        else:
+            try:
+                if abs(int(query_year) - int(candidate_year)) <= 1:
+                    score += 10
+                    reasons.append("year near +10")
+                else:
+                    score -= 15
+                    reasons.append("year mismatch -15")
+            except (TypeError, ValueError):
+                reasons.append("year unavailable +0")
+    elif query_year and not candidate_year:
+        reasons.append("year unavailable +0")
+
+    expected_type = _expected_candidate_type(release_type)
+    candidate_type = clean_text(candidate.get("type"))
+    if expected_type and candidate_type:
+        if candidate_type == expected_type:
+            score += 15
+            reasons.append("type match +15")
+        else:
+            score -= 15
+            reasons.append("type mismatch -15")
+
+    expected_relations = _relation_bonus_set(release_type)
+    candidate_relation = clean_text(candidate.get("source_relation"))
+    if expected_relations and candidate_relation:
+        if candidate_relation in expected_relations:
+            score += 5
+            reasons.append("relation match +5")
+        else:
+            score -= 5
+            reasons.append("relation mismatch -5")
+
+    score = max(0, min(100, score))
+    return score, reasons
+
+
+def _score_tidal_candidates(candidates, title, year, release_type):
+    scored_candidates = []
+    for index, candidate in enumerate(candidates or []):
+        if not isinstance(candidate, dict):
+            continue
+
+        score, reasons = _score_tidal_candidate(candidate, title, year, release_type)
+        scored_candidate = dict(candidate)
+        scored_candidate["score"] = score
+        scored_candidate["score_reasons"] = reasons
+        scored_candidate["_score_index"] = index
+        scored_candidates.append(scored_candidate)
+
+    scored_candidates.sort(
+        key=lambda item: (
+            -int(item.get("score") or 0),
+            int(item.get("_score_index") or 0),
+        )
+    )
+
+    best_candidate = scored_candidates[0] if scored_candidates else None
+    best_score = best_candidate.get("score") if best_candidate else None
+    match_state = "empty"
+    if scored_candidates:
+        match_state = "strong" if (best_score or 0) >= 75 else "weak"
+        for candidate in scored_candidates:
+            candidate["is_best_candidate"] = candidate is best_candidate
+            candidate.pop("_score_index", None)
+
+    return scored_candidates, best_candidate, best_score, match_state
+
+
 def _resource_key(resource):
     if not isinstance(resource, dict):
         return None
@@ -149,6 +283,7 @@ def _candidate_from_resource(resource, relation, query_artist, query_title):
         "display_line": " ".join(display_parts),
         "query_artist": clean_text(query_artist),
         "query_title": clean_text(query_title),
+        "source_relation": clean_text(relation),
     }
     return candidate
 
@@ -375,12 +510,21 @@ async def lookup_tidal_candidates(artist, title, release_type=None, year=None, c
             break
 
     if candidates:
+        scored_candidates, best_candidate, best_score, match_state = _score_tidal_candidates(
+            candidates[:TIDAL_CANDIDATE_LIMIT],
+            title,
+            year,
+            release_type,
+        )
         return {
             "state": "success",
             "message": None,
             "query": query,
             "release_type": clean_text(release_type),
-            "candidates": candidates[:TIDAL_CANDIDATE_LIMIT],
+            "candidates": scored_candidates,
+            "tidal_candidates_best_score": best_score,
+            "tidal_candidates_best_candidate": best_candidate,
+            "tidal_candidates_match_state": match_state,
         }
 
     if last_error_message:
@@ -398,4 +542,7 @@ async def lookup_tidal_candidates(artist, title, release_type=None, year=None, c
         "query": query,
         "release_type": clean_text(release_type),
         "candidates": [],
+        "tidal_candidates_best_score": None,
+        "tidal_candidates_best_candidate": None,
+        "tidal_candidates_match_state": "empty",
     }
