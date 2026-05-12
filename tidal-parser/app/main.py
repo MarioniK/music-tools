@@ -506,12 +506,8 @@ def build_tidal_search_query(artist, title, year=None):
     if not artist or not title:
         return None
 
-    parts = [artist, title]
-    year = clean_text(year)
-    if year:
-        parts.append(year)
-
-    return " ".join(parts)
+    # Year is intentionally not included because TIDAL search is more relevant with artist/title only.
+    return " ".join([artist, title])
 
 
 def build_tidal_search_url(artist, title, year=None):

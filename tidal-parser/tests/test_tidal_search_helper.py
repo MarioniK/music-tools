@@ -13,7 +13,9 @@ def test_build_tidal_search_url_with_artist_title_and_year():
     url = main.build_tidal_search_url("Lykke Li", "The Afterparty", 2026)
 
     assert url.startswith("https://tidal.com/search")
-    assert _extract_search_query(url) == "Lykke Li The Afterparty 2026"
+    assert _extract_search_query(url) == "Lykke Li The Afterparty"
+    assert "2026" not in _extract_search_query(url)
+    assert "2026" not in url
 
 
 def test_build_tidal_search_url_requires_artist_and_title():
@@ -33,9 +35,10 @@ def test_manual_release_result_includes_tidal_search_url():
         }
     )
 
-    assert result["tidal_search_query"] == "Lykke Li The Afterparty 2026"
+    assert result["tidal_search_query"] == "Lykke Li The Afterparty"
     assert result["tidal_search_url"] is not None
-    assert _extract_search_query(result["tidal_search_url"]) == "Lykke Li The Afterparty 2026"
+    assert _extract_search_query(result["tidal_search_url"]) == "Lykke Li The Afterparty"
+    assert "2026" not in result["tidal_search_url"]
 
 
 def test_qobuz_identity_result_includes_tidal_search_url_when_identity_exists():
@@ -55,9 +58,10 @@ def test_qobuz_identity_result_includes_tidal_search_url_when_identity_exists():
         },
     )
 
-    assert result["tidal_search_query"] == "Lykke Li The Afterparty 2026"
+    assert result["tidal_search_query"] == "Lykke Li The Afterparty"
     assert result["tidal_search_url"] is not None
-    assert _extract_search_query(result["tidal_search_url"]) == "Lykke Li The Afterparty 2026"
+    assert _extract_search_query(result["tidal_search_url"]) == "Lykke Li The Afterparty"
+    assert "2026" not in result["tidal_search_url"]
 
 
 def test_qobuz_identity_result_omits_tidal_search_url_without_identity():
