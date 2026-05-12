@@ -319,6 +319,32 @@ def test_qobuz_identity_result_includes_both_helpers_when_identity_exists():
     assert result.get("qobuz_track_id_search_url") is None
 
 
+def test_qobuz_identity_result_builds_release_line_without_year():
+    result = main._build_qobuz_identity_result(
+        {"provider": "qobuz"},
+        {
+            "artist": "Sepultura",
+            "title": "Nation",
+            "year": None,
+            "release_date": "2001-03-12",
+            "release_type": "album",
+            "cover_url": None,
+            "extraction_method": "mixed",
+            "confidence": "medium",
+            "warnings": [],
+            "source_url": "https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629",
+            "qobuz_album_id": None,
+            "qobuz_track_id": None,
+        },
+    )
+
+    assert result["blog_output"]["line1"] == "Sepultura — «Nation»"
+    assert result["tidal_search_url"] is not None
+    assert "Sepultura" in result["tidal_search_url"]
+    assert "Nation" in result["tidal_search_url"]
+    assert "2001" not in result["tidal_search_url"]
+
+
 def test_extract_qobuz_release_identity_preserves_open_qobuz_track_id(monkeypatch):
     def fake_fetch_html(url):
         return (
@@ -397,6 +423,8 @@ async def test_parse_form_qobuz_track_url_renders_track_id_notice(monkeypatch):
     assert "Поиск страницы Qobuz по track ID отключён" in body
     assert "Найти страницу Qobuz по track ID" not in body
     assert "google.com/search" not in body
+    assert "Copy Music prompt" not in body
+    assert "Copy release line" not in body
 
 
 def test_extract_qobuz_release_identity_uses_open_qobuz_candidate_url(monkeypatch):
@@ -491,15 +519,17 @@ async def test_parse_form_qobuz_url_renders_extracted_identity(monkeypatch):
             "input_state": "extracted_release_identity",
             "provider": "qobuz",
             "source_url": url,
-            "artist": "Lykke Li",
-            "title": "The Afterparty",
-            "year": 2026,
-            "release_date": "2026-01-10",
+            "artist": "Sepultura",
+            "title": "Nation",
+            "year": 2001,
+            "release_date": "2001-03-12",
             "release_type": "album",
             "cover_url": "https://images.qobuz.com/cover.jpg",
             "extraction_method": "json_ld",
             "confidence": "high",
             "warnings": [],
+            "qobuz_album_id": None,
+            "qobuz_track_id": None,
         },
     )
 
@@ -516,7 +546,7 @@ async def test_parse_form_qobuz_url_renders_extracted_identity(monkeypatch):
                 "scheme": "http",
             }
         ),
-        url="https://www.qobuz.com/us-en/album/example/abc",
+        url="https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629",
         force_refresh="0",
         audio=None,
     )
@@ -524,10 +554,13 @@ async def test_parse_form_qobuz_url_renders_extracted_identity(monkeypatch):
     body = response.body.decode("utf-8")
     assert response.status_code == 200
     assert "Qobuz identity" in body
-    assert "Lykke Li" in body
-    assert "The Afterparty" in body
-    assert "2026-01-10" in body
+    assert "Sepultura" in body
+    assert "Nation" in body
+    assert "2001-03-12" in body
     assert "json_ld" in body
+    assert "Sepultura — «Nation» (2001)" in body
+    assert "Copy Music prompt" in body
+    assert "Copy release line" in body
 
 
 @pytest.mark.asyncio

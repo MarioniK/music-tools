@@ -573,7 +573,7 @@ def _build_qobuz_identity_result(detection, extracted):
     else:
         message = "Метаданные Qobuz были проверены, но идентичность релиза извлечь не удалось. Полный resolver пока не реализован."
 
-    return {
+    qobuz_result = {
         **extracted,
         "input_state": "extracted_release_identity",
         "input_detection": detection,
@@ -589,6 +589,16 @@ def _build_qobuz_identity_result(detection, extracted):
         "message": message,
         "next_step": "Сейчас это только минимальное извлечение данных. Для полного разбора используй TIDAL-ссылку.",
     }
+
+    if has_identity:
+        qobuz_result["entity_type"] = "album"
+        qobuz_result["release_kind"] = extracted.get("release_type")
+        qobuz_result["release_year"] = extracted.get("year")
+        qobuz_result["genres"] = extracted.get("genres", [])
+        qobuz_result["final_genres"] = extracted.get("final_genres", [])
+        qobuz_result["blog_output"] = build_blog_output(qobuz_result)
+
+    return qobuz_result
 
 
 async def fetch_html(url):
