@@ -104,6 +104,14 @@
         <span>{{ result.confidence or "—" }}</span>
       </div>
       <div class="row">
+        <span class="label">Источник:</span>
+        <span>{{ result.source_kind or result.provider or "manual" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Тип релиза:</span>
+        <span>{{ result.release_type or "album" }}</span>
+      </div>
+      <div class="row">
         <span class="label">Поиск в TIDAL:</span>
         <span>
           {% if result.tidal_search_url %}
@@ -113,6 +121,61 @@
           {% endif %}
         </span>
       </div>
+      {% if result.tidal_candidates_enabled %}
+      <div class="section-title">Кандидаты TIDAL</div>
+      {% if result.tidal_candidates and result.tidal_candidates|length > 0 %}
+      {% if result.tidal_candidates_match_state == "weak" %}
+      <div class="note">Кандидаты TIDAL требуют ручной проверки.</div>
+      {% endif %}
+      {% for candidate in result.tidal_candidates %}
+      <div class="row">
+        <span class="label">Название:</span>
+        <span>{{ candidate.title or "—" }}</span>
+      </div>
+      {% if candidate.is_best_candidate and result.tidal_candidates_best_score is not none and result.tidal_candidates_best_score >= 75 %}
+      <div class="row">
+        <span class="label">Статус:</span>
+        <span>Лучший кандидат</span>
+      </div>
+      {% endif %}
+      <div class="row">
+        <span class="label">Год / дата:</span>
+        <span>{{ candidate.release_date or candidate.year or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Тип:</span>
+        <span>{{ candidate.type or "—" }}</span>
+      </div>
+      {% if candidate.score is defined and candidate.score is not none %}
+      <div class="row">
+        <span class="label">Score:</span>
+        <span>{{ candidate.score }}</span>
+      </div>
+      {% endif %}
+      {% if candidate.score_reasons is defined and candidate.score_reasons and candidate.score_reasons|length > 0 %}
+      <div class="row">
+        <span class="label">Причины:</span>
+        <span>{{ candidate.score_reasons | join(", ") }}</span>
+      </div>
+      {% endif %}
+      <div class="row">
+        <span class="label">TIDAL:</span>
+        <span>
+          {% if candidate.tidal_url %}
+          <a href="{{ candidate.tidal_url }}" target="_blank" rel="noopener noreferrer">{{ candidate.tidal_url }}</a>
+          {% else %}
+          —
+          {% endif %}
+        </span>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="note">{{ result.tidal_candidates_message or "Кандидаты TIDAL не найдены. Используй ручной поиск в TIDAL." }}</div>
+      {% endif %}
+      {% endif %}
+      {% if result.handoff_warning %}
+      <div class="note">{{ result.handoff_warning }}</div>
+      {% endif %}
       <div class="note">{{ result.message }}</div>
       <div class="note">{{ result.next_step }}</div>
       {% elif result.input_state == "extracted_release_identity" %}
@@ -500,28 +563,36 @@ Cover URL:
         </span>
       </div>
 
-      {% if result.handoff_source == "qobuz_tidal_candidate" and result.tidal_candidates_enabled %}
-      <div class="note">Источник: Qobuz → TIDAL candidate</div>
+      {% if result.handoff_source and result.tidal_candidates_enabled %}
+      <div class="note">Источник: {{ result.handoff_source_label or result.handoff_source }}</div>
+      {% if result.handoff_source == "manual_tidal_candidate" and result.handoff_manual_release_line %}
       <div class="row">
-        <span class="label">Qobuz URL:</span>
+        <span class="label">Manual line:</span>
+        <span>{{ result.handoff_manual_release_line }}</span>
+      </div>
+      {% endif %}
+      <div class="row">
+        <span class="label">{% if result.handoff_source == "manual_tidal_candidate" %}Input source:{% else %}Qobuz URL:{% endif %}</span>
         <span>
           {% if result.handoff_qobuz_url %}
           <a href="{{ result.handoff_qobuz_url }}" target="_blank" rel="noopener noreferrer">{{ result.handoff_qobuz_url }}</a>
           {% else %}
-          —
-          {% endif %}
-        </span>
-      </div>
-      <div class="row">
-        <span class="label">Resolved Qobuz metadata URL:</span>
-        <span>
-          {% if result.handoff_qobuz_metadata_url %}
-          <a href="{{ result.handoff_qobuz_metadata_url }}" target="_blank" rel="noopener noreferrer">{{ result.handoff_qobuz_metadata_url }}</a>
+          {% if result.handoff_manual_artist or result.handoff_manual_title or result.handoff_manual_year %}
+          {{ [result.handoff_manual_artist, result.handoff_manual_title, result.handoff_manual_year] | select | join(" — ") }}
           {% else %}
           —
           {% endif %}
+          {% endif %}
         </span>
       </div>
+      {% if result.handoff_qobuz_metadata_url %}
+      <div class="row">
+        <span class="label">Resolved Qobuz metadata URL:</span>
+        <span>
+          <a href="{{ result.handoff_qobuz_metadata_url }}" target="_blank" rel="noopener noreferrer">{{ result.handoff_qobuz_metadata_url }}</a>
+        </span>
+      </div>
+      {% endif %}
       <div class="row">
         <span class="label">Selected TIDAL URL:</span>
         <span>

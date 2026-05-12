@@ -33,7 +33,11 @@ from app.pipeline_logging import logger, run_timed_stage, run_timed_stage_sync
 from app import settings
 from app import metrics
 from app import request_context
-from app.tidal_openapi import lookup_tidal_candidates, select_safe_tidal_auto_handoff_candidate
+from app.tidal_openapi import (
+    lookup_tidal_candidates,
+    select_safe_tidal_auto_handoff_candidate,
+    _candidate_title_matches_exact,
+)
 from app.services.discogs import search_discogs_release_metadata
 from app.services.musicbrainz import (
     country_display_from_tag,
@@ -528,20 +532,40 @@ def build_qobuz_album_id_search_url(qobuz_album_id):
     return "https://www.google.com/search?q={}".format(quote_plus(query))
 
 
-def _build_manual_release_result(detection):
+def _apply_tidal_candidates_lookup(result, tidal_candidates_lookup, collapsible=False):
+    if not tidal_candidates_lookup:
+        return result
+
+    result = dict(result)
+    result["tidal_candidates_enabled"] = True
+    result["tidal_candidates_collapsible"] = bool(collapsible)
+    result["tidal_candidates_state"] = tidal_candidates_lookup.get("state")
+    result["tidal_candidates_message"] = tidal_candidates_lookup.get("message")
+    result["tidal_candidates_query"] = tidal_candidates_lookup.get("query")
+    result["tidal_candidates_release_type"] = tidal_candidates_lookup.get("release_type")
+    result["tidal_candidates"] = tidal_candidates_lookup.get("candidates", [])[:5]
+    result["tidal_candidates_best_score"] = tidal_candidates_lookup.get("tidal_candidates_best_score")
+    result["tidal_candidates_best_candidate"] = tidal_candidates_lookup.get("tidal_candidates_best_candidate")
+    result["tidal_candidates_match_state"] = tidal_candidates_lookup.get("tidal_candidates_match_state")
+    return result
+
+
+def _build_manual_release_result(detection, tidal_candidates_lookup=None):
     tidal_search_query = build_tidal_search_query(
         detection.get("artist"),
         detection.get("title"),
         detection.get("year"),
     )
-    return {
+    manual_result = {
         "input_state": "manual_release_identity",
         "input_detection": detection,
         "provider": "manual",
         "provider_label": "manual",
+        "source_kind": "manual",
         "artist": detection.get("artist"),
         "title": detection.get("title"),
         "release_year": detection.get("year"),
+        "release_type": clean_text(detection.get("release_type")) or "album",
         "tidal_search_query": tidal_search_query,
         "tidal_search_url": build_tidal_search_url(
             detection.get("artist"),
@@ -550,9 +574,15 @@ def _build_manual_release_result(detection):
         ),
         "confidence": detection.get("confidence"),
         "warnings": detection.get("warnings", []),
-        "message": "Ручная идентичность релиза определена. Автоматический TIDAL resolver пока не реализован.",
-        "next_step": "Для полного разбора используй TIDAL-ссылку или открой поиск в TIDAL.",
+        "message": "Ручная идентичность релиза определена. Кандидаты TIDAL доступны для проверки.",
+        "next_step": "Если кандидат подходит, открой его или используй ручной поиск в TIDAL.",
     }
+
+    handoff_warning = clean_text(detection.get("handoff_warning"))
+    if handoff_warning:
+        manual_result["handoff_warning"] = handoff_warning
+
+    return _apply_tidal_candidates_lookup(manual_result, tidal_candidates_lookup, collapsible=False)
 
 
 def _build_qobuz_identity_result(detection, extracted, tidal_candidates_lookup=None):
@@ -602,48 +632,115 @@ def _build_qobuz_identity_result(detection, extracted, tidal_candidates_lookup=N
         qobuz_result["genres"] = extracted.get("genres", [])
         qobuz_result["final_genres"] = extracted.get("final_genres", [])
         qobuz_result["blog_output"] = build_blog_output(qobuz_result)
-        if tidal_candidates_lookup:
-            qobuz_result["tidal_candidates_enabled"] = True
-            qobuz_result["tidal_candidates_state"] = tidal_candidates_lookup.get("state")
-            qobuz_result["tidal_candidates_message"] = tidal_candidates_lookup.get("message")
-            qobuz_result["tidal_candidates_query"] = tidal_candidates_lookup.get("query")
-            qobuz_result["tidal_candidates_release_type"] = tidal_candidates_lookup.get("release_type")
-            qobuz_result["tidal_candidates"] = tidal_candidates_lookup.get("candidates", [])[:5]
-            qobuz_result["tidal_candidates_best_score"] = tidal_candidates_lookup.get("tidal_candidates_best_score")
-            qobuz_result["tidal_candidates_best_candidate"] = tidal_candidates_lookup.get("tidal_candidates_best_candidate")
-            qobuz_result["tidal_candidates_match_state"] = tidal_candidates_lookup.get("tidal_candidates_match_state")
+        qobuz_result = _apply_tidal_candidates_lookup(qobuz_result, tidal_candidates_lookup, collapsible=False)
 
     return qobuz_result
 
 
-def _attach_qobuz_tidal_handoff_context(result, detection, extracted, tidal_candidates_lookup, selected_candidate):
-    handoff_context = {
-        "handoff_source": "qobuz_tidal_candidate",
-        "handoff_source_label": "Qobuz → TIDAL candidate",
-        "handoff_qobuz_url": detection.get("normalized_input") or detection.get("source_url") or extracted.get("source_url"),
-        "handoff_qobuz_metadata_url": extracted.get("resolved_metadata_url") or extracted.get("source_url"),
+def _attach_tidal_candidate_handoff_context(
+    result,
+    handoff_source,
+    handoff_source_label,
+    handoff_context,
+    tidal_candidates_lookup,
+    selected_candidate,
+):
+    candidate_context = {
+        "handoff_source": handoff_source,
+        "handoff_source_label": handoff_source_label,
         "handoff_selected_tidal_url": selected_candidate.get("tidal_url"),
         "handoff_selected_tidal_score": selected_candidate.get("score"),
         "handoff_selected_tidal_reasons": selected_candidate.get("score_reasons", []),
+    }
+
+    result = dict(result)
+    result.update(handoff_context or {})
+    result.update(candidate_context)
+    result = _apply_tidal_candidates_lookup(result, tidal_candidates_lookup, collapsible=True)
+    return result
+
+
+def _attach_qobuz_tidal_handoff_context(result, detection, extracted, tidal_candidates_lookup, selected_candidate):
+    handoff_context = {
+        "handoff_qobuz_url": detection.get("normalized_input") or detection.get("source_url") or extracted.get("source_url"),
+        "handoff_qobuz_metadata_url": extracted.get("resolved_metadata_url") or extracted.get("source_url"),
         "handoff_qobuz_artist": extracted.get("artist"),
         "handoff_qobuz_title": extracted.get("title"),
         "handoff_qobuz_year": extracted.get("year"),
         "handoff_qobuz_release_type": extracted.get("release_type"),
-        "tidal_candidates_enabled": True,
-        "tidal_candidates_collapsible": True,
-        "tidal_candidates_state": tidal_candidates_lookup.get("state"),
-        "tidal_candidates_message": tidal_candidates_lookup.get("message"),
-        "tidal_candidates_query": tidal_candidates_lookup.get("query"),
-        "tidal_candidates_release_type": tidal_candidates_lookup.get("release_type"),
-        "tidal_candidates": tidal_candidates_lookup.get("candidates", [])[:5],
-        "tidal_candidates_best_score": tidal_candidates_lookup.get("tidal_candidates_best_score"),
-        "tidal_candidates_best_candidate": tidal_candidates_lookup.get("tidal_candidates_best_candidate"),
-        "tidal_candidates_match_state": tidal_candidates_lookup.get("tidal_candidates_match_state"),
     }
 
-    result = dict(result)
-    result.update(handoff_context)
-    return result
+    return _attach_tidal_candidate_handoff_context(
+        result,
+        "qobuz_tidal_candidate",
+        "Qobuz → TIDAL candidate",
+        handoff_context,
+        tidal_candidates_lookup,
+        selected_candidate,
+    )
+
+
+def _attach_manual_tidal_handoff_context(result, detection, tidal_candidates_lookup, selected_candidate):
+    handoff_context = {
+        "handoff_manual_release_line": detection.get("raw_input") or detection.get("normalized_input"),
+        "handoff_manual_artist": detection.get("artist"),
+        "handoff_manual_title": detection.get("title"),
+        "handoff_manual_year": detection.get("year"),
+        "handoff_manual_release_type": clean_text(detection.get("release_type")) or "album",
+    }
+
+    return _attach_tidal_candidate_handoff_context(
+        result,
+        "manual_tidal_candidate",
+        "Manual metadata → TIDAL candidate",
+        handoff_context,
+        tidal_candidates_lookup,
+        selected_candidate,
+    )
+
+
+def _select_safe_manual_tidal_auto_handoff_candidate(artist, title, year, release_type, lookup_result):
+    if year:
+        return select_safe_tidal_auto_handoff_candidate(artist, title, year, release_type, lookup_result)
+
+    if not isinstance(lookup_result, dict):
+        return None
+
+    best_candidate = lookup_result.get("tidal_candidates_best_candidate")
+    if not isinstance(best_candidate, dict):
+        return None
+
+    if not best_candidate.get("is_best_candidate"):
+        return None
+
+    if not best_candidate.get("tidal_url"):
+        return None
+
+    score = best_candidate.get("score") or 0
+    try:
+        score = int(score)
+    except (TypeError, ValueError):
+        score = 0
+
+    if score < 80:
+        return None
+
+    if not best_candidate.get("title"):
+        return None
+
+    if not best_candidate.get("type"):
+        return None
+
+    if not clean_text(release_type):
+        return None
+
+    if clean_text(best_candidate.get("type")) != clean_text(release_type):
+        return None
+
+    if not _candidate_title_matches_exact(best_candidate.get("title"), title):
+        return None
+
+    return best_candidate
 
 
 async def fetch_html(url):
@@ -1158,7 +1255,52 @@ async def parse_form(
             )
 
         if detection.get("input_type") == "manual_release_line":
-            result = _build_manual_release_result(detection)
+            manual_release_type = clean_text(detection.get("release_type")) or "album"
+            tidal_candidates_lookup = None
+            auto_handoff_candidate = None
+            if detection.get("artist") and detection.get("title"):
+                tidal_candidates_lookup = await run_timed_stage(
+                    "tidal_openapi_candidates",
+                    lookup_tidal_candidates(
+                        detection.get("artist"),
+                        detection.get("title"),
+                        manual_release_type,
+                        detection.get("year"),
+                    ),
+                )
+                auto_handoff_candidate = _select_safe_manual_tidal_auto_handoff_candidate(
+                    detection.get("artist"),
+                    detection.get("title"),
+                    detection.get("year"),
+                    manual_release_type,
+                    tidal_candidates_lookup,
+                )
+
+            if auto_handoff_candidate:
+                try:
+                    result = await build_result(
+                        auto_handoff_candidate.get("tidal_url"),
+                        force_refresh=(force_refresh == "1"),
+                    )
+                    result = _attach_manual_tidal_handoff_context(
+                        result,
+                        detection,
+                        tidal_candidates_lookup or {},
+                        auto_handoff_candidate,
+                    )
+                except Exception:
+                    logger.warning(
+                        "event=manual_tidal_handoff outcome=error manual_line=%s tidal_url=%s",
+                        detection.get("normalized_input"),
+                        auto_handoff_candidate.get("tidal_url"),
+                    )
+                    detection = dict(detection)
+                    detection["handoff_warning"] = (
+                        "Лучший кандидат найден, но TIDAL parse не удался. Используй ссылку вручную."
+                    )
+                    result = _build_manual_release_result(detection, tidal_candidates_lookup)
+            else:
+                result = _build_manual_release_result(detection, tidal_candidates_lookup)
             metrics.increment_parse_success_total()
             return templates.TemplateResponse(
                 "index.html",

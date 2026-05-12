@@ -75,6 +75,82 @@ def _make_request(method="POST", path="/"):
     return Request(scope)
 
 
+def _manual_candidate(
+    candidate_id,
+    title,
+    release_date,
+    year,
+    tidal_url,
+    score,
+    is_best_candidate=True,
+    candidate_type="album",
+    score_reasons=None,
+):
+    return {
+        "id": candidate_id,
+        "type": candidate_type,
+        "title": title,
+        "release_date": release_date,
+        "year": year,
+        "tidal_url": tidal_url,
+        "display_line": "{} ({}) [{}]".format(title, release_date or year or "—", candidate_type),
+        "score": score,
+        "score_reasons": score_reasons or [],
+        "is_best_candidate": is_best_candidate,
+    }
+
+
+def _manual_lookup_result(candidates, state="success", message=None, query=None, release_type="album"):
+    best_candidate = candidates[0] if candidates else None
+    if best_candidate and state == "success":
+        match_state = "strong" if (best_candidate.get("score") or 0) >= 75 else "weak"
+    elif candidates:
+        match_state = "weak"
+    else:
+        match_state = "empty"
+
+    return {
+        "state": state,
+        "message": message,
+        "query": query or "The Lemon Twigs Look For Your Mind",
+        "release_type": release_type,
+        "candidates": candidates,
+        "tidal_candidates_best_score": best_candidate.get("score") if best_candidate else None,
+        "tidal_candidates_best_candidate": best_candidate,
+        "tidal_candidates_match_state": match_state,
+    }
+
+
+def _manual_handoff_result(url, artist="The Lemon Twigs", title="Look For Your Mind!", release_year=2026):
+    result = _valid_result()
+    result.update(
+        {
+            "source_url": url,
+            "entity_type": "album",
+            "tidal_id": "498548519",
+            "artist": artist,
+            "title": title,
+            "album": None,
+            "release_kind": "album",
+            "release_year": release_year,
+            "country": "—",
+            "genres": [],
+            "final_genres": [],
+            "audio_genres_raw": [],
+            "audio_genres_pretty": [],
+            "blog_output": {
+                "line1": 'The Lemon Twigs — «Look For Your Mind!» (2026)',
+                "line2": "#music #music2026",
+            },
+            "source_name": "tidal",
+            "meta_source_url": url,
+            "note": None,
+            "from_cache": False,
+        }
+    )
+    return result
+
+
 def test_get_cached_result_returns_none_for_invalid_json(tmp_path, monkeypatch):
     db_path = _make_test_db(tmp_path)
     monkeypatch.setattr(main, "get_db_connection", _db_connection_factory(db_path))
@@ -427,10 +503,20 @@ async def test_parse_form_invalid_url_returns_html_200():
 
 
 @pytest.mark.asyncio
-async def test_parse_form_manual_release_line_returns_identity_block():
+async def test_parse_form_manual_release_line_returns_identity_block_with_candidates_helper(monkeypatch):
     parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
     request = _make_request()
     request.state.request_id = "req-form-manual"
+
+    async def fake_lookup_tidal_candidates(*args, **kwargs):
+        return _manual_lookup_result(
+            [],
+            state="empty",
+            message="Кандидаты TIDAL не найдены. Используй ручной поиск в TIDAL.",
+            release_type="album",
+        )
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
 
     response = await parse_form_handler(
         request,
@@ -445,8 +531,250 @@ async def test_parse_form_manual_release_line_returns_identity_block():
     assert "Lykke Li" in body
     assert "The Afterparty" in body
     assert "2026" in body
-    assert "Manual release identity detected. TIDAL resolver is not implemented yet." in body
-    assert "Next step will be optional TIDAL resolver. For now, use a TIDAL URL for full parsing." in body
+    assert "Источник:" in body
+    assert "manual" in body
+    assert "Тип релиза:" in body
+    assert "album" in body
+    assert "Кандидаты TIDAL" in body
+    assert "Кандидаты TIDAL не найдены. Используй ручной поиск в TIDAL." in body
+    assert "Открыть поиск в TIDAL" in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_manual_release_line_auto_handoffs_to_tidal_parse_for_strong_candidate(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    request = _make_request()
+    request.state.request_id = "req-form-manual-handoff"
+    captured = {"url": None}
+
+    candidate_url = "https://tidal.com/album/498548519"
+
+    async def fake_lookup_tidal_candidates(*args, **kwargs):
+        return _manual_lookup_result(
+            [
+                _manual_candidate(
+                    "498548519",
+                    "Look For Your Mind!",
+                    "2026-05-08",
+                    "2026",
+                    candidate_url,
+                    100,
+                    score_reasons=["title exact +60", "year exact +20", "type match +15", "relation match +5"],
+                )
+            ],
+            release_type="album",
+        )
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
+
+    async def fake_build_result(url, force_refresh=False, baseline=None):
+        captured["url"] = url
+        return _manual_handoff_result(url)
+
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+
+    response = await parse_form_handler(
+        request,
+        url='The Lemon Twigs — «Look For Your Mind!» (2026)',
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert captured["url"] == candidate_url
+    assert "Источник: Manual metadata → TIDAL candidate" in body
+    assert "Показать кандидатов TIDAL" in body
+    assert "Look For Your Mind!" in body
+    assert "Copy Music prompt" in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_manual_release_line_without_year_can_auto_handoff(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    request = _make_request()
+    request.state.request_id = "req-form-manual-no-year"
+    captured = {"url": None}
+
+    candidate_url = "https://tidal.com/album/498548519"
+
+    async def fake_lookup_tidal_candidates(*args, **kwargs):
+        return _manual_lookup_result(
+            [
+                _manual_candidate(
+                    "498548519",
+                    "Look For Your Mind!",
+                    "2026-05-08",
+                    "2026",
+                    candidate_url,
+                    80,
+                    score_reasons=["title exact +60", "type match +15", "relation match +5"],
+                )
+            ],
+            release_type="album",
+        )
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
+
+    async def fake_build_result(url, force_refresh=False, baseline=None):
+        captured["url"] = url
+        return _manual_handoff_result(url)
+
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+
+    response = await parse_form_handler(
+        request,
+        url='The Lemon Twigs — «Look For Your Mind!»',
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert captured["url"] == candidate_url
+    assert "Источник: Manual metadata → TIDAL candidate" in body
+    assert "Показать кандидатов TIDAL" in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_manual_release_line_weak_candidate_stays_manual(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    request = _make_request()
+    request.state.request_id = "req-form-manual-weak"
+    called = {"value": False}
+
+    async def fake_lookup_tidal_candidates(*args, **kwargs):
+        return _manual_lookup_result(
+            [
+                _manual_candidate(
+                    "65483367",
+                    "A Dream Is All We Know",
+                    "2024-06-14",
+                    "2024",
+                    "https://tidal.com/album/65483367",
+                    42,
+                    score_reasons=["title similarity 0.31 +0", "year mismatch -15", "type match +15"],
+                )
+            ],
+            release_type="album",
+        )
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
+
+    async def fake_build_result(url, force_refresh=False, baseline=None):
+        called["value"] = True
+        raise AssertionError("auto-handoff should not run for weak candidates")
+
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+
+    response = await parse_form_handler(
+        request,
+        url='The Lemon Twigs — «Look For Your Mind!» (2026)',
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert called["value"] is False
+    assert "Ручной ввод" in body
+    assert "Кандидаты TIDAL требуют ручной проверки." in body
+    assert "Источник: Manual metadata → TIDAL candidate" not in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_manual_release_line_year_mismatch_stays_manual(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    request = _make_request()
+    request.state.request_id = "req-form-manual-year-mismatch"
+    called = {"value": False}
+
+    async def fake_lookup_tidal_candidates(*args, **kwargs):
+        return _manual_lookup_result(
+            [
+                _manual_candidate(
+                    "498548519",
+                    "Look For Your Mind!",
+                    "2024-05-08",
+                    "2024",
+                    "https://tidal.com/album/498548519",
+                    100,
+                    score_reasons=["title exact +60", "year mismatch -15", "type match +15", "relation match +5"],
+                )
+            ],
+            release_type="album",
+        )
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
+
+    async def fake_build_result(url, force_refresh=False, baseline=None):
+        called["value"] = True
+        raise AssertionError("auto-handoff should not run when year mismatches")
+
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+
+    response = await parse_form_handler(
+        request,
+        url='The Lemon Twigs — «Look For Your Mind!» (2026)',
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert called["value"] is False
+    assert "Ручной ввод" in body
+    assert "Look For Your Mind!" in body
+    assert "Источник: Manual metadata → TIDAL candidate" not in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_manual_release_line_parse_failure_falls_back_to_identity(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    request = _make_request()
+    request.state.request_id = "req-form-manual-parse-failure"
+    captured = {"url": None}
+
+    candidate_url = "https://tidal.com/album/498548519"
+
+    async def fake_lookup_tidal_candidates(*args, **kwargs):
+        return _manual_lookup_result(
+            [
+                _manual_candidate(
+                    "498548519",
+                    "Look For Your Mind!",
+                    "2026-05-08",
+                    "2026",
+                    candidate_url,
+                    100,
+                    score_reasons=["title exact +60", "year exact +20", "type match +15", "relation match +5"],
+                )
+            ],
+            release_type="album",
+        )
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
+
+    async def fake_build_result(url, force_refresh=False, baseline=None):
+        captured["url"] = url
+        raise RuntimeError("TIDAL parse failure")
+
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+
+    response = await parse_form_handler(
+        request,
+        url='The Lemon Twigs — «Look For Your Mind!» (2026)',
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert captured["url"] == candidate_url
+    assert "Ручной ввод" in body
+    assert "Лучший кандидат найден, но TIDAL parse не удался. Используй ссылку вручную." in body
+    assert "Кандидаты TIDAL" in body
+    assert "Открыть поиск в TIDAL" in body
 
 
 @pytest.mark.asyncio
