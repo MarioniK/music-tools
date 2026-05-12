@@ -532,6 +532,24 @@ def build_qobuz_album_id_search_url(qobuz_album_id):
     return "https://www.google.com/search?q={}".format(quote_plus(query))
 
 
+_MANUAL_RELEASE_TYPE_CHOICES = {"auto", "album", "ep", "track"}
+
+
+def _normalize_manual_release_type_choice(value):
+    choice = clean_text(value)
+    choice = choice.lower() if choice else "auto"
+    if choice in _MANUAL_RELEASE_TYPE_CHOICES:
+        return choice
+    return "auto"
+
+
+def _resolve_manual_release_type(choice):
+    choice = _normalize_manual_release_type_choice(choice)
+    if choice == "auto":
+        return "album"
+    return choice
+
+
 def _apply_tidal_candidates_lookup(result, tidal_candidates_lookup, collapsible=False):
     if not tidal_candidates_lookup:
         return result
@@ -1200,7 +1218,13 @@ async def build_result(url, force_refresh=False, baseline=None):
 async def index(request: Request):
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "result": None, "error": None, "form_url": ""},
+        {
+            "request": request,
+            "result": None,
+            "error": None,
+            "form_url": "",
+            "form_manual_release_type": "auto",
+        },
     )
 
 
@@ -1210,11 +1234,14 @@ async def parse_form(
     request: Request,
     url: str = Form(...),
     force_refresh: str = Form(default="0"),
+    manual_release_type: str = Form(default="auto"),
     audio: UploadFile = File(default=None),
 ):
     request_id = getattr(request.state, "request_id", None)
     metrics.increment_requests_total()
     try:
+        manual_release_type_choice = _normalize_manual_release_type_choice(manual_release_type)
+        manual_release_type_value = _resolve_manual_release_type(manual_release_type_choice)
         detection = detect_music_input(url)
 
         if detection.get("input_type") == "url" and detection.get("provider") == "tidal":
@@ -1251,11 +1278,13 @@ async def parse_form(
                     "error": None,
                     "error_request_id": None,
                     "form_url": url,
+                    "form_manual_release_type": manual_release_type_choice,
                 },
             )
 
         if detection.get("input_type") == "manual_release_line":
-            manual_release_type = clean_text(detection.get("release_type")) or "album"
+            detection = dict(detection)
+            detection["release_type"] = manual_release_type_value
             tidal_candidates_lookup = None
             auto_handoff_candidate = None
             if detection.get("artist") and detection.get("title"):
@@ -1264,7 +1293,7 @@ async def parse_form(
                     lookup_tidal_candidates(
                         detection.get("artist"),
                         detection.get("title"),
-                        manual_release_type,
+                        detection.get("release_type"),
                         detection.get("year"),
                     ),
                 )
@@ -1272,7 +1301,7 @@ async def parse_form(
                     detection.get("artist"),
                     detection.get("title"),
                     detection.get("year"),
-                    manual_release_type,
+                    detection.get("release_type"),
                     tidal_candidates_lookup,
                 )
 
@@ -1310,6 +1339,7 @@ async def parse_form(
                     "error": None,
                     "error_request_id": None,
                     "form_url": url,
+                    "form_manual_release_type": manual_release_type_choice,
                 },
             )
 
@@ -1364,14 +1394,15 @@ async def parse_form(
             metrics.increment_parse_success_total()
             return templates.TemplateResponse(
                 "index.html",
-                {
-                    "request": request,
-                    "result": result,
-                    "error": None,
-                    "error_request_id": None,
-                    "form_url": url,
-                },
-            )
+                    {
+                        "request": request,
+                        "result": result,
+                        "error": None,
+                        "error_request_id": None,
+                        "form_url": url,
+                        "form_manual_release_type": manual_release_type_choice,
+                    },
+                )
 
         result = _build_unsupported_input_result(detection)
         metrics.increment_parse_success_total()
@@ -1383,6 +1414,7 @@ async def parse_form(
                 "error": None,
                 "error_request_id": None,
                 "form_url": url,
+                "form_manual_release_type": manual_release_type_choice,
             },
         )
     except ClientInputError as e:
@@ -1401,6 +1433,7 @@ async def parse_form(
                 "error": str(e),
                 "error_request_id": request_id,
                 "form_url": url,
+                "form_manual_release_type": manual_release_type_choice,
             },
             status_code=400,
         )
@@ -1419,6 +1452,7 @@ async def parse_form(
                 "error": "Не удалось обработать запрос. Попробуй ещё раз позже.",
                 "error_request_id": request_id,
                 "form_url": url,
+                "form_manual_release_type": manual_release_type_choice,
             },
             status_code=500,
         )
