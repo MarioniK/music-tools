@@ -32,6 +32,7 @@ _GENERIC_QOBUZ_ARTISTS = _GENERIC_QOBUZ_TITLES | {
     "ep",
     "release",
 }
+_QOBUZ_URL_SLUG_ARTIST_PREFIXES = {"the", "a", "an", "la", "le", "los", "las", "el"}
 
 
 def _clean_text(value):
@@ -80,6 +81,21 @@ def extract_open_qobuz_album_id(url: str):
 
     album_id = _clean_text(parts[1])
     return album_id or None
+
+
+def extract_open_qobuz_track_id(url: str):
+    """Возвращает token трека из open.qobuz.com deep-link, если он безопасно распознан."""
+
+    parsed = urlparse((url or "").strip())
+    if _normalize_host(parsed.netloc) != "open.qobuz.com":
+        return None
+
+    parts = [part for part in parsed.path.split("/") if part]
+    if len(parts) != 2 or parts[0] != "track":
+        return None
+
+    track_id = _clean_text(parts[1])
+    return track_id or None
 
 
 class _QobuzRedirectHandler(HTTPRedirectHandler):
@@ -424,6 +440,47 @@ def _extract_qobuz_artist_fallback(meta, title_source, known_title=None):
     return _extract_artist_from_qobuz_title_source(title_source, known_title)
 
 
+def _extract_qobuz_slug_identity(source_url):
+    parsed = urlparse((source_url or "").strip())
+    parts = [part for part in parsed.path.split("/") if part]
+    if len(parts) < 3:
+        return None, None
+
+    slug = _clean_text(parts[-2])
+    if not slug:
+        return None, None
+
+    tokens = [token for token in re.split(r"[-_]+", slug) if token]
+    if len(tokens) < 2:
+        return None, None
+
+    title_tokens = None
+    artist_tokens = None
+
+    if len(tokens) == 2:
+        title_tokens = tokens[:1]
+        artist_tokens = tokens[1:]
+    elif len(tokens) >= 5 and tokens[-3].lower() in _QOBUZ_URL_SLUG_ARTIST_PREFIXES:
+        title_tokens = tokens[:-3]
+        artist_tokens = tokens[-3:]
+    else:
+        title_tokens = tokens[:-2]
+        artist_tokens = tokens[-2:]
+
+    title = _clean_text(" ".join(title_tokens).replace("-", " ").replace("_", " "))
+    artist = _clean_text(" ".join(artist_tokens).replace("-", " ").replace("_", " "))
+
+    if title:
+        title = title.title()
+    if artist:
+        artist = artist.title()
+
+    if title and artist and not _is_generic_qobuz_artist(artist):
+        return artist, title
+
+    return None, None
+
+
 def _build_open_graph_identity(meta):
     title_source = meta.get("og:title") or meta.get("twitter:title")
     if not title_source:
@@ -498,6 +555,7 @@ def _finalize_identity(candidate, source_url, warnings, method_sources):
             "source_url": source_url,
             "resolved_metadata_url": None,
             "qobuz_album_id": None,
+            "qobuz_track_id": None,
             "artist": None,
             "title": None,
             "year": None,
@@ -518,6 +576,7 @@ def _finalize_identity(candidate, source_url, warnings, method_sources):
     candidate.setdefault("cover_url", None)
     candidate.setdefault("resolved_metadata_url", None)
     candidate.setdefault("qobuz_album_id", None)
+    candidate.setdefault("qobuz_track_id", None)
 
     if candidate.get("year") is None and candidate.get("release_date") and re.match(r"^\d{4}", candidate["release_date"]):
         candidate["year"] = int(candidate["release_date"][:4])
@@ -547,6 +606,7 @@ def _finalize_identity(candidate, source_url, warnings, method_sources):
         "source_url": source_url,
         "resolved_metadata_url": candidate.get("resolved_metadata_url"),
         "qobuz_album_id": candidate.get("qobuz_album_id"),
+        "qobuz_track_id": candidate.get("qobuz_track_id"),
         "artist": candidate.get("artist"),
         "title": candidate.get("title"),
         "year": candidate.get("year"),
@@ -597,7 +657,17 @@ def _extract_qobuz_identity_from_url(url):
         html_text, content_type, truncated = _fetch_qobuz_html(url)
     except HTTPError as exc:
         warnings.append("Не удалось загрузить Qobuz страницу: HTTP {}.".format(getattr(exc, "code", "error")))
-        return _finalize_identity(None, url, warnings, set())
+        try:
+            headers = getattr(exc, "headers", None)
+            raw_bytes = exc.read(MAX_QOBUZ_HTML_BYTES + 1)
+            content_type = headers.get("Content-Type", "") if headers else ""
+            truncated = len(raw_bytes) > MAX_QOBUZ_HTML_BYTES
+            html_text = raw_bytes[:MAX_QOBUZ_HTML_BYTES].decode(
+                headers.get_content_charset() if headers and hasattr(headers, "get_content_charset") else "utf-8",
+                errors="replace",
+            )
+        except Exception:
+            return _finalize_identity(None, url, warnings, set())
     except URLError:
         warnings.append("Не удалось загрузить Qobuz страницу.")
         return _finalize_identity(None, url, warnings, set())
@@ -667,6 +737,35 @@ def parse_qobuz_release_identity_from_html(html_text, source_url):
                 candidate["extraction_method"] = "mixed"
             method_sources.add("artist_fallback")
 
+    slug_artist, slug_title = _extract_qobuz_slug_identity(source_url)
+    if candidate:
+        if slug_artist and not candidate.get("artist"):
+            candidate = dict(candidate)
+            candidate["artist"] = slug_artist
+            method_sources.add("url_slug")
+            if candidate.get("extraction_method") != "mixed":
+                candidate["extraction_method"] = "mixed"
+        if slug_title:
+            normalized_title = _clean_text(candidate.get("title"))
+            if not normalized_title or _is_generic_qobuz_title(normalized_title):
+                candidate = dict(candidate)
+                candidate["title"] = slug_title
+                method_sources.add("url_slug")
+                if candidate.get("extraction_method") != "mixed":
+                    candidate["extraction_method"] = "mixed"
+    elif slug_artist and slug_title:
+        candidate = {
+            "artist": slug_artist,
+            "title": slug_title,
+            "year": None,
+            "release_date": None,
+            "release_type": None,
+            "cover_url": None,
+            "extraction_method": "url_slug",
+            "primary_source": "url_slug",
+        }
+        method_sources.add("url_slug")
+
     if not candidate:
         warnings.append("Не удалось найти Qobuz metadata в HTML.")
 
@@ -681,6 +780,7 @@ def extract_qobuz_release_identity(url):
     parsed_url = urlparse(normalized_url)
     normalized_host = _normalize_host(parsed_url.netloc)
     open_qobuz_album_id = extract_open_qobuz_album_id(normalized_url)
+    open_qobuz_track_id = extract_open_qobuz_track_id(normalized_url)
     open_qobuz_warning = (
         "Open Qobuz links may not expose release metadata. Use a regular qobuz.com album page or TIDAL URL for full parsing."
     )
@@ -698,6 +798,8 @@ def extract_qobuz_release_identity(url):
         identity["warnings"] = [open_qobuz_warning] + identity.get("warnings", [])
     if open_qobuz_album_id:
         identity["qobuz_album_id"] = open_qobuz_album_id
+    if open_qobuz_track_id:
+        identity["qobuz_track_id"] = open_qobuz_track_id
 
     if _identity_has_release_fields(identity):
         return identity

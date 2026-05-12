@@ -134,6 +134,20 @@
         </span>
       </div>
       {% endif %}
+      {% if result.qobuz_track_id %}
+      <div class="row">
+        <span class="label">Qobuz track ID:</span>
+        <span>{{ result.qobuz_track_id }}</span>
+      </div>
+      {% endif %}
+      {% if result.qobuz_track_id_search_url %}
+      <div class="row">
+        <span class="label">Найти страницу Qobuz по track ID:</span>
+        <span>
+          <a href="{{ result.qobuz_track_id_search_url }}" target="_blank" rel="noopener noreferrer">Открыть поиск в Google</a>
+        </span>
+      </div>
+      {% endif %}
       {% if result.resolved_metadata_url %}
       <div class="row">
         <span class="label">Metadata URL:</span>

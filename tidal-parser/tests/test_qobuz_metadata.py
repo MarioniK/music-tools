@@ -1,5 +1,8 @@
 import pytest
+from email.message import Message
+from io import BytesIO
 from urllib.parse import parse_qs, urlparse
+from urllib.error import HTTPError
 
 from app import main
 from app import qobuz_metadata
@@ -30,6 +33,22 @@ def test_extract_open_qobuz_album_id_rejects_non_open_host():
 
 def test_extract_open_qobuz_album_id_rejects_non_album_path():
     assert extract_open_qobuz_album_id("https://open.qobuz.com/track/abc") is None
+
+
+def test_extract_open_qobuz_track_id_basic():
+    assert qobuz_metadata.extract_open_qobuz_track_id("https://open.qobuz.com/track/375049574") == "375049574"
+
+
+def test_extract_open_qobuz_track_id_with_query_and_trailing_slash():
+    assert qobuz_metadata.extract_open_qobuz_track_id("https://open.qobuz.com/track/375049574/?x=1") == "375049574"
+
+
+def test_extract_open_qobuz_track_id_rejects_non_open_host():
+    assert qobuz_metadata.extract_open_qobuz_track_id("https://www.qobuz.com/track/375049574") is None
+
+
+def test_extract_open_qobuz_track_id_rejects_non_track_path():
+    assert qobuz_metadata.extract_open_qobuz_track_id("https://open.qobuz.com/album/abc") is None
 
 
 def test_parse_qobuz_release_identity_from_html_uses_json_ld():
@@ -99,6 +118,31 @@ def test_parse_qobuz_release_identity_from_html_uses_qobuz_title_pattern_for_art
     assert result["warnings"] == []
 
 
+def test_parse_qobuz_release_identity_from_html_uses_url_slug_fallback_for_qobuz_slug():
+    html = """
+    <html>
+      <head>
+        <meta property="og:title" content="Qobuz" />
+        <meta property="og:image" content="https://images.qobuz.com/generic-cover.jpg" />
+        <title>Qobuz</title>
+      </head>
+    </html>
+    """
+
+    result = parse_qobuz_release_identity_from_html(html, "https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629")
+
+    assert result["input_state"] == "extracted_release_identity"
+    assert result["provider"] == "qobuz"
+    assert result["artist"] == "Sepultura"
+    assert result["title"] == "Nation"
+    assert result["release_date"] is None
+    assert result["release_type"] is None
+    assert result["cover_url"] == "https://images.qobuz.com/generic-cover.jpg"
+    assert result["extraction_method"] in {"open_graph", "mixed"}
+    assert result["confidence"] in {"medium", "low"}
+    assert any("generic metadata" in warning.lower() for warning in result["warnings"])
+
+
 def test_parse_qobuz_release_identity_from_html_uses_open_graph_metadata():
     html = """
     <html>
@@ -135,6 +179,44 @@ def test_extract_qobuz_release_identity_rejects_non_qobuz_hosts():
     assert result["artist"] is None
     assert result["title"] is None
     assert result["warnings"]
+
+
+def test_extract_qobuz_release_identity_parses_http_error_html_body(monkeypatch):
+    html = """
+    <html>
+      <head>
+        <meta property="og:title" content="Qobuz" />
+        <meta property="og:image" content="https://images.qobuz.com/generic-cover.jpg" />
+        <title>Qobuz</title>
+      </head>
+    </html>
+    """
+
+    headers = Message()
+    headers["Content-Type"] = "text/html; charset=utf-8"
+    error = HTTPError(
+        "https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629",
+        404,
+        "Not Found",
+        headers,
+        BytesIO(html.encode("utf-8")),
+    )
+
+    def fake_fetch_html(url):
+        raise error
+
+    monkeypatch.setattr(qobuz_metadata, "_fetch_qobuz_html", fake_fetch_html)
+
+    result = extract_qobuz_release_identity("https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629")
+
+    assert result["input_state"] == "extracted_release_identity"
+    assert result["provider"] == "qobuz"
+    assert result["artist"] == "Sepultura"
+    assert result["title"] == "Nation"
+    assert result["qobuz_album_id"] is None
+    assert result["qobuz_track_id"] is None
+    assert result["confidence"] in {"medium", "low"}
+    assert any("http 404" in warning.lower() for warning in result["warnings"])
 
 
 def test_parse_qobuz_release_identity_from_html_rejects_generic_open_qobuz_title():
@@ -188,6 +270,15 @@ def test_build_qobuz_album_id_search_url_uses_encoded_album_id():
     assert "dqqfml14w232y" in query
 
 
+def test_build_qobuz_track_id_search_url_uses_encoded_track_id():
+    url = main.build_qobuz_track_id_search_url("375049574")
+
+    assert url.startswith("https://www.google.com/search")
+    query = _extract_query_param(url)
+    assert query == 'site:qobuz.com "375049574"'
+    assert "375049574" in query
+
+
 def test_qobuz_identity_result_includes_album_id_search_url_without_artist_title():
     result = main._build_qobuz_identity_result(
         {"provider": "qobuz"},
@@ -209,6 +300,30 @@ def test_qobuz_identity_result_includes_album_id_search_url_without_artist_title
     assert result["qobuz_album_id_search_url"] is not None
     assert "google.com/search" in result["qobuz_album_id_search_url"]
     assert _extract_query_param(result["qobuz_album_id_search_url"]) == 'site:qobuz.com "dqqfml14w232y"'
+    assert result["tidal_search_url"] is None
+
+
+def test_qobuz_identity_result_includes_track_id_search_url_without_artist_title():
+    result = main._build_qobuz_identity_result(
+        {"provider": "qobuz"},
+        {
+            "artist": None,
+            "title": None,
+            "year": None,
+            "release_date": None,
+            "release_type": None,
+            "cover_url": None,
+            "extraction_method": "none",
+            "confidence": "low",
+            "warnings": [],
+            "source_url": "https://open.qobuz.com/track/375049574",
+            "qobuz_track_id": "375049574",
+        },
+    )
+
+    assert result["qobuz_track_id_search_url"] is not None
+    assert "google.com/search" in result["qobuz_track_id_search_url"]
+    assert _extract_query_param(result["qobuz_track_id_search_url"]) == 'site:qobuz.com "375049574"'
     assert result["tidal_search_url"] is None
 
 
@@ -234,6 +349,86 @@ def test_qobuz_identity_result_includes_both_helpers_when_identity_exists():
     assert result["qobuz_album_id_search_url"] is not None
     assert "google.com/search" in result["qobuz_album_id_search_url"]
     assert _extract_query_param(result["qobuz_album_id_search_url"]) == 'site:qobuz.com "abc123"'
+    assert result["qobuz_track_id_search_url"] is None
+
+
+def test_extract_qobuz_release_identity_preserves_open_qobuz_track_id(monkeypatch):
+    def fake_fetch_html(url):
+        return (
+            """
+            <html>
+              <head>
+                <title>Open Qobuz</title>
+              </head>
+            </html>
+            """,
+            "text/html; charset=utf-8",
+            False,
+        )
+
+    monkeypatch.setattr(qobuz_metadata, "_fetch_qobuz_html", fake_fetch_html)
+
+    result = extract_qobuz_release_identity("https://open.qobuz.com/track/375049574")
+
+    assert result["input_state"] == "extracted_release_identity"
+    assert result["qobuz_track_id"] == "375049574"
+    assert result["qobuz_album_id"] is None
+    assert result["resolved_metadata_url"] is None
+    assert result["artist"] is None
+    assert result["title"] is None
+    assert result["confidence"] == "low"
+    assert any("open qobuz" in warning.lower() for warning in result["warnings"])
+
+
+@pytest.mark.asyncio
+async def test_parse_form_qobuz_track_url_renders_track_id_search_helper(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+
+    monkeypatch.setattr(
+        main,
+        "extract_qobuz_release_identity",
+        lambda url: {
+            "input_state": "extracted_release_identity",
+            "provider": "qobuz",
+            "source_url": url,
+            "artist": None,
+            "title": None,
+            "year": None,
+            "release_date": None,
+            "release_type": None,
+            "cover_url": None,
+            "extraction_method": "none",
+            "confidence": "low",
+            "warnings": [],
+            "qobuz_track_id": "375049574",
+            "qobuz_track_id_search_url": main.build_qobuz_track_id_search_url("375049574"),
+            "tidal_search_url": None,
+        },
+    )
+
+    response = await parse_form_handler(
+        main.Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/",
+                "headers": [],
+                "query_string": b"",
+                "server": ("testserver", 80),
+                "client": ("127.0.0.1", 12345),
+                "scheme": "http",
+            }
+        ),
+        url="https://open.qobuz.com/track/375049574",
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert "Найти страницу Qobuz по track ID" in body
+    assert "google.com/search" in body
+    assert "site%3Aqobuz.com+%22375049574%22" in body or 'site:qobuz.com "375049574"' in body
 
 
 def test_extract_qobuz_release_identity_uses_open_qobuz_candidate_url(monkeypatch):
