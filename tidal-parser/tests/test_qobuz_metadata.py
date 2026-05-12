@@ -568,6 +568,206 @@ async def test_parse_form_qobuz_url_renders_extracted_identity(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_parse_form_qobuz_url_renders_tidal_candidates(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+
+    monkeypatch.setattr(
+        main,
+        "extract_qobuz_release_identity",
+        lambda url: {
+            "input_state": "extracted_release_identity",
+            "provider": "qobuz",
+            "source_url": url,
+            "artist": "Sepultura",
+            "title": "Nation",
+            "year": 2001,
+            "release_date": "2001-03-12",
+            "release_type": "album",
+            "cover_url": "https://images.qobuz.com/cover.jpg",
+            "extraction_method": "json_ld",
+            "confidence": "high",
+            "warnings": [],
+            "qobuz_album_id": None,
+            "qobuz_track_id": None,
+        },
+    )
+
+    async def fake_lookup(artist, title, release_type=None, year=None):
+        assert artist == "Sepultura"
+        assert title == "Nation"
+        assert release_type == "album"
+        assert year == 2001
+        return {
+            "state": "success",
+            "message": None,
+            "query": "Sepultura Nation",
+            "release_type": "album",
+            "candidates": [
+                {
+                    "id": "1108027",
+                    "type": "album",
+                    "title": "Chaos A.D.",
+                    "release_date": "1993-01-01",
+                    "year": "1993",
+                    "tidal_url": "https://tidal.com/album/1108027",
+                    "display_line": "Chaos A.D. (1993-01-01) [album]",
+                }
+            ],
+        }
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
+
+    response = await parse_form_handler(
+        main.Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/",
+                "headers": [],
+                "query_string": b"",
+                "server": ("testserver", 80),
+                "client": ("127.0.0.1", 12345),
+                "scheme": "http",
+            }
+        ),
+        url="https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629",
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert "Кандидаты TIDAL" in body
+    assert "Chaos A.D." in body
+    assert "1993-01-01" in body
+    assert "album" in body
+    assert "https://tidal.com/album/1108027" in body
+    assert "Copy Music prompt" in body
+    assert "Copy release line" in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_qobuz_url_renders_tidal_candidates_error_message(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+
+    monkeypatch.setattr(
+        main,
+        "extract_qobuz_release_identity",
+        lambda url: {
+            "input_state": "extracted_release_identity",
+            "provider": "qobuz",
+            "source_url": url,
+            "artist": "Sepultura",
+            "title": "Nation",
+            "year": 2001,
+            "release_date": "2001-03-12",
+            "release_type": "album",
+            "cover_url": "https://images.qobuz.com/cover.jpg",
+            "extraction_method": "json_ld",
+            "confidence": "high",
+            "warnings": [],
+            "qobuz_album_id": None,
+            "qobuz_track_id": None,
+        },
+    )
+
+    async def fake_lookup(*args, **kwargs):
+        return {
+            "state": "error",
+            "message": "Не удалось получить кандидатов TIDAL. Используй ручной поиск.",
+            "query": "Sepultura Nation",
+            "release_type": "album",
+            "candidates": [],
+        }
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
+
+    response = await parse_form_handler(
+        main.Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/",
+                "headers": [],
+                "query_string": b"",
+                "server": ("testserver", 80),
+                "client": ("127.0.0.1", 12345),
+                "scheme": "http",
+            }
+        ),
+        url="https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629",
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert "Кандидаты TIDAL" in body
+    assert "Не удалось получить кандидатов TIDAL. Используй ручной поиск." in body
+    assert "Copy Music prompt" in body
+    assert "Copy release line" in body
+    assert "Открыть поиск в TIDAL" in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_qobuz_track_without_identity_does_not_lookup_candidates(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    called = {"value": False}
+
+    monkeypatch.setattr(
+        main,
+        "extract_qobuz_release_identity",
+        lambda url: {
+            "input_state": "extracted_release_identity",
+            "provider": "qobuz",
+            "source_url": url,
+            "artist": None,
+            "title": None,
+            "year": None,
+            "release_date": None,
+            "release_type": None,
+            "cover_url": None,
+            "extraction_method": "none",
+            "confidence": "low",
+            "warnings": [],
+            "qobuz_album_id": None,
+            "qobuz_track_id": "375049574",
+        },
+    )
+
+    async def fake_lookup(*args, **kwargs):
+        called["value"] = True
+        raise AssertionError("lookup should not be called for open.qobuz.com/track without identity")
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
+
+    response = await parse_form_handler(
+        main.Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/",
+                "headers": [],
+                "query_string": b"",
+                "server": ("testserver", 80),
+                "client": ("127.0.0.1", 12345),
+                "scheme": "http",
+            }
+        ),
+        url="https://open.qobuz.com/track/375049574",
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert called["value"] is False
+    assert "Кандидаты TIDAL" not in body
+    assert "Qobuz track ID" in body
+    assert "Поиск страницы Qobuz по track ID отключён" in body
+
+
+@pytest.mark.asyncio
 async def test_parse_form_qobuz_ep_url_renders_qobuz_review_prompt(monkeypatch):
     parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
 

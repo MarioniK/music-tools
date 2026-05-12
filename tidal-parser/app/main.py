@@ -33,6 +33,7 @@ from app.pipeline_logging import logger, run_timed_stage, run_timed_stage_sync
 from app import settings
 from app import metrics
 from app import request_context
+from app.tidal_openapi import lookup_tidal_candidates
 from app.services.discogs import search_discogs_release_metadata
 from app.services.musicbrainz import (
     country_display_from_tag,
@@ -554,7 +555,7 @@ def _build_manual_release_result(detection):
     }
 
 
-def _build_qobuz_identity_result(detection, extracted):
+def _build_qobuz_identity_result(detection, extracted, tidal_candidates_lookup=None):
     has_identity = bool(extracted.get("artist") or extracted.get("title"))
     tidal_search_query = build_tidal_search_query(
         extracted.get("artist"),
@@ -597,6 +598,13 @@ def _build_qobuz_identity_result(detection, extracted):
         qobuz_result["genres"] = extracted.get("genres", [])
         qobuz_result["final_genres"] = extracted.get("final_genres", [])
         qobuz_result["blog_output"] = build_blog_output(qobuz_result)
+        if tidal_candidates_lookup:
+            qobuz_result["tidal_candidates_enabled"] = True
+            qobuz_result["tidal_candidates_state"] = tidal_candidates_lookup.get("state")
+            qobuz_result["tidal_candidates_message"] = tidal_candidates_lookup.get("message")
+            qobuz_result["tidal_candidates_query"] = tidal_candidates_lookup.get("query")
+            qobuz_result["tidal_candidates_release_type"] = tidal_candidates_lookup.get("release_type")
+            qobuz_result["tidal_candidates"] = tidal_candidates_lookup.get("candidates", [])[:5]
 
     return qobuz_result
 
@@ -1128,7 +1136,18 @@ async def parse_form(
 
         if detection.get("input_type") == "url" and detection.get("provider") == "qobuz":
             extracted = await asyncio.to_thread(extract_qobuz_release_identity, detection.get("normalized_input"))
-            result = _build_qobuz_identity_result(detection, extracted)
+            tidal_candidates_lookup = None
+            if extracted.get("artist") and extracted.get("title"):
+                tidal_candidates_lookup = await run_timed_stage(
+                    "tidal_openapi_candidates",
+                    lookup_tidal_candidates(
+                        extracted.get("artist"),
+                        extracted.get("title"),
+                        extracted.get("release_type"),
+                        extracted.get("year"),
+                    ),
+                )
+            result = _build_qobuz_identity_result(detection, extracted, tidal_candidates_lookup)
             metrics.increment_parse_success_total()
             return templates.TemplateResponse(
                 "index.html",

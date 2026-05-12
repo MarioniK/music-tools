@@ -196,6 +196,37 @@
           {% endif %}
         </span>
       </div>
+      {% if result.tidal_candidates_enabled %}
+      <div class="section-title">Кандидаты TIDAL</div>
+      {% if result.tidal_candidates and result.tidal_candidates|length > 0 %}
+      {% for candidate in result.tidal_candidates %}
+      <div class="row">
+        <span class="label">Название:</span>
+        <span>{{ candidate.title or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Год / дата:</span>
+        <span>{{ candidate.release_date or candidate.year or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">Тип:</span>
+        <span>{{ candidate.type or "—" }}</span>
+      </div>
+      <div class="row">
+        <span class="label">TIDAL:</span>
+        <span>
+          {% if candidate.tidal_url %}
+          <a href="{{ candidate.tidal_url }}" target="_blank" rel="noopener noreferrer">{{ candidate.tidal_url }}</a>
+          {% else %}
+          —
+          {% endif %}
+        </span>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="note">{{ result.tidal_candidates_message or "Кандидаты TIDAL не найдены. Используй ручной поиск в TIDAL." }}</div>
+      {% endif %}
+      {% endif %}
       <div class="note">{{ result.message }}</div>
       <div class="note">{{ result.next_step }}</div>
       {% if result.warnings and result.warnings|length > 0 %}
