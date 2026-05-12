@@ -270,15 +270,6 @@ def test_build_qobuz_album_id_search_url_uses_encoded_album_id():
     assert "dqqfml14w232y" in query
 
 
-def test_build_qobuz_track_id_search_url_uses_encoded_track_id():
-    url = main.build_qobuz_track_id_search_url("375049574")
-
-    assert url.startswith("https://www.google.com/search")
-    query = _extract_query_param(url)
-    assert query == 'site:qobuz.com "375049574"'
-    assert "375049574" in query
-
-
 def test_qobuz_identity_result_includes_album_id_search_url_without_artist_title():
     result = main._build_qobuz_identity_result(
         {"provider": "qobuz"},
@@ -300,30 +291,6 @@ def test_qobuz_identity_result_includes_album_id_search_url_without_artist_title
     assert result["qobuz_album_id_search_url"] is not None
     assert "google.com/search" in result["qobuz_album_id_search_url"]
     assert _extract_query_param(result["qobuz_album_id_search_url"]) == 'site:qobuz.com "dqqfml14w232y"'
-    assert result["tidal_search_url"] is None
-
-
-def test_qobuz_identity_result_includes_track_id_search_url_without_artist_title():
-    result = main._build_qobuz_identity_result(
-        {"provider": "qobuz"},
-        {
-            "artist": None,
-            "title": None,
-            "year": None,
-            "release_date": None,
-            "release_type": None,
-            "cover_url": None,
-            "extraction_method": "none",
-            "confidence": "low",
-            "warnings": [],
-            "source_url": "https://open.qobuz.com/track/375049574",
-            "qobuz_track_id": "375049574",
-        },
-    )
-
-    assert result["qobuz_track_id_search_url"] is not None
-    assert "google.com/search" in result["qobuz_track_id_search_url"]
-    assert _extract_query_param(result["qobuz_track_id_search_url"]) == 'site:qobuz.com "375049574"'
     assert result["tidal_search_url"] is None
 
 
@@ -349,7 +316,7 @@ def test_qobuz_identity_result_includes_both_helpers_when_identity_exists():
     assert result["qobuz_album_id_search_url"] is not None
     assert "google.com/search" in result["qobuz_album_id_search_url"]
     assert _extract_query_param(result["qobuz_album_id_search_url"]) == 'site:qobuz.com "abc123"'
-    assert result["qobuz_track_id_search_url"] is None
+    assert result.get("qobuz_track_id_search_url") is None
 
 
 def test_extract_qobuz_release_identity_preserves_open_qobuz_track_id(monkeypatch):
@@ -381,7 +348,7 @@ def test_extract_qobuz_release_identity_preserves_open_qobuz_track_id(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_parse_form_qobuz_track_url_renders_track_id_search_helper(monkeypatch):
+async def test_parse_form_qobuz_track_url_renders_track_id_notice(monkeypatch):
     parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
 
     monkeypatch.setattr(
@@ -401,7 +368,6 @@ async def test_parse_form_qobuz_track_url_renders_track_id_search_helper(monkeyp
             "confidence": "low",
             "warnings": [],
             "qobuz_track_id": "375049574",
-            "qobuz_track_id_search_url": main.build_qobuz_track_id_search_url("375049574"),
             "tidal_search_url": None,
         },
     )
@@ -426,9 +392,11 @@ async def test_parse_form_qobuz_track_url_renders_track_id_search_helper(monkeyp
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
-    assert "Найти страницу Qobuz по track ID" in body
-    assert "google.com/search" in body
-    assert "site%3Aqobuz.com+%22375049574%22" in body or 'site:qobuz.com "375049574"' in body
+    assert "Qobuz track ID" in body
+    assert "375049574" in body
+    assert "Поиск страницы Qobuz по track ID отключён" in body
+    assert "Найти страницу Qobuz по track ID" not in body
+    assert "google.com/search" not in body
 
 
 def test_extract_qobuz_release_identity_uses_open_qobuz_candidate_url(monkeypatch):

@@ -527,15 +527,6 @@ def build_qobuz_album_id_search_url(qobuz_album_id):
     return "https://www.google.com/search?q={}".format(quote_plus(query))
 
 
-def build_qobuz_track_id_search_url(qobuz_track_id):
-    qobuz_track_id = clean_text(qobuz_track_id)
-    if not qobuz_track_id:
-        return None
-
-    query = 'site:qobuz.com "{}"'.format(qobuz_track_id)
-    return "https://www.google.com/search?q={}".format(quote_plus(query))
-
-
 def _build_manual_release_result(detection):
     tidal_search_query = build_tidal_search_query(
         detection.get("artist"),
@@ -572,6 +563,16 @@ def _build_qobuz_identity_result(detection, extracted):
     )
     qobuz_album_id = extracted.get("qobuz_album_id")
     qobuz_track_id = extracted.get("qobuz_track_id")
+    if has_identity:
+        message = "Метаданные Qobuz извлечены из HTML-страницы. Полный resolver пока не реализован."
+    elif qobuz_track_id:
+        message = (
+            "Поиск страницы Qobuz по track ID отключён: Qobuz track deep links пока не дают надёжной canonical страницы. "
+            "Вставь album/canonical Qobuz URL или TIDAL-ссылку."
+        )
+    else:
+        message = "Метаданные Qobuz были проверены, но идентичность релиза извлечь не удалось. Полный resolver пока не реализован."
+
     return {
         **extracted,
         "input_state": "extracted_release_identity",
@@ -579,18 +580,13 @@ def _build_qobuz_identity_result(detection, extracted):
         "provider": "qobuz",
         "provider_label": "Qobuz",
         "qobuz_album_id_search_url": build_qobuz_album_id_search_url(qobuz_album_id),
-        "qobuz_track_id_search_url": build_qobuz_track_id_search_url(qobuz_track_id),
         "tidal_search_query": tidal_search_query,
         "tidal_search_url": build_tidal_search_url(
             extracted.get("artist"),
             extracted.get("title"),
             extracted.get("year"),
         ),
-        "message": (
-            "Метаданные Qobuz извлечены из HTML-страницы. Полный resolver пока не реализован."
-            if has_identity
-            else "Метаданные Qobuz были проверены, но идентичность релиза извлечь не удалось. Полный resolver пока не реализован."
-        ),
+        "message": message,
         "next_step": "Сейчас это только минимальное извлечение данных. Для полного разбора используй TIDAL-ссылку.",
     }
 
