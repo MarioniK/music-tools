@@ -446,3 +446,126 @@ async def test_unknown_release_type_uses_limited_albums_then_tracks_lookup(monke
 async def test_candidate_url_construction():
     assert tidal_openapi.build_tidal_candidate_url("albums", "1108027") == "https://tidal.com/album/1108027"
     assert tidal_openapi.build_tidal_candidate_url("tracks", "705195") == "https://tidal.com/track/705195"
+
+
+def test_safe_auto_handoff_candidate_requires_strict_match():
+    lookup_result = {
+        "tidal_candidates_best_candidate": {
+            "id": "498548519",
+            "type": "album",
+            "title": "Look For Your Mind",
+            "year": "2026",
+            "tidal_url": "https://tidal.com/album/498548519",
+            "score": 100,
+            "is_best_candidate": True,
+        }
+    }
+
+    selected = tidal_openapi.select_safe_tidal_auto_handoff_candidate(
+        "The Lemon Twigs",
+        "Look For Your Mind!",
+        2026,
+        "album",
+        lookup_result,
+    )
+
+    assert selected is lookup_result["tidal_candidates_best_candidate"]
+
+
+def test_safe_auto_handoff_candidate_rejects_year_mismatch():
+    lookup_result = {
+        "tidal_candidates_best_candidate": {
+            "id": "498548519",
+            "type": "album",
+            "title": "Look For Your Mind!",
+            "year": "2024",
+            "tidal_url": "https://tidal.com/album/498548519",
+            "score": 100,
+            "is_best_candidate": True,
+        }
+    }
+
+    assert (
+        tidal_openapi.select_safe_tidal_auto_handoff_candidate(
+            "The Lemon Twigs",
+            "Look For Your Mind!",
+            2026,
+            "album",
+            lookup_result,
+        )
+        is None
+    )
+
+
+def test_safe_auto_handoff_candidate_rejects_type_mismatch():
+    lookup_result = {
+        "tidal_candidates_best_candidate": {
+            "id": "498548519",
+            "type": "track",
+            "title": "Look For Your Mind!",
+            "year": "2026",
+            "tidal_url": "https://tidal.com/track/498548519",
+            "score": 100,
+            "is_best_candidate": True,
+        }
+    }
+
+    assert (
+        tidal_openapi.select_safe_tidal_auto_handoff_candidate(
+            "The Lemon Twigs",
+            "Look For Your Mind!",
+            2026,
+            "album",
+            lookup_result,
+        )
+        is None
+    )
+
+
+def test_safe_auto_handoff_candidate_rejects_missing_tidal_url():
+    lookup_result = {
+        "tidal_candidates_best_candidate": {
+            "id": "498548519",
+            "type": "album",
+            "title": "Look For Your Mind!",
+            "year": "2026",
+            "score": 100,
+            "is_best_candidate": True,
+        }
+    }
+
+    assert (
+        tidal_openapi.select_safe_tidal_auto_handoff_candidate(
+            "The Lemon Twigs",
+            "Look For Your Mind!",
+            2026,
+            "album",
+            lookup_result,
+        )
+        is None
+    )
+
+
+def test_safe_auto_handoff_candidate_rejects_low_score():
+    lookup_result = {
+        "tidal_candidates_best_candidate": {
+            "id": "65483367",
+            "type": "album",
+            "title": "A Dream Is All We Know",
+            "year": "2024",
+            "tidal_url": "https://tidal.com/album/65483367",
+            "score": 94,
+            "is_best_candidate": True,
+        }
+    }
+
+    assert (
+        tidal_openapi.select_safe_tidal_auto_handoff_candidate(
+            "The Lemon Twigs",
+            "Look For Your Mind!",
+            2026,
+            "album",
+            lookup_result,
+        )
+        is None
+    )

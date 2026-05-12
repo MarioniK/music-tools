@@ -132,6 +132,34 @@ def _expected_candidate_type(release_type):
     return None
 
 
+def _candidate_title_matches_exact(candidate_title, query_title):
+    candidate_title = _normalize_tidal_scoring_title(candidate_title)
+    query_title = _normalize_tidal_scoring_title(query_title)
+    if not candidate_title or not query_title:
+        return False
+    return candidate_title == query_title
+
+
+def _candidate_year_matches_exact(candidate, query_year):
+    query_year = clean_text(query_year)
+    if not query_year:
+        return False
+
+    candidate_year = clean_text(candidate.get("year")) if isinstance(candidate, dict) else None
+    if not candidate_year and isinstance(candidate, dict):
+        candidate_year = _candidate_year_from_release_date(candidate.get("release_date"))
+
+    return bool(candidate_year and candidate_year == query_year)
+
+
+def _candidate_type_matches_release_type(candidate, release_type):
+    expected_type = _expected_candidate_type(release_type)
+    candidate_type = clean_text(candidate.get("type")) if isinstance(candidate, dict) else None
+    if not expected_type or not candidate_type:
+        return False
+    return candidate_type == expected_type
+
+
 def _relation_bonus_set(release_type):
     relations = _relation_for_release_type(release_type)
     return set(relations) if relations else set()
@@ -238,6 +266,43 @@ def _score_tidal_candidates(candidates, title, year, release_type):
             candidate.pop("_score_index", None)
 
     return scored_candidates, best_candidate, best_score, match_state
+
+
+def select_safe_tidal_auto_handoff_candidate(artist, title, year, release_type, lookup_result):
+    """Возвращает лучший безопасный TIDAL candidate для auto-handoff или None."""
+
+    if not isinstance(lookup_result, dict):
+        return None
+
+    best_candidate = lookup_result.get("tidal_candidates_best_candidate")
+    if not isinstance(best_candidate, dict):
+        return None
+
+    if not best_candidate.get("is_best_candidate"):
+        return None
+
+    if not best_candidate.get("tidal_url"):
+        return None
+
+    score = best_candidate.get("score") or 0
+    try:
+        score = int(score)
+    except (TypeError, ValueError):
+        score = 0
+
+    if score < 95:
+        return None
+
+    if not _candidate_type_matches_release_type(best_candidate, release_type):
+        return None
+
+    if year and not _candidate_year_matches_exact(best_candidate, year):
+        return None
+
+    if not _candidate_title_matches_exact(best_candidate.get("title"), title):
+        return None
+
+    return best_candidate
 
 
 def _resource_key(resource):

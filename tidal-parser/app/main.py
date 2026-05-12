@@ -33,7 +33,7 @@ from app.pipeline_logging import logger, run_timed_stage, run_timed_stage_sync
 from app import settings
 from app import metrics
 from app import request_context
-from app.tidal_openapi import lookup_tidal_candidates
+from app.tidal_openapi import lookup_tidal_candidates, select_safe_tidal_auto_handoff_candidate
 from app.services.discogs import search_discogs_release_metadata
 from app.services.musicbrainz import (
     country_display_from_tag,
@@ -591,6 +591,10 @@ def _build_qobuz_identity_result(detection, extracted, tidal_candidates_lookup=N
         "next_step": "Сейчас это только минимальное извлечение данных. Для полного разбора используй TIDAL-ссылку.",
     }
 
+    handoff_warning = clean_text(extracted.get("handoff_warning"))
+    if handoff_warning:
+        qobuz_result["handoff_warning"] = handoff_warning
+
     if has_identity:
         qobuz_result["entity_type"] = "album"
         qobuz_result["release_kind"] = extracted.get("release_type")
@@ -610,6 +614,36 @@ def _build_qobuz_identity_result(detection, extracted, tidal_candidates_lookup=N
             qobuz_result["tidal_candidates_match_state"] = tidal_candidates_lookup.get("tidal_candidates_match_state")
 
     return qobuz_result
+
+
+def _attach_qobuz_tidal_handoff_context(result, detection, extracted, tidal_candidates_lookup, selected_candidate):
+    handoff_context = {
+        "handoff_source": "qobuz_tidal_candidate",
+        "handoff_source_label": "Qobuz → TIDAL candidate",
+        "handoff_qobuz_url": detection.get("normalized_input") or detection.get("source_url") or extracted.get("source_url"),
+        "handoff_qobuz_metadata_url": extracted.get("resolved_metadata_url") or extracted.get("source_url"),
+        "handoff_selected_tidal_url": selected_candidate.get("tidal_url"),
+        "handoff_selected_tidal_score": selected_candidate.get("score"),
+        "handoff_selected_tidal_reasons": selected_candidate.get("score_reasons", []),
+        "handoff_qobuz_artist": extracted.get("artist"),
+        "handoff_qobuz_title": extracted.get("title"),
+        "handoff_qobuz_year": extracted.get("year"),
+        "handoff_qobuz_release_type": extracted.get("release_type"),
+        "tidal_candidates_enabled": True,
+        "tidal_candidates_collapsible": True,
+        "tidal_candidates_state": tidal_candidates_lookup.get("state"),
+        "tidal_candidates_message": tidal_candidates_lookup.get("message"),
+        "tidal_candidates_query": tidal_candidates_lookup.get("query"),
+        "tidal_candidates_release_type": tidal_candidates_lookup.get("release_type"),
+        "tidal_candidates": tidal_candidates_lookup.get("candidates", [])[:5],
+        "tidal_candidates_best_score": tidal_candidates_lookup.get("tidal_candidates_best_score"),
+        "tidal_candidates_best_candidate": tidal_candidates_lookup.get("tidal_candidates_best_candidate"),
+        "tidal_candidates_match_state": tidal_candidates_lookup.get("tidal_candidates_match_state"),
+    }
+
+    result = dict(result)
+    result.update(handoff_context)
+    return result
 
 
 async def fetch_html(url):
@@ -1140,6 +1174,7 @@ async def parse_form(
         if detection.get("input_type") == "url" and detection.get("provider") == "qobuz":
             extracted = await asyncio.to_thread(extract_qobuz_release_identity, detection.get("normalized_input"))
             tidal_candidates_lookup = None
+            auto_handoff_candidate = None
             if extracted.get("artist") and extracted.get("title"):
                 tidal_candidates_lookup = await run_timed_stage(
                     "tidal_openapi_candidates",
@@ -1150,7 +1185,40 @@ async def parse_form(
                         extracted.get("year"),
                     ),
                 )
-            result = _build_qobuz_identity_result(detection, extracted, tidal_candidates_lookup)
+                auto_handoff_candidate = select_safe_tidal_auto_handoff_candidate(
+                    extracted.get("artist"),
+                    extracted.get("title"),
+                    extracted.get("year"),
+                    extracted.get("release_type"),
+                    tidal_candidates_lookup,
+                )
+
+            if auto_handoff_candidate:
+                try:
+                    result = await build_result(
+                        auto_handoff_candidate.get("tidal_url"),
+                        force_refresh=(force_refresh == "1"),
+                    )
+                    result = _attach_qobuz_tidal_handoff_context(
+                        result,
+                        detection,
+                        extracted,
+                        tidal_candidates_lookup or {},
+                        auto_handoff_candidate,
+                    )
+                except Exception:
+                    logger.warning(
+                        "event=qobuz_tidal_handoff outcome=error qobuz_url=%s tidal_url=%s",
+                        detection.get("normalized_input"),
+                        auto_handoff_candidate.get("tidal_url"),
+                    )
+                    extracted = dict(extracted)
+                    extracted["handoff_warning"] = (
+                        "Лучший кандидат найден, но TIDAL parse не удался. Используй ссылку вручную."
+                    )
+                    result = _build_qobuz_identity_result(detection, extracted, tidal_candidates_lookup)
+            else:
+                result = _build_qobuz_identity_result(detection, extracted, tidal_candidates_lookup)
             metrics.increment_parse_success_total()
             return templates.TemplateResponse(
                 "index.html",

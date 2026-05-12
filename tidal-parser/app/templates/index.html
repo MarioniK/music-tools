@@ -196,6 +196,9 @@
           {% endif %}
         </span>
       </div>
+      {% if result.handoff_warning %}
+      <div class="note">{{ result.handoff_warning }}</div>
+      {% endif %}
       {% if result.tidal_candidates_enabled %}
       <div class="section-title">Кандидаты TIDAL</div>
       {% if result.tidal_candidates and result.tidal_candidates|length > 0 %}
@@ -496,6 +499,96 @@ Cover URL:
           {% endif %}
         </span>
       </div>
+
+      {% if result.handoff_source == "qobuz_tidal_candidate" and result.tidal_candidates_enabled %}
+      <div class="note">Источник: Qobuz → TIDAL candidate</div>
+      <div class="row">
+        <span class="label">Qobuz URL:</span>
+        <span>
+          {% if result.handoff_qobuz_url %}
+          <a href="{{ result.handoff_qobuz_url }}" target="_blank" rel="noopener noreferrer">{{ result.handoff_qobuz_url }}</a>
+          {% else %}
+          —
+          {% endif %}
+        </span>
+      </div>
+      <div class="row">
+        <span class="label">Resolved Qobuz metadata URL:</span>
+        <span>
+          {% if result.handoff_qobuz_metadata_url %}
+          <a href="{{ result.handoff_qobuz_metadata_url }}" target="_blank" rel="noopener noreferrer">{{ result.handoff_qobuz_metadata_url }}</a>
+          {% else %}
+          —
+          {% endif %}
+        </span>
+      </div>
+      <div class="row">
+        <span class="label">Selected TIDAL URL:</span>
+        <span>
+          {% if result.handoff_selected_tidal_url %}
+          <a href="{{ result.handoff_selected_tidal_url }}" target="_blank" rel="noopener noreferrer">{{ result.handoff_selected_tidal_url }}</a>
+          {% else %}
+          —
+          {% endif %}
+        </span>
+      </div>
+      <div class="row">
+        <span class="label">Score:</span>
+        <span>{{ result.handoff_selected_tidal_score or "—" }}</span>
+      </div>
+      <details class="tidal-candidates-details">
+        <summary>Показать кандидатов TIDAL</summary>
+        {% if result.tidal_candidates and result.tidal_candidates|length > 0 %}
+        {% if result.tidal_candidates_match_state == "weak" %}
+        <div class="note">Кандидаты TIDAL требуют ручной проверки.</div>
+        {% endif %}
+        {% for candidate in result.tidal_candidates %}
+        <div class="row">
+          <span class="label">Название:</span>
+          <span>{{ candidate.title or "—" }}</span>
+        </div>
+        {% if candidate.is_best_candidate and result.tidal_candidates_best_score is not none and result.tidal_candidates_best_score >= 75 %}
+        <div class="row">
+          <span class="label">Статус:</span>
+          <span>Лучший кандидат</span>
+        </div>
+        {% endif %}
+        <div class="row">
+          <span class="label">Год / дата:</span>
+          <span>{{ candidate.release_date or candidate.year or "—" }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Тип:</span>
+          <span>{{ candidate.type or "—" }}</span>
+        </div>
+        {% if candidate.score is defined and candidate.score is not none %}
+        <div class="row">
+          <span class="label">Score:</span>
+          <span>{{ candidate.score }}</span>
+        </div>
+        {% endif %}
+        {% if candidate.score_reasons is defined and candidate.score_reasons and candidate.score_reasons|length > 0 %}
+        <div class="row">
+          <span class="label">Причины:</span>
+          <span>{{ candidate.score_reasons | join(", ") }}</span>
+        </div>
+        {% endif %}
+        <div class="row">
+          <span class="label">TIDAL:</span>
+          <span>
+            {% if candidate.tidal_url %}
+            <a href="{{ candidate.tidal_url }}" target="_blank" rel="noopener noreferrer">{{ candidate.tidal_url }}</a>
+            {% else %}
+            —
+            {% endif %}
+          </span>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="note">{{ result.tidal_candidates_message or "Кандидаты TIDAL не найдены. Используй ручной поиск в TIDAL." }}</div>
+        {% endif %}
+      </details>
+      {% endif %}
 
       {% if result.audio_genres_pretty and result.audio_genres_pretty|length > 0 %}
       <div class="audio-block">

@@ -909,6 +909,7 @@ async def test_parse_form_qobuz_url_renders_tidal_candidate_score_and_best_label
 @pytest.mark.asyncio
 async def test_parse_form_qobuz_url_shows_manual_verification_note_for_weak_candidates(monkeypatch):
     parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    called = {"value": False}
 
     monkeypatch.setattr(
         main,
@@ -969,6 +970,12 @@ async def test_parse_form_qobuz_url_shows_manual_verification_note_for_weak_cand
 
     monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
 
+    async def fake_build_result(*args, **kwargs):
+        called["value"] = True
+        raise AssertionError("auto-handoff should not run for weak candidates")
+
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+
     response = await parse_form_handler(
         main.Request(
             {
@@ -989,8 +996,243 @@ async def test_parse_form_qobuz_url_shows_manual_verification_note_for_weak_cand
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
+    assert called["value"] is False
     assert "Кандидаты TIDAL требуют ручной проверки." in body
     assert "Лучший кандидат" not in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_qobuz_url_auto_handoffs_to_tidal_parse_for_strong_candidate(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    captured = {"url": None}
+
+    monkeypatch.setattr(
+        main,
+        "extract_qobuz_release_identity",
+        lambda url: {
+            "input_state": "extracted_release_identity",
+            "provider": "qobuz",
+            "source_url": url,
+            "artist": "The Lemon Twigs",
+            "title": "Look For Your Mind!",
+            "year": 2026,
+            "release_date": "2026-05-08",
+            "release_type": "album",
+            "cover_url": "https://images.qobuz.com/cover.jpg",
+            "extraction_method": "json_ld",
+            "confidence": "high",
+            "warnings": [],
+            "qobuz_album_id": None,
+            "qobuz_track_id": None,
+            "resolved_metadata_url": "https://www.qobuz.com/us-en/album/look-for-your-mind-the-lemon-twigs/dqqfml14w232y",
+        },
+    )
+
+    async def fake_lookup(*args, **kwargs):
+        return {
+            "state": "success",
+            "message": None,
+            "query": "The Lemon Twigs Look For Your Mind",
+            "release_type": "album",
+            "tidal_candidates_best_score": 100,
+            "tidal_candidates_best_candidate": {
+                "id": "498548519",
+                "type": "album",
+                "title": "Look For Your Mind",
+                "release_date": "2026-05-08",
+                "year": "2026",
+                "tidal_url": "https://tidal.com/album/498548519",
+                "display_line": "Look For Your Mind (2026-05-08) [album]",
+                "score": 100,
+                "score_reasons": ["title exact +60", "year exact +20", "type match +15", "relation match +5"],
+                "is_best_candidate": True,
+            },
+            "tidal_candidates_match_state": "strong",
+            "candidates": [
+                {
+                    "id": "498548519",
+                    "type": "album",
+                    "title": "Look For Your Mind",
+                    "release_date": "2026-05-08",
+                    "year": "2026",
+                    "tidal_url": "https://tidal.com/album/498548519",
+                    "display_line": "Look For Your Mind (2026-05-08) [album]",
+                    "score": 100,
+                    "score_reasons": ["title exact +60", "year exact +20", "type match +15", "relation match +5"],
+                    "is_best_candidate": True,
+                },
+                {
+                    "id": "65483367",
+                    "type": "album",
+                    "title": "A Dream Is All We Know",
+                    "release_date": "2024-06-14",
+                    "year": "2024",
+                    "tidal_url": "https://tidal.com/album/65483367",
+                    "display_line": "A Dream Is All We Know (2024-06-14) [album]",
+                    "score": 30,
+                    "score_reasons": ["title similarity 0.31 +0", "year mismatch -15", "type match +15"],
+                    "is_best_candidate": False,
+                },
+            ],
+        }
+
+    async def fake_build_result(url, force_refresh=False, baseline=None):
+        captured["url"] = url
+        return {
+            "source_url": url,
+            "entity_type": "album",
+            "tidal_id": "498548519",
+            "artist": "The Lemon Twigs",
+            "title": "Look For Your Mind!",
+            "album": None,
+            "release_kind": "album",
+            "release_year": 2026,
+            "country": "—",
+            "genres": [],
+            "final_genres": [],
+            "audio_genres_raw": [],
+            "audio_genres_pretty": [],
+            "blog_output": {
+                "line1": "The Lemon Twigs — «Look For Your Mind!» (2026)",
+                "line2": "#music #music2026",
+            },
+            "source_name": "tidal",
+            "meta_source_url": url,
+            "note": None,
+            "from_cache": False,
+        }
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+
+    response = await parse_form_handler(
+        main.Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/",
+                "headers": [],
+                "query_string": b"",
+                "server": ("testserver", 80),
+                "client": ("127.0.0.1", 12345),
+                "scheme": "http",
+            }
+        ),
+        url="https://www.qobuz.com/us-en/album/look-for-your-mind-the-lemon-twigs/dqqfml14w232y",
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert captured["url"] == "https://tidal.com/album/498548519"
+    assert "Источник: Qobuz → TIDAL candidate" in body
+    assert "Qobuz URL:" in body
+    assert "Resolved Qobuz metadata URL:" in body
+    assert "Selected TIDAL URL:" in body
+    assert "Score:" in body
+    assert "Показать кандидатов TIDAL" in body
+    assert "Лучший кандидат" in body
+    assert "Qobuz identity" not in body
+    assert "Look For Your Mind!" in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_qobuz_url_falls_back_when_auto_handoff_parse_fails(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    captured = {"url": None}
+
+    monkeypatch.setattr(
+        main,
+        "extract_qobuz_release_identity",
+        lambda url: {
+            "input_state": "extracted_release_identity",
+            "provider": "qobuz",
+            "source_url": url,
+            "artist": "The Lemon Twigs",
+            "title": "Look For Your Mind!",
+            "year": 2026,
+            "release_date": "2026-05-08",
+            "release_type": "album",
+            "cover_url": "https://images.qobuz.com/cover.jpg",
+            "extraction_method": "json_ld",
+            "confidence": "high",
+            "warnings": [],
+            "qobuz_album_id": None,
+            "qobuz_track_id": None,
+            "resolved_metadata_url": "https://www.qobuz.com/us-en/album/look-for-your-mind-the-lemon-twigs/dqqfml14w232y",
+        },
+    )
+
+    async def fake_lookup(*args, **kwargs):
+        return {
+            "state": "success",
+            "message": None,
+            "query": "The Lemon Twigs Look For Your Mind",
+            "release_type": "album",
+            "tidal_candidates_best_score": 100,
+            "tidal_candidates_best_candidate": {
+                "id": "498548519",
+                "type": "album",
+                "title": "Look For Your Mind",
+                "release_date": "2026-05-08",
+                "year": "2026",
+                "tidal_url": "https://tidal.com/album/498548519",
+                "display_line": "Look For Your Mind (2026-05-08) [album]",
+                "score": 100,
+                "score_reasons": ["title exact +60", "year exact +20", "type match +15", "relation match +5"],
+                "is_best_candidate": True,
+            },
+            "tidal_candidates_match_state": "strong",
+            "candidates": [
+                {
+                    "id": "498548519",
+                    "type": "album",
+                    "title": "Look For Your Mind",
+                    "release_date": "2026-05-08",
+                    "year": "2026",
+                    "tidal_url": "https://tidal.com/album/498548519",
+                    "display_line": "Look For Your Mind (2026-05-08) [album]",
+                    "score": 100,
+                    "score_reasons": ["title exact +60", "year exact +20", "type match +15", "relation match +5"],
+                    "is_best_candidate": True,
+                }
+            ],
+        }
+
+    async def fake_build_result(url, force_refresh=False, baseline=None):
+        captured["url"] = url
+        raise RuntimeError("TIDAL parse failure")
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+
+    response = await parse_form_handler(
+        main.Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/",
+                "headers": [],
+                "query_string": b"",
+                "server": ("testserver", 80),
+                "client": ("127.0.0.1", 12345),
+                "scheme": "http",
+            }
+        ),
+        url="https://www.qobuz.com/us-en/album/look-for-your-mind-the-lemon-twigs/dqqfml14w232y",
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert captured["url"] == "https://tidal.com/album/498548519"
+    assert "Лучший кандидат найден, но TIDAL parse не удался. Используй ссылку вручную." in body
+    assert "Qobuz identity" in body
+    assert "Кандидаты TIDAL" in body
+    assert "Copy Music prompt" in body
+    assert "Copy release line" in body
 
 
 @pytest.mark.asyncio
