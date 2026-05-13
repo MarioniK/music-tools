@@ -67,6 +67,7 @@ def _tidal_candidate(
         "title": title,
         "release_date": release_date,
         "year": year,
+        "source_relation": "tracks" if candidate_type == "track" else "albums",
         "tidal_url": tidal_url,
         "display_line": "{} ({}) [{}]".format(title, release_date or year or "—", candidate_type),
         "score": score,
@@ -203,6 +204,38 @@ def test_parse_apple_music_release_identity_from_html_track():
     assert result["canonical_url"] == "https://music.apple.com/us/song/cardigan/1524801580"
     assert result["confidence"] == "high"
     assert result["warnings"] == []
+
+
+def test_parse_apple_music_release_identity_from_album_deeplink_prefers_track_id():
+    html = """
+    <html>
+      <head>
+        <link rel="canonical" href="https://music.apple.com/by/song/choosin-texas/184493215" />
+        <meta property="og:title" content="Choosin' Texas by Ella Langley on Apple Music" />
+        <meta property="og:url" content="https://music.apple.com/by/song/choosin-texas/184493215" />
+        <meta property="og:type" content="music.song" />
+        <meta name="twitter:title" content="Choosin' Texas by Ella Langley on Apple Music" />
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "MusicComposition",
+          "name": "Choosin' Texas",
+          "datePublished": "2025-10-17"
+        }
+        </script>
+        <title>Choosin' Texas by Ella Langley on Apple Music</title>
+      </head>
+    </html>
+    """
+
+    result = apple_music_metadata.parse_apple_music_release_identity_from_html(
+        html,
+        "https://music.apple.com/by/album/choosin-texas/1844932149?i=184493215",
+        final_url="https://music.apple.com/by/song/choosin-texas/184493215",
+    )
+
+    assert result["release_type"] == "track"
+    assert result["provider_item_id"] == "184493215"
 
 
 def test_parse_apple_music_release_identity_from_html_older_album():
@@ -442,6 +475,150 @@ async def test_parse_form_apple_music_track_auto_handoffs_to_tidal_parse(monkeyp
     assert captured["url"] == candidate_url
     assert "Источник: Apple Music → TIDAL candidate" in body
     assert "Selected TIDAL URL" in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_apple_music_track_without_candidate_year_uses_apple_specific_handoff(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    request = _make_request()
+    request.state.request_id = "req-apple-track-no-year"
+    captured = {"url": None}
+
+    candidate_url = "https://tidal.com/track/501234568"
+
+    monkeypatch.setattr(
+        main,
+        "extract_apple_music_release_identity",
+        lambda url: _apple_identity(
+            url,
+            "Ella Langley",
+            "Choosin' Texas",
+            2025,
+            "2025-10-17",
+            "track",
+            "184493215",
+            "https://music.apple.com/by/song/choosin-texas/184493215",
+        ),
+    )
+
+    async def fake_lookup(artist, title, release_type=None, year=None):
+        assert artist == "Ella Langley"
+        assert title == "Choosin' Texas"
+        assert release_type == "track"
+        assert year == 2025
+        return _tidal_lookup_result(
+            [
+                _tidal_candidate(
+                    "501234568",
+                    "Choosin' Texas",
+                    None,
+                    None,
+                    candidate_url,
+                    80,
+                    candidate_type="track",
+                    score_reasons=["title exact +60", "year unavailable +0", "type match +15", "relation match +5"],
+                )
+            ],
+            release_type="track",
+        )
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
+
+    async def fake_build_result(url, force_refresh=False, baseline=None):
+        captured["url"] = url
+        return _tidal_handoff_result(
+            url,
+            artist="Ella Langley",
+            title="Choosin' Texas",
+            release_year=2025,
+            entity_type="track",
+            release_kind="track",
+        )
+
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+
+    response = await parse_form_handler(
+        request,
+        url="https://music.apple.com/by/album/choosin-texas/1844932149?i=184493215",
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert captured["url"] == candidate_url
+    assert "Источник: Apple Music → TIDAL candidate" in body
+    assert "Selected TIDAL URL" in body
+
+
+@pytest.mark.asyncio
+async def test_parse_form_apple_music_track_with_ambiguous_tied_candidates_stays_identity(monkeypatch):
+    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+    request = _make_request()
+    request.state.request_id = "req-apple-track-ambiguous"
+    called = {"value": False}
+
+    monkeypatch.setattr(
+        main,
+        "extract_apple_music_release_identity",
+        lambda url: _apple_identity(
+            url,
+            "Ella Langley",
+            "Choosin' Texas",
+            2025,
+            "2025-10-17",
+            "track",
+            "184493215",
+            "https://music.apple.com/by/song/choosin-texas/184493215",
+        ),
+    )
+
+    async def fake_lookup(*args, **kwargs):
+        return _tidal_lookup_result(
+            [
+                _tidal_candidate(
+                    "501234568",
+                    "Choosin' Texas",
+                    None,
+                    None,
+                    "https://tidal.com/track/501234568",
+                    80,
+                    candidate_type="track",
+                ),
+                _tidal_candidate(
+                    "501234569",
+                    "Choosin' Texas",
+                    None,
+                    None,
+                    "https://tidal.com/track/501234569",
+                    80,
+                    candidate_type="track",
+                ),
+            ],
+            release_type="track",
+        )
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
+
+    async def fake_build_result(url, force_refresh=False, baseline=None):
+        called["value"] = True
+        raise AssertionError("ambiguous Apple candidates should not auto-handoff")
+
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+
+    response = await parse_form_handler(
+        request,
+        url="https://music.apple.com/by/album/choosin-texas/1844932149?i=184493215",
+        force_refresh="0",
+        audio=None,
+    )
+
+    body = response.body.decode("utf-8")
+    assert response.status_code == 200
+    assert called["value"] is False
+    assert "Apple Music identity" in body
+    assert "Provider ID:" in body
+    assert "Источник: Apple Music → TIDAL candidate" not in body
 
 
 @pytest.mark.asyncio

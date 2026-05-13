@@ -79,6 +79,20 @@ def _extract_provider_item_id(url: str):
     if _normalize_host(parsed.netloc) != "music.apple.com":
         return None
 
+    query_item_id = None
+    query = (parsed.query or "").strip()
+    if query:
+        for part in query.split("&"):
+            if not part:
+                continue
+            key, sep, value = part.partition("=")
+            if sep and key == "i" and value.isdigit():
+                query_item_id = value
+                break
+
+    if query_item_id:
+        return query_item_id
+
     path = parsed.path or ""
     patterns = [
         r"/(?:album|song)/[^/?#]+/(\d+)(?:[/?#]|$)",

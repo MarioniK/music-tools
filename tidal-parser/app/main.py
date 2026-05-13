@@ -747,6 +747,93 @@ def _attach_tidal_candidate_handoff_context(
     return result
 
 
+def _candidate_has_available_year(candidate):
+    if not isinstance(candidate, dict):
+        return False
+    return bool(clean_text(candidate.get("year")) or clean_text(candidate.get("release_date")))
+
+
+def _count_apple_music_top_score_exact_track_candidates(lookup_result, title, score):
+    if not isinstance(lookup_result, dict):
+        return 0
+
+    exact_candidates = 0
+    for candidate in lookup_result.get("candidates") or []:
+        if not isinstance(candidate, dict):
+            continue
+
+        candidate_score = candidate.get("score")
+        try:
+            candidate_score = int(candidate_score)
+        except (TypeError, ValueError):
+            continue
+
+        if candidate_score != score:
+            continue
+
+        if clean_text(candidate.get("type")) != "track":
+            continue
+
+        if clean_text(candidate.get("source_relation")) != "tracks":
+            continue
+
+        if not _candidate_title_matches_exact(candidate.get("title"), title):
+            continue
+
+        if not candidate.get("tidal_url"):
+            continue
+
+        exact_candidates += 1
+
+    return exact_candidates
+
+
+def _select_safe_apple_music_tidal_auto_handoff_candidate(artist, title, year, release_type, lookup_result):
+    if clean_text(release_type) != "track":
+        return select_safe_tidal_auto_handoff_candidate(artist, title, year, release_type, lookup_result)
+
+    if not isinstance(lookup_result, dict):
+        return None
+
+    best_candidate = lookup_result.get("tidal_candidates_best_candidate")
+    if not isinstance(best_candidate, dict):
+        return None
+
+    if not best_candidate.get("is_best_candidate"):
+        return None
+
+    if not best_candidate.get("tidal_url"):
+        return None
+
+    try:
+        score = int(best_candidate.get("score") or 0)
+    except (TypeError, ValueError):
+        score = 0
+
+    if score < 80:
+        return None
+
+    if clean_text(best_candidate.get("type")) != "track":
+        return None
+
+    if clean_text(best_candidate.get("source_relation")) != "tracks":
+        return None
+
+    if not _candidate_title_matches_exact(best_candidate.get("title"), title):
+        return None
+
+    if _candidate_has_available_year(best_candidate):
+        return select_safe_tidal_auto_handoff_candidate(artist, title, year, release_type, lookup_result)
+
+    if not year:
+        return None
+
+    if _count_apple_music_top_score_exact_track_candidates(lookup_result, title, score) > 1:
+        return None
+
+    return best_candidate
+
+
 def _attach_qobuz_tidal_handoff_context(result, detection, extracted, tidal_candidates_lookup, selected_candidate):
     handoff_context = {
         "handoff_qobuz_url": detection.get("normalized_input") or detection.get("source_url") or extracted.get("source_url"),
@@ -1487,7 +1574,7 @@ async def parse_form(
                         extracted.get("year"),
                     ),
                 )
-                auto_handoff_candidate = select_safe_tidal_auto_handoff_candidate(
+                auto_handoff_candidate = _select_safe_apple_music_tidal_auto_handoff_candidate(
                     extracted.get("artist"),
                     extracted.get("title"),
                     extracted.get("year"),
