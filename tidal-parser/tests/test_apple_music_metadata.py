@@ -753,11 +753,10 @@ async def test_parse_form_apple_music_parse_failure_falls_back_to_identity(monke
 @pytest.mark.parametrize(
     "url, expected_provider",
     [
-        ("https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj", "Spotify"),
         ("https://music.yandex.ru/album/31774859?lang=en", "Yandex Music"),
     ],
 )
-async def test_parse_form_spotify_and_yandex_remain_unsupported(monkeypatch, url, expected_provider):
+async def test_parse_form_yandex_remains_unsupported(monkeypatch, url, expected_provider):
     parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
     request = _make_request()
     request.state.request_id = "req-unsupported-{}".format(expected_provider.lower().replace(" ", "-"))
