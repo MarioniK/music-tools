@@ -1,42 +1,46 @@
 # music-tools
 
-`music-tools` — монорепозиторий с двумя сервисами для извлечения, обогащения и нормализации музыкальных данных:
+`music-tools` — монорепозиторий с двумя отдельными сервисами для извлечения, обогащения и нормализации музыкальных данных:
 
-- `tidal-parser` — main API/orchestration service;
-- `genre-classifier` — audio classification service.
+- `tidal-parser`
+- `genre-classifier`
+
+Сервисы живут в отдельных директориях, имеют отдельные Docker Compose конфигурации и не образуют одно runtime-окружение.
 
 Схема pipeline:
 
 `TIDAL -> parse_tidal -> Discogs -> MusicBrainz -> audio classifier -> merge -> cache`
 
-Проект делает упор на устойчивость пайплайна, предсказуемость результата и прозрачную обработку данных. Здесь нет сложной "магии": источники объединяются через простые и объяснимые правила, а сбои внешних API по возможности обрабатываются через безопасную деградацию. После `v0.1` проект стал устойчивее в работе с внешними интеграциями, лучше наблюдается в эксплуатации и аккуратнее управляется через конфигурацию. После Roadmap 3 production runtime `genre-classifier` модернизирован с Python 3.6 / TensorFlow 1.15 до Python 3.12.13 / TensorFlow 2.21.0 без изменения production-контракта.
+Проект делает упор на устойчивость пайплайна, предсказуемость результата и безопасную деградацию при сбоях внешних API. Основная идея остаётся прежней: источники объединяются через простые и объяснимые правила, без скрытой магии.
 
-## Архитектура
+## Что умеет `tidal-parser`
 
-### `tidal-parser`
+`tidal-parser` - основной сервис координации и UI.
 
-Основной сервис координации и UI.
+Он умеет:
 
-Что делает:
-- парсит TIDAL-страницу через HTML + JSON-LD с резервной логикой;
-- извлекает базовые метаданные;
-- обогащает релиз через Discogs и MusicBrainz;
-- при наличии аудиофайла вызывает `genre-classifier`;
-- нормализует жанры;
-- объединяет данные с учётом качества источников;
-- формирует `blog_output`;
-- кэширует результат;
-- различает пользовательские ошибки и внутренние сбои на входном слое.
+- парсить прямые TIDAL URL;
+- принимать Qobuz canonical/open album links и доводить их до TIDAL resolver;
+- принимать manual release line и selector `Тип` для `album` / `ep` / `track` и доводить их до TIDAL resolver;
+- принимать Apple Music album/song links, извлекать provider identity и передавать её в TIDAL resolver;
+- принимать Spotify album/track links, извлекать provider identity и передавать её в TIDAL resolver;
+- обрабатывать Yandex Music track links через Odesli -> TIDAL direct bridge;
+- обрабатывать Yandex Music album links через Odesli metadata -> TIDAL candidates/scoring fallback;
+- показывать copy-first publication UI с release line, tags, Music prompt и candidate/scoring details там, где это уместно.
 
-### `genre-classifier`
+Безопасные границы:
 
-Отдельный сервис аудио-классификации.
+- внешний response shape для TIDAL parse не менялся;
+- existing TIDAL URL flow сохранён;
+- cache logic сохранена;
+- provider links используют safe fallback, если resolver не уверен;
+- Qobuz / manual / Apple / Spotify / Yandex используют общий downstream TIDAL candidates/scoring/safe handoff там, где это применимо.
 
-Что делает:
-- принимает аудиофайл;
-- нормализует его через `ffmpeg`;
-- прогоняет через модель Essentia / MusiCNN;
-- возвращает сырые предсказания и нормализованные жанры.
+## Что умеет `genre-classifier`
+
+`genre-classifier` - отдельный сервис аудио-классификации.
+
+Он принимает аудиофайл, нормализует его через `ffmpeg`, прогоняет через модель Essentia / MusiCNN и возвращает сырые предсказания и нормализованные жанры.
 
 Текущий production runtime после controlled ONNX default switch:
 
@@ -52,44 +56,17 @@ Legacy MusicNN path остаётся сохранён как fallback/rollback c
 - устойчивый парсинг HTML с резервной логикой;
 - обогащение через Discogs и MusicBrainz;
 - ограниченные повторные попытки при временных сбоях внешних API;
-- нормализация жанров в едином внутреннем формате;
+- нормализация релизов и provider identity без forced wrong match;
 - предсказуемое объединение данных без неявного перетирания более сильных данных;
 - структурированное логирование;
-- request correlation через `request_id` и более понятные user-facing error paths;
+- request correlation через `request_id` и понятные user-facing error paths;
 - lightweight runtime metrics через `/metrics` и согласованный process-level `/health`;
 - централизованный settings layer для runtime-конфигурации `tidal-parser`;
-- корректное разделение допустимой деградации результата и фатальных ошибок;
 - генерация `blog_output` из финального результата.
-
-## Статус релиза v0.5.0
-
-`v0.5.0` фиксирует ONNX default runtime для `genre-classifier`.
-
-ONNX MusiCNN стал default provider, default target переключён на `onnx-runtime-slim`, а legacy MusicNN path остался как rollback/fallback context. `/classify` contract и response shape не менялись. `tidal-parser` code в этом switch не менялся.
-
-Детали: [docs/releases/v0.5.0.md](docs/releases/v0.5.0.md) и [genre-classifier/docs/onnx-runtime.md](genre-classifier/docs/onnx-runtime.md).
-
-## Статус релиза v0.3.0
-
-`v0.3.0` завершает Roadmap 2 как LLM migration foundation для `genre-classifier`.
-
-`legacy_musicnn` остаётся default provider. `/classify` API и response shape не менялись. Production responses остаются legacy-only. Canary rollout, production cutover и default-provider switch не входят в `v0.3.0`.
-
-Детали: [docs/releases/v0.3.0.md](docs/releases/v0.3.0.md) и [genre-classifier/docs/eval/roadmap-2.16-release-readiness-and-v0.3-decision.md](genre-classifier/docs/eval/roadmap-2.16-release-readiness-and-v0.3-decision.md).
-
-## Краткая схема работы
-
-- `tidal-parser` — точка входа для UI и API;
-- `genre-classifier` — изолированный сервис для работы с аудио;
-- сервисы общаются по HTTP внутри Docker network;
-- Docker Compose конфигурации service-scoped и разделены по сервисам;
-- Discogs и MusicBrainz используются как внешние источники метаданных;
-- итоговый результат собирается в слое координации и затем кэшируется;
-- каждый сервис сейчас запускается своим `docker-compose.yml`.
 
 ## Быстрый старт
 
-Сейчас у `tidal-parser` и `genre-classifier` отдельные `docker-compose.yml`. Единого compose для всего репозитория пока нет.
+Сейчас у `tidal-parser` и `genre-classifier` отдельные `docker-compose.yml`. Единого compose для всего репозитория нет.
 
 ### 1. Создать общую Docker network
 
@@ -111,6 +88,7 @@ docker compose up --build -d
 ### 3. Подготовить `.env` для `tidal-parser`
 
 Минимум нужны:
+
 - `DISCOGS_TOKEN`, если нужно обогащение через Discogs;
 - `MUSICBRAINZ_CONTACT_EMAIL`, чтобы `tidal-parser` отправлял корректный контакт в `User-Agent` для запросов к MusicBrainz.
 
@@ -137,29 +115,25 @@ http://localhost:8011
 ### Через UI
 
 1. Открыть `http://localhost:8011`
-2. Вставить ссылку на TIDAL `track` или `album`
-3. При необходимости приложить аудиофайл для жанровой классификации
+2. Вставить ссылку на TIDAL, Qobuz, Apple Music, Spotify, Yandex Music или manual release line
+3. При необходимости выбрать `Тип`
 4. Получить итоговый результат и `blog_output`
 
 В текущей версии основной пользовательский сценарий проходит через UI `tidal-parser`. API тоже доступен, но в этом README он не документируется подробно, чтобы не фиксировать лишний публичный контракт до следующей ревизии документации.
 
 ## Ограничения текущей версии
 
-- проект развивается как монорепозиторий с раздельным запуском сервисов, без единого compose для всего стека;
-- `genre-classifier` остаётся отдельным сервисом; canary rollout, LLM production adoption и lighter non-TensorFlow model migration остаются будущей работой;
-- качество результата зависит от доступности и структуры TIDAL HTML;
+- `tidal-parser` не меняет внешний response shape для TIDAL parse;
+- existing TIDAL URL flow сохранён;
+- cache logic сохранена;
+- Apple `album?...i=<song_id>` stable track identity остаётся follow-up;
+- Yandex/Odesli может rate-limit;
+- Yandex album может не иметь direct TIDAL URL;
+- provider identity tag-policy polish может быть отдельным follow-up;
+- `genre-classifier` остаётся отдельным сервисом и не входит в один runtime с `tidal-parser`;
+- качество результата по-прежнему зависит от доступности и структуры внешних источников;
 - обогащение через Discogs зависит от `DISCOGS_TOKEN`;
-- внешние источники могут деградировать частично, поэтому часть полей может быть пустой даже при успешном общем результате;
-- жанровая классификация не делает семантическое сопоставление и не пытается "угадывать" синонимы.
-
-## Roadmap
-
-- привести запуск монорепозитория к более цельной dev-схеме;
-- удержать ONNX default runtime и отдельно рассматривать будущие runtime-эксперименты, включая OpenVINO/iGPU, только отдельными этапами;
-- рассматривать LLM production adoption и lighter non-TensorFlow classifier migration только как будущие отдельные этапы;
-- расширить покрытие проверок smoke/integration;
-- улучшить документацию по окружению и эксплуатации.
-- после `v0.5.0` отдельно запланировать cleanup старых lightweight/evidence файлов.
+- внешние источники могут деградировать частично, поэтому часть полей может быть пустой даже при успешном общем результате.
 
 ## Документация
 
@@ -168,6 +142,7 @@ http://localhost:8011
 - Release notes v0.3.0: [docs/releases/v0.3.0.md](docs/releases/v0.3.0.md)
 - Release notes v0.4.0: [docs/releases/v0.4.0.md](docs/releases/v0.4.0.md)
 - Release notes v0.5.0: [genre-classifier/docs/releases/v0.5.0.md](genre-classifier/docs/releases/v0.5.0.md)
+- Release notes v0.6.0: [tidal-parser/docs/releases/v0.6.0.md](tidal-parser/docs/releases/v0.6.0.md)
 
 ## Лицензия
 
