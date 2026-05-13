@@ -28,6 +28,29 @@
 - обрабатывать Yandex Music album links через Odesli metadata -> TIDAL candidates/scoring fallback;
 - показывать copy-first publication UI с release line, tags, Music prompt и candidate/scoring details там, где это уместно.
 
+### TIDAL Open API credentials
+
+Multi-provider resolver использует TIDAL Open API credentials для candidate lookup и safe handoff.
+
+Нужные переменные окружения:
+
+- `TIDAL_CLIENT_ID`
+- `TIDAL_CLIENT_SECRET`
+
+Их нужно положить в `tidal-parser/.env`.
+Файл `tidal-parser/.env` намеренно находится в `.gitignore` и не должен попадать в commit.
+
+```env
+TIDAL_CLIENT_ID=your_client_id_here
+TIDAL_CLIENT_SECRET=your_client_secret_here
+```
+
+Без этих credential values:
+
+- прямой TIDAL URL parsing может по-прежнему работать там, где не требуется Open API lookup;
+- provider/manual resolver candidate lookup может быть недоступен или деградировать;
+- UI должен безопасно откатываться к fallback-поведению, а не фабриковать результаты.
+
 Безопасные границы:
 
 - внешний response shape для TIDAL parse не менялся;
