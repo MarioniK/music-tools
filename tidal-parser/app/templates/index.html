@@ -70,7 +70,7 @@
         {% if result.input_state == "manual_release_identity" %}
         <h2>Ручной ввод</h2>
         {% elif result.input_state == "extracted_release_identity" %}
-        <h2>Qobuz identity</h2>
+        <h2>{{ result.provider_label or result.provider or "Источник" }} identity</h2>
         {% elif result.input_state == "unsupported_input" %}
         <h2>Неподдерживаемый ввод</h2>
         {% else %}
@@ -214,12 +214,25 @@
         <span>{{ result.qobuz_track_id }}</span>
       </div>
       {% endif %}
-      {% if result.resolved_metadata_url %}
+      {% if result.canonical_url %}
+      <div class="row">
+        <span class="label">Canonical URL:</span>
+        <span>
+          <a href="{{ result.canonical_url }}" target="_blank" rel="noopener noreferrer">{{ result.canonical_url }}</a>
+        </span>
+      </div>
+      {% elif result.resolved_metadata_url %}
       <div class="row">
         <span class="label">Metadata URL:</span>
         <span>
           <a href="{{ result.resolved_metadata_url }}" target="_blank" rel="noopener noreferrer">{{ result.resolved_metadata_url }}</a>
         </span>
+      </div>
+      {% endif %}
+      {% if result.provider_item_id %}
+      <div class="row">
+        <span class="label">Provider ID:</span>
+        <span>{{ result.provider_item_id }}</span>
       </div>
       {% endif %}
       <div class="row">
@@ -405,7 +418,7 @@ Cover URL:
 Задачи:
 {%- if is_single_like %}
 {%- if release_period == "nostalgia" %}
-- Не ищи Qobuz review по этому релизу.
+- Не ищи {{ result.provider_label or "Qobuz" }} review по этому релизу.
 - Возьми в приоритет Wikipedia, сетевые журналы и архивные музыкальные материалы.
 - Если информация есть, укажи топы и чарты.
 - Если информация есть, укажи награды и номинации.
@@ -414,23 +427,23 @@ Cover URL:
 - Пиши информационно, без GPT-like сравнительных оборотов и без чрезмерной художественности.
 - По тегам: используй #nostalgie. Не используй #newrelease.
 {%- elif release_period == "new" %}
-- Не ищи Qobuz review по этому релизу.
+- Не ищи {{ result.provider_label or "Qobuz" }} review по этому релизу.
 - Сфокусируйся на описании трека, клипа и свежих новостей.
 - Если есть официальный клип, обязательно упомяни его.
 - Если есть live/session, можно упомянуть его дополнительно.
 - Пиши живо, но без искусственного драматизма и сравнения с другими релизами.
 - По тегам: используй #newrelease. Не используй #nostalgie.
 {%- else %}
-- Не ищи Qobuz review по этому релизу.
+- Не ищи {{ result.provider_label or "Qobuz" }} review по этому релизу.
 - Подчеркни позицию релиза в дискографии и актуальность для каталога.
 - Если есть клип, расскажи о нём кратко и по делу.
 - Используй нейтральный информационный тон.
 - По тегам: используй #newrelease и #nostalgie только если это действительно уместно.
 {%- endif %}
 {%- else %}
-- Найди Qobuz review по этому релизу.
-- Если Qobuz review найден, переведи его близко к тексту, но литературно.
-- Если Qobuz review не найден, кратко скажи, что рецензия Qobuz не найдена, и не выдумывай её.
+- Найди {{ result.provider_label or "Qobuz" }} review по этому релизу.
+- Если {{ result.provider_label or "Qobuz" }} review найден, переведи его близко к тексту, но литературно.
+- Если {{ result.provider_label or "Qobuz" }} review не найден, кратко скажи, что рецензия {{ result.provider_label or "Qobuz" }} не найдена, и не выдумывай её.
 - Подбери YouTube-видео: официальный клип, official audio или live/session.
 - Подбери фото артиста/группы эпохи релиза.
 - Пиши коротко и информационно.
@@ -460,7 +473,7 @@ Cover URL:
           <div class="search-helpers">
             <div class="search-helper-title">Search helpers</div>
             <div class="search-helper-links">
-              <a class="search-helper-link" href="https://www.google.com/search?q={{ qobuz_review_query | urlencode }}" target="_blank" rel="noopener noreferrer">Qobuz review</a>
+              <a class="search-helper-link" href="https://www.google.com/search?q={{ review_query | urlencode }}" target="_blank" rel="noopener noreferrer">{{ result.provider_label or "Qobuz" }} review</a>
               <a class="search-helper-link" href="https://www.google.com/search?q={{ reviews_query | urlencode }}" target="_blank" rel="noopener noreferrer">Reviews</a>
               <a class="search-helper-link" href="https://www.youtube.com/results?search_query={{ youtube_official_query | urlencode }}" target="_blank" rel="noopener noreferrer">YouTube official</a>
               <a class="search-helper-link" href="https://www.youtube.com/results?search_query={{ youtube_live_query | urlencode }}" target="_blank" rel="noopener noreferrer">YouTube live/session</a>
@@ -775,7 +788,7 @@ Cover URL:
 Задачи:
 {%- if is_single_like %}
 {%- if release_period == "nostalgia" %}
-- Не ищи Qobuz review по этому релизу.
+- Не ищи {{ result.provider_label or "Qobuz" }} review по этому релизу.
 - Возьми в приоритет Wikipedia, сетевые журналы и архивные музыкальные материалы.
 - Если информация есть, укажи топы и чарты.
 - Если информация есть, укажи награды и номинации.
@@ -784,14 +797,14 @@ Cover URL:
 - Пиши информационно, без GPT-like сравнительных оборотов и без чрезмерной художественности.
 - По тегам: используй #nostalgie. Не используй #newrelease.
 {%- elif release_period == "new" %}
-- Не ищи Qobuz review по этому релизу.
+- Не ищи {{ result.provider_label or "Qobuz" }} review по этому релизу.
 - В приоритете Stereogum, затем жанровые и релевантные медиа.
 - Переводи максимально близко к источнику, но небуквально.
 - Устойчивые выражения адаптируй на русский, а не переводи в лоб.
 - Подбери официальный клип или live/session, если это лучшее подтверждение релиза.
 - По тегам: используй #newrelease и #dailylist. Не используй #daylilist.
 {%- else %}
-- Не ищи Qobuz review по этому релизу.
+- Не ищи {{ result.provider_label or "Qobuz" }} review по этому релизу.
 - В приоритете сетевые журналы, интервью, премьеры, официальные страницы и жанровые медиа.
 - Пиши информационно и контекстно, без GPT-like сравнительных оборотов.
 - Подбери официальный клип, official audio или live/session.
@@ -799,9 +812,9 @@ Cover URL:
 {%- endif %}
 {%- else %}
 {%- if release_period == "nostalgia" %}
-- Найди Qobuz review по этому релизу.
-- Если Qobuz review найден, переведи его близко к тексту, но литературно.
-- Если Qobuz review не найден, кратко скажи, что рецензия Qobuz не найдена, и не выдумывай её.
+- Найди {{ result.provider_label or "Qobuz" }} review по этому релизу.
+- Если {{ result.provider_label or "Qobuz" }} review найден, переведи его близко к тексту, но литературно.
+- Если {{ result.provider_label or "Qobuz" }} review не найден, кратко скажи, что рецензия {{ result.provider_label or "Qobuz" }} не найдена, и не выдумывай её.
 - Подбери YouTube-видео: официальный клип, official audio или live/session.
 - Подбери фото артиста/группы эпохи релиза.
 - По тегам для альбома:
@@ -811,9 +824,9 @@ Cover URL:
   - используй #ep и #nostalgie.
   - не используй #newalbum и #newrelease.
 {%- elif is_album_like and release_period == "new" %}
-- Найди Qobuz review по этому релизу.
-- Если Qobuz review найден, переведи его близко к тексту, но литературно.
-- Если Qobuz review не найден, кратко скажи, что рецензия Qobuz не найдена, и не выдумывай её.
+- Найди {{ result.provider_label or "Qobuz" }} review по этому релизу.
+- Если {{ result.provider_label or "Qobuz" }} review найден, переведи его близко к тексту, но литературно.
+- Если {{ result.provider_label or "Qobuz" }} review не найден, кратко скажи, что рецензия {{ result.provider_label or "Qobuz" }} не найдена, и не выдумывай её.
 - Подбери YouTube-видео: официальный клип, official audio или live/session.
 - Подбери фото артиста/группы эпохи релиза.
 - По тегам для альбома:
@@ -823,9 +836,9 @@ Cover URL:
   - используй #newep и #newrelease.
   - не используй #nostalgie.
 {%- elif release_period == "new" %}
-- Найди Qobuz review по этому релизу.
-- Если Qobuz review найден, переведи его близко к тексту, но литературно.
-- Если Qobuz review не найден, кратко скажи, что рецензия Qobuz не найдена, и не выдумывай её.
+- Найди {{ result.provider_label or "Qobuz" }} review по этому релизу.
+- Если {{ result.provider_label or "Qobuz" }} review найден, переведи его близко к тексту, но литературно.
+- Если {{ result.provider_label or "Qobuz" }} review не найден, кратко скажи, что рецензия {{ result.provider_label or "Qobuz" }} не найдена, и не выдумывай её.
 - Подбери YouTube-видео: официальный клип, official audio или live/session.
 - Подбери фото артиста/группы эпохи релиза.
 - По тегам для альбома:
@@ -835,9 +848,9 @@ Cover URL:
   - используй #newep и #newrelease.
   - не используй #nostalgie.
 {%- else %}
-- Найди Qobuz review по этому релизу.
-- Если Qobuz review найден, переведи его близко к тексту, но литературно.
-- Если Qobuz review не найден, кратко скажи, что рецензия Qobuz не найдена, и не выдумывай её.
+- Найди {{ result.provider_label or "Qobuz" }} review по этому релизу.
+- Если {{ result.provider_label or "Qobuz" }} review найден, переведи его близко к тексту, но литературно.
+- Если {{ result.provider_label or "Qobuz" }} review не найден, кратко скажи, что рецензия {{ result.provider_label or "Qobuz" }} не найдена, и не выдумывай её.
 - Подбери YouTube-видео: официальный клип, official audio или live/session.
 - Подбери фото артиста/группы эпохи релиза.
 - По тегам для альбома:
@@ -893,7 +906,11 @@ Cover URL:
       {%- set search_subject = result.artist or release_line -%}
       {%- set search_title = result.title or release_line -%}
       {%- set search_year = result.release_year -%}
-      {%- set qobuz_review_query = 'site:qobuz.com "' ~ search_subject ~ '" "' ~ search_title ~ '"' -%}
+      {%- if result.provider == "qobuz" -%}
+      {%- set review_query = 'site:qobuz.com "' ~ search_subject ~ '" "' ~ search_title ~ '"' -%}
+      {%- else -%}
+      {%- set review_query = '"' ~ search_subject ~ '" "' ~ search_title ~ '" review' -%}
+      {%- endif -%}
       {%- set reviews_query = '"' ~ search_subject ~ '" "' ~ search_title ~ '" review' -%}
       {%- set youtube_official_query = search_subject ~ ' ' ~ search_title ~ ' official video' -%}
       {%- set youtube_live_query = search_subject ~ ' ' ~ search_title ~ ' live session' -%}
@@ -923,7 +940,7 @@ Cover URL:
           <div class="search-helpers">
             <div class="search-helper-title">Search helpers</div>
             <div class="search-helper-links">
-              <a class="search-helper-link" href="https://www.google.com/search?q={{ qobuz_review_query | urlencode }}" target="_blank" rel="noopener noreferrer">Qobuz review</a>
+              <a class="search-helper-link" href="https://www.google.com/search?q={{ review_query | urlencode }}" target="_blank" rel="noopener noreferrer">{{ result.provider_label or "Qobuz" }} review</a>
               <a class="search-helper-link" href="https://www.google.com/search?q={{ reviews_query | urlencode }}" target="_blank" rel="noopener noreferrer">Reviews</a>
               <a class="search-helper-link" href="https://www.youtube.com/results?search_query={{ youtube_official_query | urlencode }}" target="_blank" rel="noopener noreferrer">YouTube official</a>
               <a class="search-helper-link" href="https://www.youtube.com/results?search_query={{ youtube_live_query | urlencode }}" target="_blank" rel="noopener noreferrer">YouTube live/session</a>

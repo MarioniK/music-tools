@@ -27,6 +27,7 @@ from app.genre_normalization import (
     normalize_audio_prediction_genres,
     normalize_genres,
 )
+from app.apple_music_metadata import extract_apple_music_release_identity
 from app.input_detection import detect_music_input
 from app.qobuz_metadata import extract_qobuz_release_identity
 from app.pipeline_logging import logger, run_timed_stage, run_timed_stage_sync
@@ -484,7 +485,7 @@ def _provider_label(provider):
 def _build_unsupported_input_result(detection):
     provider = detection.get("provider") or "unknown"
     provider_label = _provider_label(provider)
-    if provider in {"qobuz", "spotify", "apple_music", "yandex_music"}:
+    if provider in {"qobuz", "spotify", "yandex_music"}:
         message = (
             "{} link detected. Automatic parsing is not supported yet. Use a TIDAL link "
             "for full parsing, or enter Artist — «Release» once resolver support is added."
@@ -653,6 +654,74 @@ def _build_qobuz_identity_result(detection, extracted, tidal_candidates_lookup=N
         qobuz_result = _apply_tidal_candidates_lookup(qobuz_result, tidal_candidates_lookup, collapsible=False)
 
     return qobuz_result
+
+
+def _build_apple_music_identity_result(detection, extracted, tidal_candidates_lookup=None):
+    has_identity = bool(extracted.get("artist") or extracted.get("title"))
+    tidal_search_query = build_tidal_search_query(
+        extracted.get("artist"),
+        extracted.get("title"),
+        extracted.get("year"),
+    )
+
+    apple_result = {
+        **extracted,
+        "input_state": "extracted_release_identity",
+        "input_detection": detection,
+        "provider": "apple_music",
+        "provider_label": "Apple Music",
+        "tidal_search_query": tidal_search_query,
+        "tidal_search_url": build_tidal_search_url(
+            extracted.get("artist"),
+            extracted.get("title"),
+            extracted.get("year"),
+        ),
+        "message": (
+            "Метаданные Apple Music извлечены из HTML-страницы. Полный resolver пока не реализован."
+            if has_identity
+            else "Метаданные Apple Music были проверены, но идентичность релиза извлечь не удалось. Полный resolver пока не реализован."
+        ),
+        "next_step": "Сейчас это только минимальное извлечение данных. Для полного разбора используй TIDAL-ссылку.",
+    }
+
+    handoff_warning = clean_text(extracted.get("handoff_warning"))
+    if handoff_warning:
+        apple_result["handoff_warning"] = handoff_warning
+
+    if has_identity:
+        release_type = clean_text(extracted.get("release_type"))
+        if release_type in {"album", "track"}:
+            apple_result["entity_type"] = release_type
+            apple_result["release_kind"] = release_type
+        else:
+            apple_result["entity_type"] = "album"
+            apple_result["release_kind"] = release_type
+
+        apple_result["release_year"] = extracted.get("year")
+        apple_result["blog_output"] = build_blog_output(apple_result)
+        apple_result = _apply_tidal_candidates_lookup(apple_result, tidal_candidates_lookup, collapsible=False)
+
+    return apple_result
+
+
+def _attach_apple_music_tidal_handoff_context(result, detection, extracted, tidal_candidates_lookup, selected_candidate):
+    handoff_context = {
+        "handoff_apple_music_url": detection.get("normalized_input") or detection.get("source_url") or extracted.get("source_url"),
+        "handoff_apple_music_metadata_url": extracted.get("resolved_metadata_url") or extracted.get("canonical_url") or extracted.get("source_url"),
+        "handoff_apple_music_artist": extracted.get("artist"),
+        "handoff_apple_music_title": extracted.get("title"),
+        "handoff_apple_music_year": extracted.get("year"),
+        "handoff_apple_music_release_type": extracted.get("release_type"),
+    }
+
+    return _attach_tidal_candidate_handoff_context(
+        result,
+        "apple_music_tidal_candidate",
+        "Apple Music → TIDAL candidate",
+        handoff_context,
+        tidal_candidates_lookup,
+        selected_candidate,
+    )
 
 
 def _attach_tidal_candidate_handoff_context(
@@ -1403,6 +1472,67 @@ async def parse_form(
                         "form_manual_release_type": manual_release_type_choice,
                     },
                 )
+
+        if detection.get("input_type") == "url" and detection.get("provider") == "apple_music":
+            extracted = await asyncio.to_thread(extract_apple_music_release_identity, detection.get("normalized_input"))
+            tidal_candidates_lookup = None
+            auto_handoff_candidate = None
+            if extracted.get("artist") and extracted.get("title"):
+                tidal_candidates_lookup = await run_timed_stage(
+                    "tidal_openapi_candidates",
+                    lookup_tidal_candidates(
+                        extracted.get("artist"),
+                        extracted.get("title"),
+                        extracted.get("release_type"),
+                        extracted.get("year"),
+                    ),
+                )
+                auto_handoff_candidate = select_safe_tidal_auto_handoff_candidate(
+                    extracted.get("artist"),
+                    extracted.get("title"),
+                    extracted.get("year"),
+                    extracted.get("release_type"),
+                    tidal_candidates_lookup,
+                )
+
+            if auto_handoff_candidate:
+                try:
+                    result = await build_result(
+                        auto_handoff_candidate.get("tidal_url"),
+                        force_refresh=(force_refresh == "1"),
+                    )
+                    result = _attach_apple_music_tidal_handoff_context(
+                        result,
+                        detection,
+                        extracted,
+                        tidal_candidates_lookup or {},
+                        auto_handoff_candidate,
+                    )
+                except Exception:
+                    logger.warning(
+                        "event=apple_music_tidal_handoff outcome=error apple_url=%s tidal_url=%s",
+                        detection.get("normalized_input"),
+                        auto_handoff_candidate.get("tidal_url"),
+                    )
+                    extracted = dict(extracted)
+                    extracted["handoff_warning"] = (
+                        "Лучший кандидат найден, но TIDAL parse не удался. Используй ссылку вручную."
+                    )
+                    result = _build_apple_music_identity_result(detection, extracted, tidal_candidates_lookup)
+            else:
+                result = _build_apple_music_identity_result(detection, extracted, tidal_candidates_lookup)
+            metrics.increment_parse_success_total()
+            return templates.TemplateResponse(
+                "index.html",
+                {
+                    "request": request,
+                    "result": result,
+                    "error": None,
+                    "error_request_id": None,
+                    "form_url": url,
+                    "form_manual_release_type": manual_release_type_choice,
+                },
+            )
 
         result = _build_unsupported_input_result(detection)
         metrics.increment_parse_success_total()
