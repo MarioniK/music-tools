@@ -29,6 +29,11 @@ from app.genre_normalization import (
 )
 from app.apple_music_metadata import extract_apple_music_release_identity
 from app.input_detection import detect_music_input
+from app.odesli_metadata import (
+    extract_odesli_yandex_identity,
+    is_supported_yandex_music_url,
+    normalize_tidal_url,
+)
 from app.qobuz_metadata import extract_qobuz_release_identity
 from app.spotify_metadata import extract_spotify_release_identity, is_supported_spotify_release_url
 from app.pipeline_logging import logger, run_timed_stage, run_timed_stage_sync
@@ -791,6 +796,181 @@ def _attach_spotify_tidal_handoff_context(result, detection, extracted, tidal_ca
         tidal_candidates_lookup,
         selected_candidate,
     )
+
+
+def _build_yandex_music_identity_result(detection, extracted, tidal_candidates_lookup=None):
+    has_identity = bool(extracted.get("artist") or extracted.get("title"))
+    tidal_search_query = build_tidal_search_query(
+        extracted.get("artist"),
+        extracted.get("title"),
+        extracted.get("year"),
+    )
+
+    yandex_result = {
+        **extracted,
+        "input_state": "extracted_release_identity",
+        "input_detection": detection,
+        "provider": "yandex_music",
+        "provider_label": "Yandex Music",
+        "tidal_search_query": tidal_search_query,
+        "tidal_search_url": build_tidal_search_url(
+            extracted.get("artist"),
+            extracted.get("title"),
+            extracted.get("year"),
+        ),
+        "message": (
+            "Yandex Music metadata получены через Odesli. Полный resolver пока не реализован."
+            if has_identity
+            else "Yandex Music metadata не удалось получить через Odesli."
+        ),
+        "next_step": "Сейчас это только минимальное извлечение данных. Для полного разбора используй TIDAL-ссылку.",
+    }
+
+    handoff_warning = clean_text(extracted.get("handoff_warning"))
+    if handoff_warning:
+        yandex_result["handoff_warning"] = handoff_warning
+
+    if has_identity:
+        release_type = clean_text(extracted.get("release_type"))
+        if release_type in {"album", "track"}:
+            yandex_result["entity_type"] = release_type
+            yandex_result["release_kind"] = release_type
+        else:
+            yandex_result["entity_type"] = "album"
+            yandex_result["release_kind"] = release_type
+
+        yandex_result["release_year"] = extracted.get("year")
+        yandex_result["blog_output"] = build_blog_output(yandex_result)
+        yandex_result = _apply_tidal_candidates_lookup(yandex_result, tidal_candidates_lookup, collapsible=False)
+
+    return yandex_result
+
+
+def _normalize_yandex_tidal_lookup_artist(artist):
+    artist = clean_text(artist)
+    if not artist:
+        return None
+
+    normalized_chars = []
+    for char in artist:
+        if char.isalnum() or char.isspace():
+            normalized_chars.append(char)
+            continue
+
+        if char == "!":
+            normalized_chars.append("i")
+            continue
+
+        normalized_chars.append(" ")
+
+    normalized = re.sub(r"\s+", " ", "".join(normalized_chars)).strip()
+    if not normalized or normalized == artist:
+        return None
+
+    return normalized
+
+
+def _yandex_tidal_lookup_quality(lookup_result):
+    if not isinstance(lookup_result, dict):
+        return (0, -1)
+
+    candidates = lookup_result.get("candidates")
+    candidate_count = len(candidates) if isinstance(candidates, list) else 0
+
+    best_score = lookup_result.get("tidal_candidates_best_score")
+    try:
+        best_score = int(best_score) if best_score is not None else -1
+    except (TypeError, ValueError):
+        best_score = -1
+
+    return (1 if candidate_count else 0, best_score)
+
+
+def _yandex_tidal_lookup_query_variants(artist, title, fallback_artist=None):
+    query_variants = []
+    primary_artist = clean_text(artist)
+    normalized_title = clean_text(title)
+    if primary_artist or normalized_title:
+        query_variants.append({"artist": primary_artist, "title": normalized_title})
+
+    fallback_artist = clean_text(fallback_artist)
+    if fallback_artist and fallback_artist != primary_artist:
+        query_variants.append({"artist": fallback_artist, "title": normalized_title})
+
+    return query_variants
+
+
+async def _lookup_yandex_tidal_candidates_with_artist_fallback(artist, title, release_type, year):
+    tidal_candidates_lookup = await run_timed_stage(
+        "tidal_openapi_candidates",
+        lookup_tidal_candidates(
+            artist,
+            title,
+            release_type,
+            year,
+        ),
+    )
+
+    fallback_artist = _normalize_yandex_tidal_lookup_artist(artist)
+    if not fallback_artist:
+        return tidal_candidates_lookup
+
+    fallback_lookup = await run_timed_stage(
+        "tidal_openapi_candidates",
+        lookup_tidal_candidates(
+            fallback_artist,
+            title,
+            release_type,
+            year,
+        ),
+    )
+
+    original_quality = _yandex_tidal_lookup_quality(tidal_candidates_lookup)
+    fallback_quality = _yandex_tidal_lookup_quality(fallback_lookup)
+    if fallback_quality > original_quality:
+        fallback_lookup["query_variants"] = _yandex_tidal_lookup_query_variants(artist, title, fallback_artist)
+        return fallback_lookup
+
+    if original_quality > fallback_quality:
+        tidal_candidates_lookup["query_variants"] = _yandex_tidal_lookup_query_variants(artist, title, fallback_artist)
+        return tidal_candidates_lookup
+
+    # При равном качестве оставляем исходный запрос, но сохраняем варианты для диагностики.
+    tidal_candidates_lookup["query_variants"] = _yandex_tidal_lookup_query_variants(artist, title, fallback_artist)
+    return tidal_candidates_lookup
+
+
+def _attach_yandex_odesli_tidal_handoff_context(
+    result,
+    detection,
+    extracted,
+    handoff_source_label,
+    selected_tidal_url,
+    tidal_candidates_lookup=None,
+    selected_candidate=None,
+):
+    handoff_context = {
+        "handoff_yandex_url": detection.get("normalized_input") or detection.get("source_url") or extracted.get("source_url"),
+        "handoff_odesli_page_url": extracted.get("odesli_page_url") or extracted.get("resolved_metadata_url"),
+        "handoff_yandex_metadata_url": extracted.get("odesli_page_url") or extracted.get("resolved_metadata_url"),
+        "handoff_yandex_artist": extracted.get("artist"),
+        "handoff_yandex_title": extracted.get("title"),
+        "handoff_yandex_year": extracted.get("year"),
+        "handoff_yandex_release_type": extracted.get("release_type"),
+    }
+
+    result = dict(result)
+    result.update(handoff_context)
+    result["handoff_source"] = "yandex_odesli_tidal_bridge" if not tidal_candidates_lookup else "yandex_odesli_tidal_candidate"
+    result["handoff_source_label"] = handoff_source_label
+    result["handoff_selected_tidal_url"] = selected_tidal_url
+    result["handoff_selected_tidal_score"] = (selected_candidate or {}).get("score")
+    result["handoff_selected_tidal_reasons"] = (selected_candidate or {}).get("score_reasons", [])
+
+    if tidal_candidates_lookup:
+        result = _apply_tidal_candidates_lookup(result, tidal_candidates_lookup, collapsible=True)
+
+    return result
 
 
 def _attach_tidal_candidate_handoff_context(
@@ -1754,6 +1934,163 @@ async def parse_form(
                     result = _build_spotify_identity_result(detection, extracted, tidal_candidates_lookup)
             else:
                 result = _build_spotify_identity_result(detection, extracted, tidal_candidates_lookup)
+            metrics.increment_parse_success_total()
+            return templates.TemplateResponse(
+                "index.html",
+                {
+                    "request": request,
+                    "result": result,
+                    "error": None,
+                    "error_request_id": None,
+                    "form_url": url,
+                    "form_manual_release_type": manual_release_type_choice,
+                },
+            )
+
+        if detection.get("input_type") == "url" and detection.get("provider") == "yandex_music":
+            normalized_url = detection.get("normalized_input")
+            if not is_supported_yandex_music_url(normalized_url):
+                result = _build_unsupported_input_result(detection)
+                metrics.increment_parse_success_total()
+                return templates.TemplateResponse(
+                    "index.html",
+                    {
+                        "request": request,
+                        "result": result,
+                        "error": None,
+                        "error_request_id": None,
+                        "form_url": url,
+                        "form_manual_release_type": manual_release_type_choice,
+                    },
+                )
+
+            extracted = await asyncio.to_thread(extract_odesli_yandex_identity, normalized_url)
+            selected_tidal_url = normalize_tidal_url(extracted.get("odesli_tidal_url"))
+            tidal_candidates_lookup = None
+            auto_handoff_candidate = None
+
+            if selected_tidal_url and extracted.get("release_type") == "track":
+                try:
+                    result = await build_result(
+                        selected_tidal_url,
+                        force_refresh=(force_refresh == "1"),
+                    )
+                    result = _attach_yandex_odesli_tidal_handoff_context(
+                        result,
+                        detection,
+                        extracted,
+                        "Yandex Music → Odesli → TIDAL",
+                        selected_tidal_url,
+                    )
+                except Exception:
+                    logger.warning(
+                        "event=yandex_odesli_tidal_bridge outcome=error yandex_url=%s tidal_url=%s",
+                        detection.get("normalized_input"),
+                        selected_tidal_url,
+                    )
+                    extracted = dict(extracted)
+                    extracted["handoff_warning"] = (
+                        "Лучший TIDAL URL найден через Odesli, но TIDAL parse не удался. Используй ссылку вручную."
+                    )
+                    if extracted.get("artist") and extracted.get("title"):
+                        tidal_candidates_lookup = await _lookup_yandex_tidal_candidates_with_artist_fallback(
+                            extracted.get("artist"),
+                            extracted.get("title"),
+                            extracted.get("release_type"),
+                            extracted.get("year"),
+                        )
+                        auto_handoff_candidate = select_safe_tidal_auto_handoff_candidate(
+                            extracted.get("artist"),
+                            extracted.get("title"),
+                            extracted.get("year"),
+                            extracted.get("release_type"),
+                            tidal_candidates_lookup,
+                        )
+
+                    if auto_handoff_candidate:
+                        try:
+                            result = await build_result(
+                                auto_handoff_candidate.get("tidal_url"),
+                                force_refresh=(force_refresh == "1"),
+                            )
+                            result = _attach_yandex_odesli_tidal_handoff_context(
+                                result,
+                                detection,
+                                extracted,
+                                "Yandex Music → Odesli metadata → TIDAL candidate",
+                                auto_handoff_candidate.get("tidal_url"),
+                                tidal_candidates_lookup or {},
+                                auto_handoff_candidate,
+                            )
+                        except Exception:
+                            logger.warning(
+                                "event=yandex_odesli_tidal_handoff outcome=error yandex_url=%s tidal_url=%s",
+                                detection.get("normalized_input"),
+                                auto_handoff_candidate.get("tidal_url"),
+                            )
+                            extracted = dict(extracted)
+                            extracted["handoff_warning"] = (
+                                "Лучший кандидат найден, но TIDAL parse не удался. Используй ссылку вручную."
+                            )
+                            result = _build_yandex_music_identity_result(detection, extracted, tidal_candidates_lookup)
+                    else:
+                        result = _build_yandex_music_identity_result(detection, extracted, tidal_candidates_lookup)
+                metrics.increment_parse_success_total()
+                return templates.TemplateResponse(
+                    "index.html",
+                    {
+                        "request": request,
+                        "result": result,
+                        "error": None,
+                        "error_request_id": None,
+                        "form_url": url,
+                        "form_manual_release_type": manual_release_type_choice,
+                    },
+                )
+
+            if extracted.get("artist") and extracted.get("title"):
+                tidal_candidates_lookup = await _lookup_yandex_tidal_candidates_with_artist_fallback(
+                    extracted.get("artist"),
+                    extracted.get("title"),
+                    extracted.get("release_type"),
+                    extracted.get("year"),
+                )
+                auto_handoff_candidate = select_safe_tidal_auto_handoff_candidate(
+                    extracted.get("artist"),
+                    extracted.get("title"),
+                    extracted.get("year"),
+                    extracted.get("release_type"),
+                    tidal_candidates_lookup,
+                )
+
+            if auto_handoff_candidate:
+                try:
+                    result = await build_result(
+                        auto_handoff_candidate.get("tidal_url"),
+                        force_refresh=(force_refresh == "1"),
+                    )
+                    result = _attach_yandex_odesli_tidal_handoff_context(
+                        result,
+                        detection,
+                        extracted,
+                        "Yandex Music → Odesli metadata → TIDAL candidate",
+                        auto_handoff_candidate.get("tidal_url"),
+                        tidal_candidates_lookup or {},
+                        auto_handoff_candidate,
+                    )
+                except Exception:
+                    logger.warning(
+                        "event=yandex_odesli_tidal_handoff outcome=error yandex_url=%s tidal_url=%s",
+                        detection.get("normalized_input"),
+                        auto_handoff_candidate.get("tidal_url"),
+                    )
+                    extracted = dict(extracted)
+                    extracted["handoff_warning"] = (
+                        "Лучший кандидат найден, но TIDAL parse не удался. Используй ссылку вручную."
+                    )
+                    result = _build_yandex_music_identity_result(detection, extracted, tidal_candidates_lookup)
+            else:
+                result = _build_yandex_music_identity_result(detection, extracted, tidal_candidates_lookup)
             metrics.increment_parse_success_total()
             return templates.TemplateResponse(
                 "index.html",

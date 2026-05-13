@@ -753,7 +753,7 @@ async def test_parse_form_apple_music_parse_failure_falls_back_to_identity(monke
 @pytest.mark.parametrize(
     "url, expected_provider",
     [
-        ("https://music.yandex.ru/album/31774859?lang=en", "Yandex Music"),
+        ("https://music.yandex.ru/artist/12345", "Yandex Music"),
     ],
 )
 async def test_parse_form_yandex_remains_unsupported(monkeypatch, url, expected_provider):

@@ -235,6 +235,14 @@
         <span>{{ result.provider_item_id }}</span>
       </div>
       {% endif %}
+      {% if result.odesli_page_url %}
+      <div class="row">
+        <span class="label">Odesli page URL:</span>
+        <span>
+          <a href="{{ result.odesli_page_url }}" target="_blank" rel="noopener noreferrer">{{ result.odesli_page_url }}</a>
+        </span>
+      </div>
+      {% endif %}
       <div class="row">
         <span class="label">Исполнитель:</span>
         <span>{{ result.artist or "—" }}</span>
@@ -587,7 +595,7 @@ Cover URL:
         </span>
       </div>
 
-      {% if result.handoff_source and result.tidal_candidates_enabled %}
+      {% if result.handoff_source %}
       <div class="note">Источник: {{ result.handoff_source_label or result.handoff_source }}</div>
       {% if result.handoff_source == "manual_tidal_candidate" and result.handoff_manual_release_line %}
       <div class="row">
@@ -595,6 +603,14 @@ Cover URL:
         <span>{{ result.handoff_manual_release_line }}</span>
       </div>
       {% endif %}
+      {% if result.handoff_yandex_url %}
+      <div class="row">
+        <span class="label">Yandex URL:</span>
+        <span>
+          <a href="{{ result.handoff_yandex_url }}" target="_blank" rel="noopener noreferrer">{{ result.handoff_yandex_url }}</a>
+        </span>
+      </div>
+      {% else %}
       <div class="row">
         <span class="label">{% if result.handoff_source == "manual_tidal_candidate" %}Input source:{% else %}Qobuz URL:{% endif %}</span>
         <span>
@@ -609,6 +625,15 @@ Cover URL:
           {% endif %}
         </span>
       </div>
+      {% endif %}
+      {% if result.handoff_odesli_page_url %}
+      <div class="row">
+        <span class="label">Resolved Odesli page URL:</span>
+        <span>
+          <a href="{{ result.handoff_odesli_page_url }}" target="_blank" rel="noopener noreferrer">{{ result.handoff_odesli_page_url }}</a>
+        </span>
+      </div>
+      {% endif %}
       {% if result.handoff_qobuz_metadata_url %}
       <div class="row">
         <span class="label">Resolved Qobuz metadata URL:</span>
@@ -631,6 +656,7 @@ Cover URL:
         <span class="label">Score:</span>
         <span>{{ result.handoff_selected_tidal_score or "—" }}</span>
       </div>
+      {% if result.tidal_candidates_enabled %}
       <details class="tidal-candidates-details">
         <summary>Показать кандидатов TIDAL</summary>
         {% if result.tidal_candidates and result.tidal_candidates|length > 0 %}
@@ -679,10 +705,11 @@ Cover URL:
           </span>
         </div>
         {% endfor %}
-        {% else %}
-        <div class="note">{{ result.tidal_candidates_message or "Кандидаты TIDAL не найдены. Используй ручной поиск в TIDAL." }}</div>
-        {% endif %}
+      {% else %}
+      <div class="note">{{ result.tidal_candidates_message or "Кандидаты TIDAL не найдены. Используй ручной поиск в TIDAL." }}</div>
+      {% endif %}
       </details>
+      {% endif %}
       {% endif %}
 
       {% if result.audio_genres_pretty and result.audio_genres_pretty|length > 0 %}
