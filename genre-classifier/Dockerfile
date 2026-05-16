@@ -43,3 +43,10 @@ RUN grep -vE '^[[:space:]]*tensorflow([<>=!~].*)?([[:space:]]*#.*)?$' /app/requi
     python -m pip install --no-cache-dir --requirement /app/requirements-optional-onnx.txt && \
     python -m pip uninstall -y tensorflow && \
     python -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('tensorflow') is None else 1)"
+
+RUN groupadd --system genre-classifier && \
+    useradd --system --gid genre-classifier --home-dir /nonexistent --shell /usr/sbin/nologin genre-classifier && \
+    mkdir -p /app/tmp && \
+    chown -R genre-classifier:genre-classifier /app/tmp
+
+USER genre-classifier
