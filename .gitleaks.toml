@@ -1,0 +1,8 @@
+title = "music-tools gitleaks config"
+
+[allowlist]
+description = "Исторические evidence-артефакты genre-classifier содержат digest/hash-данные и package metadata, а не секреты."
+paths = [
+  '''^genre-classifier/docs/runtime/evidence/.*''',
+  '''^genre-classifier/docs/lightweight/evaluation/model-provenance/.*''',
+]
