@@ -59,10 +59,7 @@ class StubLlmInferenceClient(LlmInferenceClient):
 
 class LocalHttpLlmInferenceClient(LlmInferenceClient):
     def __init__(self, endpoint: str, timeout_seconds: float):
-        if not endpoint:
-            raise ValueError("LLM_LOCAL_HTTP_ENDPOINT is required for local_http client")
-
-        self._endpoint = endpoint
+        self._endpoint = settings.validate_llm_local_http_endpoint(endpoint)
         self._timeout_seconds = float(timeout_seconds)
 
     def infer_genres(self, audio_path: str) -> LlmInferenceResult:

@@ -101,6 +101,34 @@ def test_local_http_client_requires_endpoint():
         get_default_llm_inference_client(settings_module=_Settings)
 
 
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "file:///tmp/genre-classifier",
+        "ftp://127.0.0.1:11434/infer",
+    ],
+)
+def test_local_http_client_rejects_unsupported_endpoint_schemes(endpoint):
+    class _Settings:
+        LLM_CLIENT_STUB = "stub"
+        LLM_CLIENT_LOCAL_HTTP = "local_http"
+
+        @staticmethod
+        def get_configured_llm_client_name():
+            return "local_http"
+
+        @staticmethod
+        def get_configured_llm_local_http_endpoint():
+            return endpoint
+
+        @staticmethod
+        def get_configured_llm_local_http_timeout_seconds():
+            return 5.0
+
+    with pytest.raises(ValueError, match="absolute http or https URL"):
+        get_default_llm_inference_client(settings_module=_Settings)
+
+
 def test_local_http_client_parses_valid_response(monkeypatch):
     class _FakeResponse:
         def __enter__(self):

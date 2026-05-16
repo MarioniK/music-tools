@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 MB
@@ -40,6 +41,7 @@ DEFAULT_SHADOW_TIMEOUT_SECONDS = 2.0
 DEFAULT_SHADOW_ARTIFACTS_ENABLED = False
 DEFAULT_SHADOW_ARTIFACTS_DIR = "evaluation/artifacts/runtime_shadow"
 DEFAULT_SHADOW_MAX_CONCURRENT = 1
+ALLOWED_LLM_LOCAL_HTTP_SCHEMES = ("http", "https")
 
 TMP_DIR.mkdir(exist_ok=True)
 
@@ -56,6 +58,18 @@ def get_configured_llm_client_name():
 
 def get_configured_llm_local_http_endpoint():
     return (os.getenv("LLM_LOCAL_HTTP_ENDPOINT", "") or "").strip()
+
+
+def validate_llm_local_http_endpoint(endpoint):
+    value = (endpoint or "").strip()
+    if not value:
+        raise ValueError("LLM_LOCAL_HTTP_ENDPOINT is required for local_http client")
+
+    parsed = urlparse(value)
+    if parsed.scheme not in ALLOWED_LLM_LOCAL_HTTP_SCHEMES or not parsed.netloc:
+        raise ValueError("LLM_LOCAL_HTTP_ENDPOINT must be an absolute http or https URL")
+
+    return value
 
 
 def _get_optional_path_from_env(env_name, default=None):

@@ -71,6 +71,31 @@ def test_get_configured_llm_local_http_timeout_seconds_defaults(monkeypatch):
     assert settings.get_configured_llm_local_http_timeout_seconds() == settings.DEFAULT_LLM_LOCAL_HTTP_TIMEOUT_SECONDS
 
 
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "http://127.0.0.1:11434/infer",
+        "https://localhost/infer",
+    ],
+)
+def test_validate_llm_local_http_endpoint_accepts_http_and_https(endpoint):
+    assert settings.validate_llm_local_http_endpoint(endpoint) == endpoint
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "file:///tmp/genre-classifier",
+        "ftp://127.0.0.1:11434/infer",
+        "http:///infer",
+        "",
+    ],
+)
+def test_validate_llm_local_http_endpoint_rejects_unsafe_or_invalid_urls(endpoint):
+    with pytest.raises(ValueError, match="LLM_LOCAL_HTTP_ENDPOINT"):
+        settings.validate_llm_local_http_endpoint(endpoint)
+
+
 def test_shadow_settings_defaults_are_safe(monkeypatch):
     monkeypatch.delenv("GENRE_CLASSIFIER_SHADOW_ENABLED", raising=False)
     monkeypatch.delenv("GENRE_CLASSIFIER_SHADOW_PROVIDER", raising=False)
