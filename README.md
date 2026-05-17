@@ -7,6 +7,17 @@
 
 Сервисы живут в отдельных директориях, имеют отдельные Docker Compose конфигурации и не образуют одно runtime-окружение.
 
+## Release Readiness
+
+Roadmap 6 закрыт, и релиз `v0.7.0` готовится как общий release-summary для обоих сервисов.
+
+- Release notes: [docs/releases/v0.7.0.md](docs/releases/v0.7.0.md)
+- Service env examples:
+  - [tidal-parser/.env.example](tidal-parser/.env.example)
+  - [genre-classifier/.env.example](genre-classifier/.env.example)
+- Current `genre-classifier` example default: `GENRE_PROVIDER=onnx_musicnn`
+- `.sourcecraft/ci.yaml` is a critical GitHub -> SourceCraft sync file and should not be modified without an explicit direct instruction.
+
 Схема pipeline:
 
 `TIDAL -> parse_tidal -> Discogs -> MusicBrainz -> audio classifier -> merge -> cache`
@@ -115,6 +126,13 @@ docker compose up --build -d
 - `DISCOGS_TOKEN`, если нужно обогащение через Discogs;
 - `MUSICBRAINZ_CONTACT_EMAIL`, чтобы `tidal-parser` отправлял корректный контакт в `User-Agent` для запросов к MusicBrainz.
 
+Для удобства добавлены service-scoped примеры:
+
+- `tidal-parser/.env.example`
+- `genre-classifier/.env.example`
+
+`genre-classifier/.env.example` использует текущий production default `GENRE_PROVIDER=onnx_musicnn`.
+
 ```env
 DISCOGS_TOKEN=your_discogs_token
 MUSICBRAINZ_CONTACT_EMAIL=you@example.com
@@ -166,6 +184,7 @@ http://localhost:8011
 - Release notes v0.4.0: [docs/releases/v0.4.0.md](docs/releases/v0.4.0.md)
 - Release notes v0.5.0: [genre-classifier/docs/releases/v0.5.0.md](genre-classifier/docs/releases/v0.5.0.md)
 - Release notes v0.6.0: [tidal-parser/docs/releases/v0.6.0.md](tidal-parser/docs/releases/v0.6.0.md)
+- Release notes v0.7.0: [docs/releases/v0.7.0.md](docs/releases/v0.7.0.md)
 
 ## Лицензия
 
