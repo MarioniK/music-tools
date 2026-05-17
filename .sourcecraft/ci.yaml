@@ -15,8 +15,10 @@ workflows:
       - name: sync-main-branch
         cubes:
           - name: sync-from-github
-            image: alpine/git:latest
+            image: alpine:latest
             script: |
+              apk add --no-cache git
+
               echo "Начало синхронизации с GitHub..."
               git remote add github https://github.com/MarioniK/music-tools.git || true
               echo "Получение изменений из GitHub..."
