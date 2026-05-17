@@ -3,7 +3,6 @@ on:
     - workflows: [sync-with-github]
       filter:
         branches: ["main"]
-
   schedule:
     - workflows: [sync-with-github]
       interval: 1h
@@ -16,20 +15,12 @@ workflows:
         cubes:
           - name: sync-from-github
             image: alpine:latest
-            script: |
-              apk add --no-cache git
-
-              echo "Начало синхронизации с GitHub..."
-              git remote add github https://github.com/MarioniK/music-tools.git || true
-              echo "Получение изменений из GitHub..."
-              git fetch github
-              echo "Проверка изменений..."
-              if git merge-base --is-ancestor github/main HEAD; then
-                echo "Локальная ветка уже содержит все изменения из GitHub. Синхронизация не требуется."
-              else
-                echo "Обнаружены новые изменения в GitHub. Выполняем слияние..."
-                git merge github/main --no-edit
-                echo "Отправка изменений в SourceCraft..."
-                git push origin main
-                echo "Синхронизация завершена успешно!"
-              fi
+            script:
+              - apk update
+              - apk add --no-cache git
+              - echo "Начало синхронизации с GitHub..."
+              - git remote add github https://github.com/MarioniK/music-tools.git || true
+              - echo "Получение изменений из GitHub..."
+              - git fetch github
+              - echo "Проверка изменений..."
+              - if git merge-base --is-ancestor github/main HEAD; then echo "Локальная ветка уже содержит все изменения из GitHub. Синхронизация не требуется."; else echo "Обнаружены новые изменения в GitHub. Выполняем слияние..."; git merge github/main --no-edit; echo "Отправка изменений в SourceCraft..."; git push origin main; echo "Синхронизация завершена успешно!"; fi
