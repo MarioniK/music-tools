@@ -1,0 +1,1016 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "fullName": "Trivy Vulnerability Scanner",
+          "informationUri": "https://github.com/aquasecurity/trivy",
+          "name": "Trivy",
+          "rules": [
+            {
+              "id": "CVE-2024-22195",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "jinja2: HTML attribute injection when passing user input as keys to xmlattr filter"
+              },
+              "fullDescription": {
+                "text": "Jinja is an extensible templating engine. Special placeholders in the template allow writing code similar to Python syntax. It is possible to inject arbitrary HTML attributes into the rendered HTML template, potentially leading to Cross-Site Scripting (XSS). The Jinja `xmlattr` filter can be abused to inject arbitrary HTML attribute keys and values, bypassing the auto escaping mechanism and potentially leading to XSS. It may also be possible to bypass attribute validation checks if they are blacklist-based."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2024-22195",
+              "help": {
+                "text": "Vulnerability CVE-2024-22195\nSeverity: MEDIUM\nPackage: jinja2\nFixed Version: 3.1.3\nLink: [CVE-2024-22195](https://avd.aquasec.com/nvd/cve-2024-22195)\nJinja is an extensible templating engine. Special placeholders in the template allow writing code similar to Python syntax. It is possible to inject arbitrary HTML attributes into the rendered HTML template, potentially leading to Cross-Site Scripting (XSS). The Jinja `xmlattr` filter can be abused to inject arbitrary HTML attribute keys and values, bypassing the auto escaping mechanism and potentially leading to XSS. It may also be possible to bypass attribute validation checks if they are blacklist-based.",
+                "markdown": "**Vulnerability CVE-2024-22195**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|MEDIUM|jinja2|3.1.3|[CVE-2024-22195](https://avd.aquasec.com/nvd/cve-2024-22195)|\n\nJinja is an extensible templating engine. Special placeholders in the template allow writing code similar to Python syntax. It is possible to inject arbitrary HTML attributes into the rendered HTML template, potentially leading to Cross-Site Scripting (XSS). The Jinja `xmlattr` filter can be abused to inject arbitrary HTML attribute keys and values, bypassing the auto escaping mechanism and potentially leading to XSS. It may also be possible to bypass attribute validation checks if they are blacklist-based."
+              },
+              "properties": {
+                "cvssv3_baseScore": 5.4,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N",
+                "precision": "very-high",
+                "security-severity": "5.4",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "MEDIUM"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-34064",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "jinja2: accepts keys containing non-attribute characters"
+              },
+              "fullDescription": {
+                "text": "Jinja is an extensible templating engine. The `xmlattr` filter in affected versions of Jinja accepts keys containing non-attribute characters. XML/HTML attributes cannot contain spaces, `/`, `\u003e`, or `=`, as each would then be interpreted as starting a separate attribute. If an application accepts keys (as opposed to only values) as user input, and renders these in pages that other users see as well, an attacker could use this to inject other attributes and perform XSS. The fix for CVE-2024-22195 only addressed spaces but not other characters. Accepting keys as user input is now explicitly considered an unintended use case of the `xmlattr` filter, and code that does so without otherwise validating the input should be flagged as insecure, regardless of Jinja version. Accepting _values_ as user input continues to be safe. This vulnerability is fixed in 3.1.4."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2024-34064",
+              "help": {
+                "text": "Vulnerability CVE-2024-34064\nSeverity: MEDIUM\nPackage: jinja2\nFixed Version: 3.1.4\nLink: [CVE-2024-34064](https://avd.aquasec.com/nvd/cve-2024-34064)\nJinja is an extensible templating engine. The `xmlattr` filter in affected versions of Jinja accepts keys containing non-attribute characters. XML/HTML attributes cannot contain spaces, `/`, `\u003e`, or `=`, as each would then be interpreted as starting a separate attribute. If an application accepts keys (as opposed to only values) as user input, and renders these in pages that other users see as well, an attacker could use this to inject other attributes and perform XSS. The fix for CVE-2024-22195 only addressed spaces but not other characters. Accepting keys as user input is now explicitly considered an unintended use case of the `xmlattr` filter, and code that does so without otherwise validating the input should be flagged as insecure, regardless of Jinja version. Accepting _values_ as user input continues to be safe. This vulnerability is fixed in 3.1.4.",
+                "markdown": "**Vulnerability CVE-2024-34064**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|MEDIUM|jinja2|3.1.4|[CVE-2024-34064](https://avd.aquasec.com/nvd/cve-2024-34064)|\n\nJinja is an extensible templating engine. The `xmlattr` filter in affected versions of Jinja accepts keys containing non-attribute characters. XML/HTML attributes cannot contain spaces, `/`, `\u003e`, or `=`, as each would then be interpreted as starting a separate attribute. If an application accepts keys (as opposed to only values) as user input, and renders these in pages that other users see as well, an attacker could use this to inject other attributes and perform XSS. The fix for CVE-2024-22195 only addressed spaces but not other characters. Accepting keys as user input is now explicitly considered an unintended use case of the `xmlattr` filter, and code that does so without otherwise validating the input should be flagged as insecure, regardless of Jinja version. Accepting _values_ as user input continues to be safe. This vulnerability is fixed in 3.1.4."
+              },
+              "properties": {
+                "cvssv3_baseScore": 5.4,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N",
+                "precision": "very-high",
+                "security-severity": "5.4",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "MEDIUM"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-56201",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "jinja2: Jinja has a sandbox breakout through malicious filenames"
+              },
+              "fullDescription": {
+                "text": "Jinja is an extensible templating engine. In versions on the 3.x branch prior to 3.1.5, a bug in the Jinja compiler allows an attacker that controls both the content and filename of a template to execute arbitrary Python code, regardless of if Jinja's sandbox is used. To exploit the vulnerability, an attacker needs to control both the filename and the contents of a template. Whether that is the case depends on the type of application using Jinja. This vulnerability impacts users of applications which execute untrusted templates where the template author can also choose the template filename. This vulnerability is fixed in 3.1.5."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2024-56201",
+              "help": {
+                "text": "Vulnerability CVE-2024-56201\nSeverity: MEDIUM\nPackage: jinja2\nFixed Version: 3.1.5\nLink: [CVE-2024-56201](https://avd.aquasec.com/nvd/cve-2024-56201)\nJinja is an extensible templating engine. In versions on the 3.x branch prior to 3.1.5, a bug in the Jinja compiler allows an attacker that controls both the content and filename of a template to execute arbitrary Python code, regardless of if Jinja's sandbox is used. To exploit the vulnerability, an attacker needs to control both the filename and the contents of a template. Whether that is the case depends on the type of application using Jinja. This vulnerability impacts users of applications which execute untrusted templates where the template author can also choose the template filename. This vulnerability is fixed in 3.1.5.",
+                "markdown": "**Vulnerability CVE-2024-56201**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|MEDIUM|jinja2|3.1.5|[CVE-2024-56201](https://avd.aquasec.com/nvd/cve-2024-56201)|\n\nJinja is an extensible templating engine. In versions on the 3.x branch prior to 3.1.5, a bug in the Jinja compiler allows an attacker that controls both the content and filename of a template to execute arbitrary Python code, regardless of if Jinja's sandbox is used. To exploit the vulnerability, an attacker needs to control both the filename and the contents of a template. Whether that is the case depends on the type of application using Jinja. This vulnerability impacts users of applications which execute untrusted templates where the template author can also choose the template filename. This vulnerability is fixed in 3.1.5."
+              },
+              "properties": {
+                "cvssv3_baseScore": 8.8,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+                "cvssv40_baseScore": 5.4,
+                "cvssv40_vector": "CVSS:4.0/AV:L/AC:L/AT:P/PR:L/UI:P/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
+                "precision": "very-high",
+                "security-severity": "8.8",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "MEDIUM"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-56326",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "jinja2: Jinja has a sandbox breakout through indirect reference to format method"
+              },
+              "fullDescription": {
+                "text": "Jinja is an extensible templating engine. Prior to 3.1.5, An oversight in how the Jinja sandboxed environment detects calls to str.format allows an attacker that controls the content of a template to execute arbitrary Python code. To exploit the vulnerability, an attacker needs to control the content of a template. Whether that is the case depends on the type of application using Jinja. This vulnerability impacts users of applications which execute untrusted templates. Jinja's sandbox does catch calls to str.format and ensures they don't escape the sandbox. However, it's possible to store a reference to a malicious string's format method, then pass that to a filter that calls it. No such filters are built-in to Jinja, but could be present through custom filters in an application. After the fix, such indirect calls are also handled by the sandbox. This vulnerability is fixed in 3.1.5."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2024-56326",
+              "help": {
+                "text": "Vulnerability CVE-2024-56326\nSeverity: MEDIUM\nPackage: jinja2\nFixed Version: 3.1.5\nLink: [CVE-2024-56326](https://avd.aquasec.com/nvd/cve-2024-56326)\nJinja is an extensible templating engine. Prior to 3.1.5, An oversight in how the Jinja sandboxed environment detects calls to str.format allows an attacker that controls the content of a template to execute arbitrary Python code. To exploit the vulnerability, an attacker needs to control the content of a template. Whether that is the case depends on the type of application using Jinja. This vulnerability impacts users of applications which execute untrusted templates. Jinja's sandbox does catch calls to str.format and ensures they don't escape the sandbox. However, it's possible to store a reference to a malicious string's format method, then pass that to a filter that calls it. No such filters are built-in to Jinja, but could be present through custom filters in an application. After the fix, such indirect calls are also handled by the sandbox. This vulnerability is fixed in 3.1.5.",
+                "markdown": "**Vulnerability CVE-2024-56326**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|MEDIUM|jinja2|3.1.5|[CVE-2024-56326](https://avd.aquasec.com/nvd/cve-2024-56326)|\n\nJinja is an extensible templating engine. Prior to 3.1.5, An oversight in how the Jinja sandboxed environment detects calls to str.format allows an attacker that controls the content of a template to execute arbitrary Python code. To exploit the vulnerability, an attacker needs to control the content of a template. Whether that is the case depends on the type of application using Jinja. This vulnerability impacts users of applications which execute untrusted templates. Jinja's sandbox does catch calls to str.format and ensures they don't escape the sandbox. However, it's possible to store a reference to a malicious string's format method, then pass that to a filter that calls it. No such filters are built-in to Jinja, but could be present through custom filters in an application. After the fix, such indirect calls are also handled by the sandbox. This vulnerability is fixed in 3.1.5."
+              },
+              "properties": {
+                "cvssv3_baseScore": 7.8,
+                "cvssv3_vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+                "cvssv40_baseScore": 5.4,
+                "cvssv40_vector": "CVSS:4.0/AV:L/AC:L/AT:P/PR:L/UI:P/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
+                "precision": "very-high",
+                "security-severity": "7.8",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "MEDIUM"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2025-27516",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "jinja2: Jinja sandbox breakout through attr filter selecting format method"
+              },
+              "fullDescription": {
+                "text": "Jinja is an extensible templating engine. Prior to 3.1.6, an oversight in how the Jinja sandboxed environment interacts with the |attr filter allows an attacker that controls the content of a template to execute arbitrary Python code. To exploit the vulnerability, an attacker needs to control the content of a template. Whether that is the case depends on the type of application using Jinja. This vulnerability impacts users of applications which execute untrusted templates. Jinja's sandbox does catch calls to str.format and ensures they don't escape the sandbox. However, it's possible to use the |attr filter to get a reference to a string's plain format method, bypassing the sandbox. After the fix, the |attr filter no longer bypasses the environment's attribute lookup. This vulnerability is fixed in 3.1.6."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2025-27516",
+              "help": {
+                "text": "Vulnerability CVE-2025-27516\nSeverity: MEDIUM\nPackage: jinja2\nFixed Version: 3.1.6\nLink: [CVE-2025-27516](https://avd.aquasec.com/nvd/cve-2025-27516)\nJinja is an extensible templating engine. Prior to 3.1.6, an oversight in how the Jinja sandboxed environment interacts with the |attr filter allows an attacker that controls the content of a template to execute arbitrary Python code. To exploit the vulnerability, an attacker needs to control the content of a template. Whether that is the case depends on the type of application using Jinja. This vulnerability impacts users of applications which execute untrusted templates. Jinja's sandbox does catch calls to str.format and ensures they don't escape the sandbox. However, it's possible to use the |attr filter to get a reference to a string's plain format method, bypassing the sandbox. After the fix, the |attr filter no longer bypasses the environment's attribute lookup. This vulnerability is fixed in 3.1.6.",
+                "markdown": "**Vulnerability CVE-2025-27516**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|MEDIUM|jinja2|3.1.6|[CVE-2025-27516](https://avd.aquasec.com/nvd/cve-2025-27516)|\n\nJinja is an extensible templating engine. Prior to 3.1.6, an oversight in how the Jinja sandboxed environment interacts with the |attr filter allows an attacker that controls the content of a template to execute arbitrary Python code. To exploit the vulnerability, an attacker needs to control the content of a template. Whether that is the case depends on the type of application using Jinja. This vulnerability impacts users of applications which execute untrusted templates. Jinja's sandbox does catch calls to str.format and ensures they don't escape the sandbox. However, it's possible to use the |attr filter to get a reference to a string's plain format method, bypassing the sandbox. After the fix, the |attr filter no longer bypasses the environment's attribute lookup. This vulnerability is fixed in 3.1.6."
+              },
+              "properties": {
+                "cvssv40_baseScore": 5.4,
+                "cvssv40_vector": "CVSS:4.0/AV:L/AC:L/AT:P/PR:L/UI:P/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
+                "precision": "very-high",
+                "security-severity": "5.5",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "MEDIUM"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-24762",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "`python-multipart` is a streaming multipart parser for Python. When us ..."
+              },
+              "fullDescription": {
+                "text": "`python-multipart` is a streaming multipart parser for Python. When using form data, `python-multipart` uses a Regular Expression to parse the HTTP `Content-Type` header, including options. An attacker could send a custom-made `Content-Type` option that is very difficult for the RegEx to process, consuming CPU resources and stalling indefinitely (minutes or more) while holding the main event loop. This means that process can't handle any more requests, leading to regular expression denial of service. This vulnerability has been patched in version 0.0.7."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2024-24762",
+              "help": {
+                "text": "Vulnerability CVE-2024-24762\nSeverity: HIGH\nPackage: python-multipart\nFixed Version: 0.0.7\nLink: [CVE-2024-24762](https://avd.aquasec.com/nvd/cve-2024-24762)\n`python-multipart` is a streaming multipart parser for Python. When using form data, `python-multipart` uses a Regular Expression to parse the HTTP `Content-Type` header, including options. An attacker could send a custom-made `Content-Type` option that is very difficult for the RegEx to process, consuming CPU resources and stalling indefinitely (minutes or more) while holding the main event loop. This means that process can't handle any more requests, leading to regular expression denial of service. This vulnerability has been patched in version 0.0.7.",
+                "markdown": "**Vulnerability CVE-2024-24762**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|python-multipart|0.0.7|[CVE-2024-24762](https://avd.aquasec.com/nvd/cve-2024-24762)|\n\n`python-multipart` is a streaming multipart parser for Python. When using form data, `python-multipart` uses a Regular Expression to parse the HTTP `Content-Type` header, including options. An attacker could send a custom-made `Content-Type` option that is very difficult for the RegEx to process, consuming CPU resources and stalling indefinitely (minutes or more) while holding the main event loop. This means that process can't handle any more requests, leading to regular expression denial of service. This vulnerability has been patched in version 0.0.7."
+              },
+              "properties": {
+                "cvssv3_baseScore": 7.5,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                "precision": "very-high",
+                "security-severity": "7.5",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-53981",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "python-multipart: python-multipart has a DoS via deformation `multipart/form-data` boundary"
+              },
+              "fullDescription": {
+                "text": "python-multipart is a streaming multipart parser for Python. When parsing form data, python-multipart skips line breaks (CR \\r or LF \\n) in front of the first boundary and any tailing bytes after the last boundary. This happens one byte at a time and emits a log event each time, which may cause excessive logging for certain inputs. An attacker could abuse this by sending a malicious request with lots of data before the first or after the last boundary, causing high CPU load and stalling the processing thread for a significant amount of time. In case of ASGI application, this could stall the event loop and prevent other requests from being processed, resulting in a denial of service (DoS). This vulnerability is fixed in 0.0.18."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2024-53981",
+              "help": {
+                "text": "Vulnerability CVE-2024-53981\nSeverity: HIGH\nPackage: python-multipart\nFixed Version: 0.0.18\nLink: [CVE-2024-53981](https://avd.aquasec.com/nvd/cve-2024-53981)\npython-multipart is a streaming multipart parser for Python. When parsing form data, python-multipart skips line breaks (CR \\r or LF \\n) in front of the first boundary and any tailing bytes after the last boundary. This happens one byte at a time and emits a log event each time, which may cause excessive logging for certain inputs. An attacker could abuse this by sending a malicious request with lots of data before the first or after the last boundary, causing high CPU load and stalling the processing thread for a significant amount of time. In case of ASGI application, this could stall the event loop and prevent other requests from being processed, resulting in a denial of service (DoS). This vulnerability is fixed in 0.0.18.",
+                "markdown": "**Vulnerability CVE-2024-53981**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|python-multipart|0.0.18|[CVE-2024-53981](https://avd.aquasec.com/nvd/cve-2024-53981)|\n\npython-multipart is a streaming multipart parser for Python. When parsing form data, python-multipart skips line breaks (CR \\r or LF \\n) in front of the first boundary and any tailing bytes after the last boundary. This happens one byte at a time and emits a log event each time, which may cause excessive logging for certain inputs. An attacker could abuse this by sending a malicious request with lots of data before the first or after the last boundary, causing high CPU load and stalling the processing thread for a significant amount of time. In case of ASGI application, this could stall the event loop and prevent other requests from being processed, resulting in a denial of service (DoS). This vulnerability is fixed in 0.0.18."
+              },
+              "properties": {
+                "cvssv3_baseScore": 7.5,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                "cvssv40_baseScore": 8.7,
+                "cvssv40_vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N",
+                "precision": "very-high",
+                "security-severity": "7.5",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-24486",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "python-multipart: Python-Multipart: Arbitrary file write via path traversal vulnerability"
+              },
+              "fullDescription": {
+                "text": "Python-Multipart is a streaming multipart parser for Python. Prior to version 0.0.22, a Path Traversal vulnerability exists when using non-default configuration options `UPLOAD_DIR` and `UPLOAD_KEEP_FILENAME=True`. An attacker can write uploaded files to arbitrary locations on the filesystem by crafting a malicious filename. Users should upgrade to version 0.0.22 to receive a patch or, as a workaround, avoid using `UPLOAD_KEEP_FILENAME=True` in project configurations."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2026-24486",
+              "help": {
+                "text": "Vulnerability CVE-2026-24486\nSeverity: HIGH\nPackage: python-multipart\nFixed Version: 0.0.22\nLink: [CVE-2026-24486](https://avd.aquasec.com/nvd/cve-2026-24486)\nPython-Multipart is a streaming multipart parser for Python. Prior to version 0.0.22, a Path Traversal vulnerability exists when using non-default configuration options `UPLOAD_DIR` and `UPLOAD_KEEP_FILENAME=True`. An attacker can write uploaded files to arbitrary locations on the filesystem by crafting a malicious filename. Users should upgrade to version 0.0.22 to receive a patch or, as a workaround, avoid using `UPLOAD_KEEP_FILENAME=True` in project configurations.",
+                "markdown": "**Vulnerability CVE-2026-24486**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|python-multipart|0.0.22|[CVE-2026-24486](https://avd.aquasec.com/nvd/cve-2026-24486)|\n\nPython-Multipart is a streaming multipart parser for Python. Prior to version 0.0.22, a Path Traversal vulnerability exists when using non-default configuration options `UPLOAD_DIR` and `UPLOAD_KEEP_FILENAME=True`. An attacker can write uploaded files to arbitrary locations on the filesystem by crafting a malicious filename. Users should upgrade to version 0.0.22 to receive a patch or, as a workaround, avoid using `UPLOAD_KEEP_FILENAME=True` in project configurations."
+              },
+              "properties": {
+                "cvssv3_baseScore": 8.6,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:H/A:L",
+                "precision": "very-high",
+                "security-severity": "8.6",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-42561",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "python-multipart has Denial of Service via unbounded multipart part headers"
+              },
+              "fullDescription": {
+                "text": "### Summary\n\n`python-multipart` has a denial of service vulnerability in multipart part header parsing. When parsing `multipart/form-data`, `MultipartParser` previously had no limit on the number of part headers or the size of an individual part header. An attacker could send a request with either many repeated headers without terminating the header block or a single very large header value, causing excessive CPU work before request rejection or completion.\n\n### Impact\n\nApplications that parse attacker-controlled `multipart/form-data` with affected versions of `python-multipart` can experience CPU exhaustion. ASGI applications using Starlette, FastAPI, or other frameworks that invoke `python-multipart` may have worker or event-loop delays while processing malicious upload requests.\n\n### Details\n\nThe affected parser states are `HEADER_FIELD_START`, `HEADER_FIELD`, `HEADER_VALUE_START`, `HEADER_VALUE`, and `HEADER_VALUE_ALMOST_DONE`. The issue can be triggered by:\n\n- A multipart part with an oversized individual header value.\n- A multipart part with many repeated header lines or an unterminated header block.\n\nBoth variants are addressed by enforcing default parser limits for maximum header count and maximum header size.\n\n### Mitigation\n\nUpgrade to `python-multipart` `0.0.27` or later.\n\nIf upgrading is not immediately possible, reduce exposure by enforcing request body size limits at the server, proxy, or framework layer. This is only a mitigation; affected versions of `python-multipart` still parse multipart part headers without the default header count and header size limits."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2026-42561",
+              "help": {
+                "text": "Vulnerability CVE-2026-42561\nSeverity: HIGH\nPackage: python-multipart\nFixed Version: 0.0.27\nLink: [CVE-2026-42561](https://avd.aquasec.com/nvd/cve-2026-42561)\n### Summary\n\n`python-multipart` has a denial of service vulnerability in multipart part header parsing. When parsing `multipart/form-data`, `MultipartParser` previously had no limit on the number of part headers or the size of an individual part header. An attacker could send a request with either many repeated headers without terminating the header block or a single very large header value, causing excessive CPU work before request rejection or completion.\n\n### Impact\n\nApplications that parse attacker-controlled `multipart/form-data` with affected versions of `python-multipart` can experience CPU exhaustion. ASGI applications using Starlette, FastAPI, or other frameworks that invoke `python-multipart` may have worker or event-loop delays while processing malicious upload requests.\n\n### Details\n\nThe affected parser states are `HEADER_FIELD_START`, `HEADER_FIELD`, `HEADER_VALUE_START`, `HEADER_VALUE`, and `HEADER_VALUE_ALMOST_DONE`. The issue can be triggered by:\n\n- A multipart part with an oversized individual header value.\n- A multipart part with many repeated header lines or an unterminated header block.\n\nBoth variants are addressed by enforcing default parser limits for maximum header count and maximum header size.\n\n### Mitigation\n\nUpgrade to `python-multipart` `0.0.27` or later.\n\nIf upgrading is not immediately possible, reduce exposure by enforcing request body size limits at the server, proxy, or framework layer. This is only a mitigation; affected versions of `python-multipart` still parse multipart part headers without the default header count and header size limits.",
+                "markdown": "**Vulnerability CVE-2026-42561**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|python-multipart|0.0.27|[CVE-2026-42561](https://avd.aquasec.com/nvd/cve-2026-42561)|\n\n### Summary\n\n`python-multipart` has a denial of service vulnerability in multipart part header parsing. When parsing `multipart/form-data`, `MultipartParser` previously had no limit on the number of part headers or the size of an individual part header. An attacker could send a request with either many repeated headers without terminating the header block or a single very large header value, causing excessive CPU work before request rejection or completion.\n\n### Impact\n\nApplications that parse attacker-controlled `multipart/form-data` with affected versions of `python-multipart` can experience CPU exhaustion. ASGI applications using Starlette, FastAPI, or other frameworks that invoke `python-multipart` may have worker or event-loop delays while processing malicious upload requests.\n\n### Details\n\nThe affected parser states are `HEADER_FIELD_START`, `HEADER_FIELD`, `HEADER_VALUE_START`, `HEADER_VALUE`, and `HEADER_VALUE_ALMOST_DONE`. The issue can be triggered by:\n\n- A multipart part with an oversized individual header value.\n- A multipart part with many repeated header lines or an unterminated header block.\n\nBoth variants are addressed by enforcing default parser limits for maximum header count and maximum header size.\n\n### Mitigation\n\nUpgrade to `python-multipart` `0.0.27` or later.\n\nIf upgrading is not immediately possible, reduce exposure by enforcing request body size limits at the server, proxy, or framework layer. This is only a mitigation; affected versions of `python-multipart` still parse multipart part headers without the default header count and header size limits."
+              },
+              "properties": {
+                "cvssv3_baseScore": 7.5,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                "precision": "very-high",
+                "security-severity": "7.5",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-40347",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "python-multipart: Python-Multipart: Denial of Service via crafted multipart/form-data requests"
+              },
+              "fullDescription": {
+                "text": "Python-Multipart is a streaming multipart parser for Python. Versions prior to 0.0.26 have a denial of service vulnerability when parsing crafted `multipart/form-data` requests with large preamble or epilogue sections. Upgrade to version 0.0.26 or later, which skips ahead to the next boundary candidate when processing leading CR/LF data and immediately discards epilogue data after the closing boundary."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2026-40347",
+              "help": {
+                "text": "Vulnerability CVE-2026-40347\nSeverity: MEDIUM\nPackage: python-multipart\nFixed Version: 0.0.26\nLink: [CVE-2026-40347](https://avd.aquasec.com/nvd/cve-2026-40347)\nPython-Multipart is a streaming multipart parser for Python. Versions prior to 0.0.26 have a denial of service vulnerability when parsing crafted `multipart/form-data` requests with large preamble or epilogue sections. Upgrade to version 0.0.26 or later, which skips ahead to the next boundary candidate when processing leading CR/LF data and immediately discards epilogue data after the closing boundary.",
+                "markdown": "**Vulnerability CVE-2026-40347**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|MEDIUM|python-multipart|0.0.26|[CVE-2026-40347](https://avd.aquasec.com/nvd/cve-2026-40347)|\n\nPython-Multipart is a streaming multipart parser for Python. Versions prior to 0.0.26 have a denial of service vulnerability when parsing crafted `multipart/form-data` requests with large preamble or epilogue sections. Upgrade to version 0.0.26 or later, which skips ahead to the next boundary candidate when processing leading CR/LF data and immediately discards epilogue data after the closing boundary."
+              },
+              "properties": {
+                "cvssv3_baseScore": 5.3,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+                "precision": "very-high",
+                "security-severity": "5.3",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "MEDIUM"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2023-30798",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "There MultipartParser usage in Encode's Starlette python framework bef ..."
+              },
+              "fullDescription": {
+                "text": "There MultipartParser usage in Encode's Starlette python framework before versions 0.25.0 allows an unauthenticated and remote attacker to specify any number of form fields or files which can cause excessive memory usage resulting in denial of service of the HTTP service."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2023-30798",
+              "help": {
+                "text": "Vulnerability CVE-2023-30798\nSeverity: HIGH\nPackage: starlette\nFixed Version: 0.25.0\nLink: [CVE-2023-30798](https://avd.aquasec.com/nvd/cve-2023-30798)\nThere MultipartParser usage in Encode's Starlette python framework before versions 0.25.0 allows an unauthenticated and remote attacker to specify any number of form fields or files which can cause excessive memory usage resulting in denial of service of the HTTP service.",
+                "markdown": "**Vulnerability CVE-2023-30798**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|starlette|0.25.0|[CVE-2023-30798](https://avd.aquasec.com/nvd/cve-2023-30798)|\n\nThere MultipartParser usage in Encode's Starlette python framework before versions 0.25.0 allows an unauthenticated and remote attacker to specify any number of form fields or files which can cause excessive memory usage resulting in denial of service of the HTTP service."
+              },
+              "properties": {
+                "cvssv3_baseScore": 7.5,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                "cvssv40_baseScore": 8.7,
+                "cvssv40_vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N",
+                "precision": "very-high",
+                "security-severity": "7.5",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-47874",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "starlette: Starlette Denial of service (DoS) via multipart/form-data"
+              },
+              "fullDescription": {
+                "text": "Starlette is an Asynchronous Server Gateway Interface (ASGI) framework/toolkit. Prior to version 0.40.0, Starlette treats `multipart/form-data` parts without a `filename` as text form fields and buffers those in byte strings with no size limit. This allows an attacker to upload arbitrary large form fields and cause Starlette to both slow down significantly due to excessive memory allocations and copy operations, and also consume more and more memory until the server starts swapping and grinds to a halt, or the OS terminates the server process with an OOM error. Uploading multiple such requests in parallel may be enough to render a service practically unusable, even if reasonable request size limits are enforced by a reverse proxy in front of Starlette. This Denial of service (DoS) vulnerability affects all applications built with Starlette (or FastAPI) accepting form requests. Verison 0.40.0 fixes this issue."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2024-47874",
+              "help": {
+                "text": "Vulnerability CVE-2024-47874\nSeverity: HIGH\nPackage: starlette\nFixed Version: 0.40.0\nLink: [CVE-2024-47874](https://avd.aquasec.com/nvd/cve-2024-47874)\nStarlette is an Asynchronous Server Gateway Interface (ASGI) framework/toolkit. Prior to version 0.40.0, Starlette treats `multipart/form-data` parts without a `filename` as text form fields and buffers those in byte strings with no size limit. This allows an attacker to upload arbitrary large form fields and cause Starlette to both slow down significantly due to excessive memory allocations and copy operations, and also consume more and more memory until the server starts swapping and grinds to a halt, or the OS terminates the server process with an OOM error. Uploading multiple such requests in parallel may be enough to render a service practically unusable, even if reasonable request size limits are enforced by a reverse proxy in front of Starlette. This Denial of service (DoS) vulnerability affects all applications built with Starlette (or FastAPI) accepting form requests. Verison 0.40.0 fixes this issue.",
+                "markdown": "**Vulnerability CVE-2024-47874**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|starlette|0.40.0|[CVE-2024-47874](https://avd.aquasec.com/nvd/cve-2024-47874)|\n\nStarlette is an Asynchronous Server Gateway Interface (ASGI) framework/toolkit. Prior to version 0.40.0, Starlette treats `multipart/form-data` parts without a `filename` as text form fields and buffers those in byte strings with no size limit. This allows an attacker to upload arbitrary large form fields and cause Starlette to both slow down significantly due to excessive memory allocations and copy operations, and also consume more and more memory until the server starts swapping and grinds to a halt, or the OS terminates the server process with an OOM error. Uploading multiple such requests in parallel may be enough to render a service practically unusable, even if reasonable request size limits are enforced by a reverse proxy in front of Starlette. This Denial of service (DoS) vulnerability affects all applications built with Starlette (or FastAPI) accepting form requests. Verison 0.40.0 fixes this issue."
+              },
+              "properties": {
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N",
+                "cvssv40_baseScore": 8.7,
+                "cvssv40_vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N",
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2023-29159",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "Directory traversal vulnerability in Starlette versions 0.13.5 and lat ..."
+              },
+              "fullDescription": {
+                "text": "Directory traversal vulnerability in Starlette versions 0.13.5 and later and prior to 0.27.0 allows a remote unauthenticated attacker to view files in a web service which was built using Starlette."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2023-29159",
+              "help": {
+                "text": "Vulnerability CVE-2023-29159\nSeverity: MEDIUM\nPackage: starlette\nFixed Version: 0.27.0\nLink: [CVE-2023-29159](https://avd.aquasec.com/nvd/cve-2023-29159)\nDirectory traversal vulnerability in Starlette versions 0.13.5 and later and prior to 0.27.0 allows a remote unauthenticated attacker to view files in a web service which was built using Starlette.",
+                "markdown": "**Vulnerability CVE-2023-29159**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|MEDIUM|starlette|0.27.0|[CVE-2023-29159](https://avd.aquasec.com/nvd/cve-2023-29159)|\n\nDirectory traversal vulnerability in Starlette versions 0.13.5 and later and prior to 0.27.0 allows a remote unauthenticated attacker to view files in a web service which was built using Starlette."
+              },
+              "properties": {
+                "cvssv3_baseScore": 3.7,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N",
+                "cvssv40_baseScore": 6.3,
+                "cvssv40_vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N",
+                "precision": "very-high",
+                "security-severity": "3.7",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "MEDIUM"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2025-54121",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "starlette: Starlette denial-of-service"
+              },
+              "fullDescription": {
+                "text": "Starlette is a lightweight ASGI (Asynchronous Server Gateway Interface) framework/toolkit, designed for building async web services in Python. In versions 0.47.1 and below, when parsing a multi-part form with large files (greater than the default max spool size) starlette will block the main thread to roll the file over to disk. This blocks the event thread which means the application can't accept new connections. The UploadFile code has a minor bug where instead of just checking for self._in_memory, the logic should also check if the additional bytes will cause a rollover. The vulnerability is fixed in version 0.47.2."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2025-54121",
+              "help": {
+                "text": "Vulnerability CVE-2025-54121\nSeverity: MEDIUM\nPackage: starlette\nFixed Version: 0.47.2\nLink: [CVE-2025-54121](https://avd.aquasec.com/nvd/cve-2025-54121)\nStarlette is a lightweight ASGI (Asynchronous Server Gateway Interface) framework/toolkit, designed for building async web services in Python. In versions 0.47.1 and below, when parsing a multi-part form with large files (greater than the default max spool size) starlette will block the main thread to roll the file over to disk. This blocks the event thread which means the application can't accept new connections. The UploadFile code has a minor bug where instead of just checking for self._in_memory, the logic should also check if the additional bytes will cause a rollover. The vulnerability is fixed in version 0.47.2.",
+                "markdown": "**Vulnerability CVE-2025-54121**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|MEDIUM|starlette|0.47.2|[CVE-2025-54121](https://avd.aquasec.com/nvd/cve-2025-54121)|\n\nStarlette is a lightweight ASGI (Asynchronous Server Gateway Interface) framework/toolkit, designed for building async web services in Python. In versions 0.47.1 and below, when parsing a multi-part form with large files (greater than the default max spool size) starlette will block the main thread to roll the file over to disk. This blocks the event thread which means the application can't accept new connections. The UploadFile code has a minor bug where instead of just checking for self._in_memory, the logic should also check if the additional bytes will cause a rollover. The vulnerability is fixed in version 0.47.2."
+              },
+              "properties": {
+                "cvssv3_baseScore": 5.3,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+                "precision": "very-high",
+                "security-severity": "5.3",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "MEDIUM"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2025-62727",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "starlette: Starlette DoS via Range header merging"
+              },
+              "fullDescription": {
+                "text": "Starlette is a lightweight ASGI framework/toolkit. Starting in version 0.39.0 and prior to version 0.49.1 , an unauthenticated attacker can send a crafted HTTP Range header that triggers quadratic-time processing in Starlette's FileResponse Range parsing/merging logic. This enables CPU exhaustion per request, causing denial‑of‑service for endpoints serving files (e.g., StaticFiles or any use of FileResponse). This vulnerability is fixed in 0.49.1."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2025-62727",
+              "help": {
+                "text": "Vulnerability CVE-2025-62727\nSeverity: HIGH\nPackage: starlette\nFixed Version: 0.49.1\nLink: [CVE-2025-62727](https://avd.aquasec.com/nvd/cve-2025-62727)\nStarlette is a lightweight ASGI framework/toolkit. Starting in version 0.39.0 and prior to version 0.49.1 , an unauthenticated attacker can send a crafted HTTP Range header that triggers quadratic-time processing in Starlette's FileResponse Range parsing/merging logic. This enables CPU exhaustion per request, causing denial‑of‑service for endpoints serving files (e.g., StaticFiles or any use of FileResponse). This vulnerability is fixed in 0.49.1.",
+                "markdown": "**Vulnerability CVE-2025-62727**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|starlette|0.49.1|[CVE-2025-62727](https://avd.aquasec.com/nvd/cve-2025-62727)|\n\nStarlette is a lightweight ASGI framework/toolkit. Starting in version 0.39.0 and prior to version 0.49.1 , an unauthenticated attacker can send a crafted HTTP Range header that triggers quadratic-time processing in Starlette's FileResponse Range parsing/merging logic. This enables CPU exhaustion per request, causing denial‑of‑service for endpoints serving files (e.g., StaticFiles or any use of FileResponse). This vulnerability is fixed in 0.49.1."
+              },
+              "properties": {
+                "cvssv3_baseScore": 7.5,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                "precision": "very-high",
+                "security-severity": "7.5",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-44431",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "urllib3: Sensitive headers forwarded across origins in proxied low-level redirects"
+              },
+              "fullDescription": {
+                "text": "urllib3 is an HTTP client library for Python. From 1.23 to before 2.7.0, cross-origin redirects followed from the low-level API via ProxyManager.connection_from_url().urlopen(..., assert_same_host=False) still forward these sensitive headers. This vulnerability is fixed in 2.7.0."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2026-44431",
+              "help": {
+                "text": "Vulnerability CVE-2026-44431\nSeverity: HIGH\nPackage: urllib3\nFixed Version: 2.7.0\nLink: [CVE-2026-44431](https://avd.aquasec.com/nvd/cve-2026-44431)\nurllib3 is an HTTP client library for Python. From 1.23 to before 2.7.0, cross-origin redirects followed from the low-level API via ProxyManager.connection_from_url().urlopen(..., assert_same_host=False) still forward these sensitive headers. This vulnerability is fixed in 2.7.0.",
+                "markdown": "**Vulnerability CVE-2026-44431**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|urllib3|2.7.0|[CVE-2026-44431](https://avd.aquasec.com/nvd/cve-2026-44431)|\n\nurllib3 is an HTTP client library for Python. From 1.23 to before 2.7.0, cross-origin redirects followed from the low-level API via ProxyManager.connection_from_url().urlopen(..., assert_same_host=False) still forward these sensitive headers. This vulnerability is fixed in 2.7.0."
+              },
+              "properties": {
+                "cvssv40_baseScore": 8.2,
+                "cvssv40_vector": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:N/VC:H/VI:N/VA:N/SC:N/SI:N/SA:N",
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-44432",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "urllib3: Decompression-bomb safeguards bypassed in parts of the streaming API"
+              },
+              "fullDescription": {
+                "text": "urllib3 is an HTTP client library for Python. From 2.6.0 to before 2.7.0, urllib3 could decompress the whole response instead of the requested portion (1) during the second HTTPResponse.read(amt=N) call when the response was decompressed using the official Brotli library or (2) when HTTPResponse.drain_conn() was called after the response had been read and decompressed partially (compression algorithm did not matter here). These issues could cause urllib3 to fully decode a small amount of highly compressed data in a single operation. This could result in excessive resource consumption (high CPU usage and massive memory allocation for the decompressed data) on the client side. This vulnerability is fixed in 2.7.0."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2026-44432",
+              "help": {
+                "text": "Vulnerability CVE-2026-44432\nSeverity: HIGH\nPackage: urllib3\nFixed Version: 2.7.0\nLink: [CVE-2026-44432](https://avd.aquasec.com/nvd/cve-2026-44432)\nurllib3 is an HTTP client library for Python. From 2.6.0 to before 2.7.0, urllib3 could decompress the whole response instead of the requested portion (1) during the second HTTPResponse.read(amt=N) call when the response was decompressed using the official Brotli library or (2) when HTTPResponse.drain_conn() was called after the response had been read and decompressed partially (compression algorithm did not matter here). These issues could cause urllib3 to fully decode a small amount of highly compressed data in a single operation. This could result in excessive resource consumption (high CPU usage and massive memory allocation for the decompressed data) on the client side. This vulnerability is fixed in 2.7.0.",
+                "markdown": "**Vulnerability CVE-2026-44432**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|urllib3|2.7.0|[CVE-2026-44432](https://avd.aquasec.com/nvd/cve-2026-44432)|\n\nurllib3 is an HTTP client library for Python. From 2.6.0 to before 2.7.0, urllib3 could decompress the whole response instead of the requested portion (1) during the second HTTPResponse.read(amt=N) call when the response was decompressed using the official Brotli library or (2) when HTTPResponse.drain_conn() was called after the response had been read and decompressed partially (compression algorithm did not matter here). These issues could cause urllib3 to fully decode a small amount of highly compressed data in a single operation. This could result in excessive resource consumption (high CPU usage and massive memory allocation for the decompressed data) on the client side. This vulnerability is fixed in 2.7.0."
+              },
+              "properties": {
+                "cvssv40_baseScore": 8.9,
+                "cvssv40_vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:H",
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            }
+          ],
+          "version": "0.69.3"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2024-22195",
+          "ruleIndex": 0,
+          "level": "warning",
+          "message": {
+            "text": "Package: jinja2\nInstalled Version: 3.0.3\nVulnerability CVE-2024-22195\nSeverity: MEDIUM\nFixed Version: 3.1.3\nLink: [CVE-2024-22195](https://avd.aquasec.com/nvd/cve-2024-22195)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: jinja2@3.0.3"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-34064",
+          "ruleIndex": 1,
+          "level": "warning",
+          "message": {
+            "text": "Package: jinja2\nInstalled Version: 3.0.3\nVulnerability CVE-2024-34064\nSeverity: MEDIUM\nFixed Version: 3.1.4\nLink: [CVE-2024-34064](https://avd.aquasec.com/nvd/cve-2024-34064)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: jinja2@3.0.3"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-56201",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Package: jinja2\nInstalled Version: 3.0.3\nVulnerability CVE-2024-56201\nSeverity: MEDIUM\nFixed Version: 3.1.5\nLink: [CVE-2024-56201](https://avd.aquasec.com/nvd/cve-2024-56201)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: jinja2@3.0.3"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-56326",
+          "ruleIndex": 3,
+          "level": "warning",
+          "message": {
+            "text": "Package: jinja2\nInstalled Version: 3.0.3\nVulnerability CVE-2024-56326\nSeverity: MEDIUM\nFixed Version: 3.1.5\nLink: [CVE-2024-56326](https://avd.aquasec.com/nvd/cve-2024-56326)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: jinja2@3.0.3"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2025-27516",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "Package: jinja2\nInstalled Version: 3.0.3\nVulnerability CVE-2025-27516\nSeverity: MEDIUM\nFixed Version: 3.1.6\nLink: [CVE-2025-27516](https://avd.aquasec.com/nvd/cve-2025-27516)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: jinja2@3.0.3"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-24762",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "Package: python-multipart\nInstalled Version: 0.0.5\nVulnerability CVE-2024-24762\nSeverity: HIGH\nFixed Version: 0.0.7\nLink: [CVE-2024-24762](https://avd.aquasec.com/nvd/cve-2024-24762)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: python-multipart@0.0.5"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-53981",
+          "ruleIndex": 6,
+          "level": "error",
+          "message": {
+            "text": "Package: python-multipart\nInstalled Version: 0.0.5\nVulnerability CVE-2024-53981\nSeverity: HIGH\nFixed Version: 0.0.18\nLink: [CVE-2024-53981](https://avd.aquasec.com/nvd/cve-2024-53981)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: python-multipart@0.0.5"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-24486",
+          "ruleIndex": 7,
+          "level": "error",
+          "message": {
+            "text": "Package: python-multipart\nInstalled Version: 0.0.5\nVulnerability CVE-2026-24486\nSeverity: HIGH\nFixed Version: 0.0.22\nLink: [CVE-2026-24486](https://avd.aquasec.com/nvd/cve-2026-24486)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: python-multipart@0.0.5"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-42561",
+          "ruleIndex": 8,
+          "level": "error",
+          "message": {
+            "text": "Package: python-multipart\nInstalled Version: 0.0.5\nVulnerability CVE-2026-42561\nSeverity: HIGH\nFixed Version: 0.0.27\nLink: [CVE-2026-42561](https://avd.aquasec.com/nvd/cve-2026-42561)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: python-multipart@0.0.5"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-40347",
+          "ruleIndex": 9,
+          "level": "warning",
+          "message": {
+            "text": "Package: python-multipart\nInstalled Version: 0.0.5\nVulnerability CVE-2026-40347\nSeverity: MEDIUM\nFixed Version: 0.0.26\nLink: [CVE-2026-40347](https://avd.aquasec.com/nvd/cve-2026-40347)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: python-multipart@0.0.5"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2023-30798",
+          "ruleIndex": 10,
+          "level": "error",
+          "message": {
+            "text": "Package: starlette\nInstalled Version: 0.19.1\nVulnerability CVE-2023-30798\nSeverity: HIGH\nFixed Version: 0.25.0\nLink: [CVE-2023-30798](https://avd.aquasec.com/nvd/cve-2023-30798)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: starlette@0.19.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-47874",
+          "ruleIndex": 11,
+          "level": "error",
+          "message": {
+            "text": "Package: starlette\nInstalled Version: 0.19.1\nVulnerability CVE-2024-47874\nSeverity: HIGH\nFixed Version: 0.40.0\nLink: [CVE-2024-47874](https://avd.aquasec.com/nvd/cve-2024-47874)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: starlette@0.19.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2023-29159",
+          "ruleIndex": 12,
+          "level": "warning",
+          "message": {
+            "text": "Package: starlette\nInstalled Version: 0.19.1\nVulnerability CVE-2023-29159\nSeverity: MEDIUM\nFixed Version: 0.27.0\nLink: [CVE-2023-29159](https://avd.aquasec.com/nvd/cve-2023-29159)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: starlette@0.19.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2025-54121",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "Package: starlette\nInstalled Version: 0.19.1\nVulnerability CVE-2025-54121\nSeverity: MEDIUM\nFixed Version: 0.47.2\nLink: [CVE-2025-54121](https://avd.aquasec.com/nvd/cve-2025-54121)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: starlette@0.19.1"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2025-62727",
+          "ruleIndex": 14,
+          "level": "error",
+          "message": {
+            "text": "Package: starlette\nInstalled Version: 0.45.3\nVulnerability CVE-2025-62727\nSeverity: HIGH\nFixed Version: 0.49.1\nLink: [CVE-2025-62727](https://avd.aquasec.com/nvd/cve-2025-62727)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: starlette@0.45.3"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2025-54121",
+          "ruleIndex": 13,
+          "level": "warning",
+          "message": {
+            "text": "Package: starlette\nInstalled Version: 0.45.3\nVulnerability CVE-2025-54121\nSeverity: MEDIUM\nFixed Version: 0.47.2\nLink: [CVE-2025-54121](https://avd.aquasec.com/nvd/cve-2025-54121)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: starlette@0.45.3"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-44431",
+          "ruleIndex": 15,
+          "level": "error",
+          "message": {
+            "text": "Package: urllib3\nInstalled Version: 2.6.3\nVulnerability CVE-2026-44431\nSeverity: HIGH\nFixed Version: 2.7.0\nLink: [CVE-2026-44431](https://avd.aquasec.com/nvd/cve-2026-44431)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: urllib3@2.6.3"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-44432",
+          "ruleIndex": 16,
+          "level": "error",
+          "message": {
+            "text": "Package: urllib3\nInstalled Version: 2.6.3\nVulnerability CVE-2026-44432\nSeverity: HIGH\nFixed Version: 2.7.0\nLink: [CVE-2026-44432](https://avd.aquasec.com/nvd/cve-2026-44432)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Python",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "Python: urllib3@2.6.3"
+              }
+            }
+          ]
+        }
+      ],
+      "columnKind": "utf16CodeUnits",
+      "originalUriBaseIds": {
+        "ROOTPATH": {
+          "uri": "file:///"
+        }
+      }
+    }
+  ]
+}
