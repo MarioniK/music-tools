@@ -23,4 +23,5 @@ workflows:
               - echo "Получение изменений из GitHub..."
               - git fetch github
               - echo "Проверка изменений..."
+              - git checkout main 2>/dev/null || git checkout -b main
               - if git merge-base --is-ancestor github/main HEAD; then echo "Локальная ветка уже содержит все изменения из GitHub. Синхронизация не требуется."; else echo "Обнаружены новые изменения в GitHub. Выполняем слияние..."; git merge github/main --no-edit; echo "Отправка изменений в SourceCraft..."; git push origin main; echo "Синхронизация завершена успешно!"; fi
