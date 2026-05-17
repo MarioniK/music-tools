@@ -1,5 +1,7 @@
 .env
 .env.*
+!tidal-parser/.env.example
+!genre-classifier/.env.example
 *.db
 *.sqlite3
 __pycache__/
