@@ -90,10 +90,12 @@
           <button type="submit" class="secondary-btn">Обновить без кэша</button>
         </form>
 
+        {% if clear_cache_enabled %}
         <form method="post" action="/clear-cache" class="inline-form">
           <input type="hidden" name="url" value="{{ result.source_url }}" />
           <button type="submit" class="secondary-btn danger-btn">Сбросить кэш</button>
         </form>
+        {% endif %}
       </div>
       {% endif %}
 

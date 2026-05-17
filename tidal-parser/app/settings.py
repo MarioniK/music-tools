@@ -7,6 +7,8 @@ DEFAULT_MUSICBRAINZ_APP_NAME = "tidal-parser/1.0"
 DEFAULT_MUSICBRAINZ_MAX_ATTEMPTS = 3
 DEFAULT_MUSICBRAINZ_RETRY_DELAY_S = 0.2
 DEFAULT_MUSICBRAINZ_MIN_INTERVAL_S = 1.1
+TRUE_VALUES = {"true", "1", "yes", "on"}
+FALSE_VALUES = {"false", "0", "no", "off"}
 
 
 def _get_env_str(name, default=""):
@@ -30,6 +32,21 @@ def _get_env_float(name, default):
         return default
 
     return parsed
+
+
+def _get_env_bool(name, default=True):
+    raw_value = _get_env_str(name, "")
+    if not raw_value:
+        return default
+
+    normalized = raw_value.lower()
+    if normalized in TRUE_VALUES:
+        return True
+
+    if normalized in FALSE_VALUES:
+        return False
+
+    return default
 
 
 def get_audio_classifier_url():
@@ -65,3 +82,7 @@ def get_musicbrainz_max_attempts():
 
 def get_musicbrainz_retry_delay_s():
     return DEFAULT_MUSICBRAINZ_RETRY_DELAY_S
+
+
+def is_clear_cache_enabled():
+    return _get_env_bool("CLEAR_CACHE_ENABLED", True)

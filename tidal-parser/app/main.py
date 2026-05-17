@@ -61,11 +61,37 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="TIDAL Parser")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(
+    directory="app/templates",
+    context_processors=[],
+)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["20/minute"])
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
+
+
+def _render_index_template(template_or_request, context: dict, status_code: int = 200):
+    template_context = dict(context)
+    if isinstance(template_or_request, Request):
+        template_name = "index.html"
+        template_context["request"] = template_or_request
+    else:
+        template_name = template_or_request
+    template_context.setdefault("clear_cache_enabled", settings.is_clear_cache_enabled())
+    return templates.TemplateResponse(
+        template_context["request"],
+        template_name,
+        template_context,
+        status_code=status_code,
+    )
+
+
+def _clear_cache_context_processor(_request: Request):
+    return {"clear_cache_enabled": settings.is_clear_cache_enabled()}
+
+
+templates.context_processors.append(_clear_cache_context_processor)
 
 
 @app.middleware("http")
@@ -102,10 +128,9 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
             status_code=429,
         )
 
-    return templates.TemplateResponse(
-        "index.html",
+    return _render_index_template(
+        request,
         {
-            "request": request,
             "result": None,
             "error": "Слишком много запросов. Подожди немного и попробуй снова.",
             "error_request_id": request_id,
@@ -1621,10 +1646,9 @@ async def build_result(url, force_refresh=False, baseline=None):
 @app.get("/", response_class=HTMLResponse)
 @limiter.limit("10/minute")
 async def index(request: Request):
-    return templates.TemplateResponse(
-        "index.html",
+    return _render_index_template(
+        request,
         {
-            "request": request,
             "result": None,
             "error": None,
             "form_url": "",
@@ -2161,6 +2185,17 @@ async def parse_form(
 @app.post("/clear-cache")
 @limiter.limit("10/minute")
 async def clear_cache(request: Request, url: str = Form(...)):
+    if not settings.is_clear_cache_enabled():
+        return _render_index_template(
+            request,
+            {
+                "result": None,
+                "error": "Сброс кэша отключён администратором.",
+                "form_url": url,
+            },
+            status_code=403,
+        )
+
     old_cached = get_cached_result(build_cache_key(url))
     delete_cached_result(url)
 
