@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 MB
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-TMP_DIR = BASE_DIR / "tmp"
+TMP_DIR = BASE_DIR.parent / "tmp"
 MODELS_DIR = BASE_DIR / "models"
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
