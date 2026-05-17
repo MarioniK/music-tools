@@ -1,2 +1,0 @@
-/app/app/models/msd-musicnn-1.json
-/app/app/models/msd-musicnn-1.pb
