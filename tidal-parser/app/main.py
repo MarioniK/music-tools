@@ -66,7 +66,15 @@ templates = Jinja2Templates(
     context_processors=[],
 )
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["20/minute"])
+def get_rate_limit_key(request: Request):
+    """Use the real client IP when requests arrive through Cloudflare Tunnel."""
+    forwarded_ip = request.headers.get("CF-Connecting-IP")
+    if forwarded_ip:
+        return forwarded_ip.strip()
+    return get_remote_address(request)
+
+
+limiter = Limiter(key_func=get_rate_limit_key, default_limits=["20/minute"])
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
