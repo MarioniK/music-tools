@@ -62,6 +62,8 @@ def genre_to_blog_tag(value):
     if not normalized:
         return None
 
+    normalized = normalized.replace("&", "n")
+    normalized = re.sub(r"\band\b", "n", normalized)
     normalized = unicodedata.normalize("NFKD", normalized)
     normalized = normalized.encode("ascii", "ignore").decode("ascii").lower()
     normalized = re.sub(r"[^a-z0-9]+", "", normalized)

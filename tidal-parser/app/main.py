@@ -40,6 +40,7 @@ from app.pipeline_logging import logger, run_timed_stage, run_timed_stage_sync
 from app import settings
 from app import metrics
 from app import request_context
+from app.music_prompt import build_music_prompt, release_period, release_type, release_year
 from app.tidal_openapi import (
     lookup_tidal_candidates,
     select_safe_tidal_auto_handoff_candidate,
@@ -65,6 +66,7 @@ templates = Jinja2Templates(
     directory="app/templates",
     context_processors=[],
 )
+templates.env.globals["build_music_prompt"] = build_music_prompt
 
 def get_rate_limit_key(request: Request):
     """Use the real client IP when requests arrive through Cloudflare Tunnel."""
@@ -1454,13 +1456,14 @@ def merge_final_genres(release_genres, audio_genres_pretty, entity_type):
 def build_blog_output(result):
     artist = clean_text(result.get("artist")) or "Неизвестный исполнитель"
     title = clean_text(result.get("title")) or "Без названия"
-    entity_type = result.get("entity_type")
-    year = result.get("release_year")
+    year = release_year(result)
+    kind = release_type(result)
+    period = release_period(result)
     country_tag = result.get("artist_country_tag")
-    final_genres = [g for g in result.get("final_genres", []) if is_allowed_final_genre(g)]
+    final_genres = [g for g in (result.get("final_genres") or result.get("genres") or []) if is_allowed_final_genre(g)]
 
     artist_tags = split_artist_tags(artist)
-    genre_tags = [genre_to_blog_tag(g) for g in final_genres if genre_to_blog_tag(g)]
+    genre_tags = list(dict.fromkeys(genre_to_blog_tag(g) for g in final_genres if genre_to_blog_tag(g)))
 
     tags = ["#music"]
 
@@ -1476,12 +1479,7 @@ def build_blog_output(result):
     tags.extend(["#{}".format(g) for g in genre_tags])
     tags.append("#djdrugfm")
 
-    if entity_type == "track":
-        if year == 2026:
-            tags.append("#dailylist")
-        elif isinstance(year, int) and year < 2016:
-            tags.append("#nostalgy")
-
+    if result.get("entity_type") == "track":
         line1 = "{} — «{}»".format(artist, title)
     else:
         if year:
@@ -1489,12 +1487,20 @@ def build_blog_output(result):
         else:
             line1 = "{} — «{}»".format(artist, title)
 
-        if year == 2026:
+    if period == "new":
+        if kind == "album":
             tags.extend(["#newrelease", "#newalbum"])
-        elif isinstance(year, int) and year < 2016:
-            tags.extend(["#nostalgie", "#longplay"])
-        else:
+        elif kind == "EP":
+            tags.extend(["#newrelease", "#newep"])
+        elif kind in {"single", "track"}:
+            tags.extend(["#newrelease", "#dailylist"])
+    else:
+        if kind == "album":
             tags.append("#longplay")
+        elif kind == "EP":
+            tags.append("#ep")
+        if period == "nostalgia":
+            tags.append("#nostalgie")
 
     tags.append("#омузыке")
 
