@@ -62,8 +62,9 @@ def test_prompt_keeps_data_and_actual_provider_urls():
     assert "TIDAL: https://tidal.com/album/123" in prompt
     assert "Qobuz: https://www.qobuz.com/us-en/album/test/123" in prompt
     assert "Дополнительные задачи:\n- Сравнить с предыдущим альбомом." in prompt
-    assert prompt.count("site:dtf.ru") == 4
-    assert prompt.endswith("Правила оформления и источников: по промту проекта")
+    assert "site:dtf.ru" not in prompt
+    assert "DTF-запросы" not in prompt
+    assert prompt.endswith("Правила оформления и источников: по инструкциям проекта")
     for instruction in ("Найди Qobuz review", "Сделай вывод", "Стоп-лист", "Собери каркас", "Не использовать запрещённые"):
         assert instruction not in prompt
 
@@ -95,3 +96,38 @@ def test_genre_fallback_deduplicates_tags():
     result = release(final_genres=[], genres=["R&B", "R and B", "indie-rock"])
     assert result["blog_output"]["line2"].count("#rnb") == 1
     assert "#indierock" in result["blog_output"]["line2"]
+
+
+def test_voyageur_prompt_preserves_fields_without_dtf_queries():
+    result = {
+        "artist": "ENIGMA",
+        "title": "Voyageur",
+        "release_year": 2003,
+        "release_date": "2003-09-08",
+        "release_kind": "album",
+        "source_url": "https://tidal.com/album/123",
+        "final_genres": ["electronic", "downtempo"],
+        "country": "Германия",
+        "blog_output": {"line2": "#music #music2003 #enigma"},
+    }
+
+    prompt = build_music_prompt(result)
+
+    assert prompt == "\n".join([
+        "Исполнитель: ENIGMA",
+        "Название: Voyageur",
+        "Год: 2003",
+        "Дата релиза: 2003-09-08",
+        "Тип: album",
+        "Период: nostalgia",
+        "",
+        "TIDAL: https://tidal.com/album/123",
+        "",
+        "Черновые жанры: electronic, downtempo",
+        "Страна: Германия",
+        "Черновые теги: #music #music2003 #enigma",
+        "",
+        "Правила оформления и источников: по инструкциям проекта",
+    ])
+    assert "site:dtf.ru" not in prompt
+    assert "DTF-запросы" not in prompt

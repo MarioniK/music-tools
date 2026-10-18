@@ -71,13 +71,7 @@ def build_music_prompt(result):
         f"Черновые жанры: {', '.join(genres) or '—'}",
         f"Страна: {result.get('country') or '—'}",
         f"Черновые теги: {(result.get('blog_output') or {}).get('line2') or '—'}",
-        "",
-        "DTF-запросы:",
     ])
-    for marker in ("MarioniK", "О музыке"):
-        for subject in (artist, title):
-            query_subject = str(subject).replace('"', " ").replace("\n", " ").replace("\r", " ")
-            lines.append(f'site:dtf.ru "{query_subject}" "{marker}"')
     tasks = result.get("additional_tasks")
     if isinstance(tasks, str) and tasks.strip():
         lines.extend(["", "Дополнительные задачи:", tasks.strip()])
@@ -85,5 +79,5 @@ def build_music_prompt(result):
         task_lines = [f"- {task.strip()}" for task in tasks if isinstance(task, str) and task.strip()]
         if task_lines:
             lines.extend(["", "Дополнительные задачи:", *task_lines])
-    lines.extend(["", "Правила оформления и источников: по промту проекта"])
+    lines.extend(["", "Правила оформления и источников: по инструкциям проекта"])
     return "\n".join(lines)
