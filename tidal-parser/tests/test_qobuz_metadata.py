@@ -720,7 +720,7 @@ async def test_parse_form_qobuz_url_renders_extracted_identity(monkeypatch):
     assert "Sepultura — «Nation» (2001)" in body
     assert "Copy Music prompt" in body
     assert "Copy release line" in body
-    assert "Правила оформления и источников: по промту проекта" in body
+    assert "Правила оформления и источников: по инструкциям проекта" in body
     assert "Найди Qobuz review по этому релизу." not in body
     assert "Не ищи Qobuz review по этому релизу." not in body
 
@@ -1403,7 +1403,7 @@ async def test_parse_form_qobuz_ep_url_renders_project_data_prompt(monkeypatch):
     body = response.body.decode("utf-8")
     assert response.status_code == 200
     assert "Qobuz identity" in body
-    assert "Правила оформления и источников: по промту проекта" in body
+    assert "Правила оформления и источников: по инструкциям проекта" in body
     assert "Тип: EP" in body
     assert "Найди Qobuz review по этому релизу." not in body
     assert "Не ищи Qobuz review по этому релизу." not in body
