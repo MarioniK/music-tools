@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
   <link rel="alternate icon" href="/static/favicon.svg" />
   <link rel="apple-touch-icon" href="/static/favicon.svg" />
-  <link rel="stylesheet" href="/static/style.css?v=roadmap-5-3-0-input-fix" />
+  <link rel="stylesheet" href="/static/style.css?v=copy-url-button" />
 </head>
 
 <body>
@@ -27,6 +27,19 @@
           value="{{ form_url or '' }}"
           required
         />
+        <button
+          id="copy-url-button"
+          type="button"
+          class="copy-btn copy-url-btn"
+          data-copy-target="url-input"
+          data-default-label="⧉"
+          data-copied-label="✓"
+          title="Скопировать ссылку"
+          aria-label="Скопировать ссылку"
+          hidden
+        >
+          <span class="copy-btn-label" aria-hidden="true">⧉</span>
+        </button>
         <button
           id="clear-url-button"
           type="button"
@@ -731,6 +744,7 @@
     (function () {
       const urlInput = document.getElementById("url-input");
       const clearButton = document.getElementById("clear-url-button");
+      const copyUrlButton = document.getElementById("copy-url-button");
       const form = urlInput ? urlInput.form : null;
       const copyButtons = document.querySelectorAll(".copy-btn");
       const restoreTimers = new WeakMap();
@@ -738,7 +752,11 @@
       let submitInProgress = false;
 
       function syncClearButton() {
-        clearButton.hidden = urlInput.value.trim() === "";
+        const isEmpty = urlInput.value.trim() === "";
+        clearButton.hidden = isEmpty;
+        if (copyUrlButton) {
+          copyUrlButton.hidden = isEmpty;
+        }
       }
 
       function looksLikeUrl(value) {
@@ -755,10 +773,11 @@
           window.clearTimeout(previousTimer);
         }
 
+        const copiedLabel = button.dataset.copiedLabel || "Copied";
         if (labelNode) {
-          labelNode.textContent = "Copied";
+          labelNode.textContent = copiedLabel;
         } else {
-          button.textContent = "Copied";
+          button.textContent = copiedLabel;
         }
         restoreTimers.set(
           button,

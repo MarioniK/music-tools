@@ -67,7 +67,7 @@ input[type="url"] {
   background: #0f141d;
   color: var(--text);
   border-radius: 12px;
-  padding: 14px 46px 14px 16px;
+  padding: 14px 80px 14px 16px;
   font-size: 15px;
 }
 
@@ -86,6 +86,33 @@ input[type="url"] {
   font-size: 18px;
   font-weight: 500;
   line-height: 1;
+}
+
+.copy-url-btn {
+  position: absolute;
+  top: 50%;
+  right: 44px;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.copy-url-btn:hover,
+.copy-url-btn:focus-visible {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.copy-url-btn[hidden] {
+  display: none;
 }
 
 .clear-url-btn:hover,
