@@ -19,36 +19,133 @@ def _extract_query_param(url, name="q"):
     return query.get(name, [None])[0]
 
 
-def test_extract_open_qobuz_album_id_basic():
-    assert extract_open_qobuz_album_id("https://open.qobuz.com/album/dqqfml14w232y") == "dqqfml14w232y"
+def _qobuz_identity(**overrides):
+    identity = {
+        "input_state": "extracted_release_identity",
+        "provider": "qobuz",
+        "artist": "Sepultura",
+        "title": "Nation",
+        "year": 2001,
+        "release_date": "2001-03-12",
+        "release_type": "album",
+        "cover_url": "https://images.qobuz.com/cover.jpg",
+        "extraction_method": "json_ld",
+        "confidence": "high",
+        "warnings": [],
+        "qobuz_album_id": None,
+        "qobuz_track_id": None,
+    }
+    identity.update(overrides)
+    return identity
 
 
-def test_extract_open_qobuz_album_id_with_query_and_trailing_slash():
-    assert extract_open_qobuz_album_id("https://open.qobuz.com/album/dqqfml14w232y/?x=1") == "dqqfml14w232y"
+def _empty_qobuz_identity(**overrides):
+    return _qobuz_identity(
+        artist=None,
+        title=None,
+        year=None,
+        release_date=None,
+        release_type=None,
+        cover_url=None,
+        extraction_method="none",
+        confidence="low",
+        **overrides,
+    )
 
 
-def test_extract_open_qobuz_album_id_rejects_non_open_host():
-    assert extract_open_qobuz_album_id("https://www.qobuz.com/album/dqqfml14w232y") is None
+def _patch_qobuz_identity(monkeypatch, identity):
+    monkeypatch.setattr(
+        main,
+        "extract_qobuz_release_identity",
+        lambda url: {**identity, "source_url": url},
+    )
 
 
-def test_extract_open_qobuz_album_id_rejects_non_album_path():
-    assert extract_open_qobuz_album_id("https://open.qobuz.com/track/abc") is None
+def _tidal_candidate(candidate_id, title, release_date, year, score=None, reasons=None, best=None):
+    candidate = {
+        "id": candidate_id,
+        "type": "album",
+        "title": title,
+        "release_date": release_date,
+        "year": year,
+        "tidal_url": f"https://tidal.com/album/{candidate_id}",
+        "display_line": f"{title} ({release_date}) [album]",
+    }
+    if score is not None:
+        candidate.update({"score": score, "score_reasons": reasons, "is_best_candidate": best})
+    return candidate
 
 
-def test_extract_open_qobuz_track_id_basic():
-    assert qobuz_metadata.extract_open_qobuz_track_id("https://open.qobuz.com/track/375049574") == "375049574"
+def _lookup_result(query, candidates, state="success", message=None, **extra):
+    return {
+        "state": state,
+        "message": message,
+        "query": query,
+        "release_type": "album",
+        **extra,
+        "candidates": candidates,
+    }
 
 
-def test_extract_open_qobuz_track_id_with_query_and_trailing_slash():
-    assert qobuz_metadata.extract_open_qobuz_track_id("https://open.qobuz.com/track/375049574/?x=1") == "375049574"
+def _patch_tidal_lookup(monkeypatch, result):
+    async def fake_lookup(*args, **kwargs):
+        return result
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
 
 
-def test_extract_open_qobuz_track_id_rejects_non_open_host():
-    assert qobuz_metadata.extract_open_qobuz_track_id("https://www.qobuz.com/track/375049574") is None
+_LEMON_TWIGS_URL = "https://www.qobuz.com/us-en/album/look-for-your-mind-the-lemon-twigs/dqqfml14w232y"
+_LEMON_TWIGS = {
+    "artist": "The Lemon Twigs",
+    "title": "Look For Your Mind!",
+    "year": 2026,
+    "release_date": "2026-05-08",
+}
+_DREAM_REASONS = ["title similarity 0.31 +0", "year mismatch -15", "type match +15"]
+_STRONG_REASONS = ["title exact +60", "year exact +20", "type match +15", "relation match +5"]
 
 
-def test_extract_open_qobuz_track_id_rejects_non_track_path():
-    assert qobuz_metadata.extract_open_qobuz_track_id("https://open.qobuz.com/album/abc") is None
+def _dream_candidate(score, best):
+    return _tidal_candidate("65483367", "A Dream Is All We Know", "2024-06-14", "2024", score, _DREAM_REASONS, best)
+
+
+def _strong_lookup(candidates):
+    best = _tidal_candidate("498548519", "Look For Your Mind", "2026-05-08", "2026", 100, _STRONG_REASONS, True)
+    return _lookup_result(
+        "The Lemon Twigs Look For Your Mind",
+        [best, *candidates],
+        tidal_candidates_best_score=100,
+        tidal_candidates_best_candidate=best,
+        tidal_candidates_match_state="strong",
+    )
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        ("https://open.qobuz.com/album/dqqfml14w232y", "dqqfml14w232y"),
+        ("https://open.qobuz.com/album/dqqfml14w232y/?x=1", "dqqfml14w232y"),
+        ("https://www.qobuz.com/album/dqqfml14w232y", None),
+        ("https://open.qobuz.com/track/abc", None),
+    ],
+    ids=["basic", "query_and_trailing_slash", "rejects_non_open_host", "rejects_non_album_path"],
+)
+def test_extract_open_qobuz_album_id(url, expected):
+    assert extract_open_qobuz_album_id(url) == expected
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        ("https://open.qobuz.com/track/375049574", "375049574"),
+        ("https://open.qobuz.com/track/375049574/?x=1", "375049574"),
+        ("https://www.qobuz.com/track/375049574", None),
+        ("https://open.qobuz.com/album/abc", None),
+    ],
+    ids=["basic", "query_and_trailing_slash", "rejects_non_open_host", "rejects_non_track_path"],
+)
+def test_extract_open_qobuz_track_id(url, expected):
+    assert qobuz_metadata.extract_open_qobuz_track_id(url) == expected
 
 
 def test_parse_qobuz_release_identity_from_html_uses_json_ld():
@@ -374,47 +471,10 @@ def test_extract_qobuz_release_identity_preserves_open_qobuz_track_id(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_parse_form_qobuz_track_url_renders_track_id_notice(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+async def test_parse_form_qobuz_track_url_renders_track_id_notice(monkeypatch, post_form):
+    _patch_qobuz_identity(monkeypatch, _empty_qobuz_identity(qobuz_track_id="375049574", tidal_search_url=None))
 
-    monkeypatch.setattr(
-        main,
-        "extract_qobuz_release_identity",
-        lambda url: {
-            "input_state": "extracted_release_identity",
-            "provider": "qobuz",
-            "source_url": url,
-            "artist": None,
-            "title": None,
-            "year": None,
-            "release_date": None,
-            "release_type": None,
-            "cover_url": None,
-            "extraction_method": "none",
-            "confidence": "low",
-            "warnings": [],
-            "qobuz_track_id": "375049574",
-            "tidal_search_url": None,
-        },
-    )
-
-    response = await parse_form_handler(
-        main.Request(
-            {
-                "type": "http",
-                "method": "POST",
-                "path": "/",
-                "headers": [],
-                "query_string": b"",
-                "server": ("testserver", 80),
-                "client": ("127.0.0.1", 12345),
-                "scheme": "http",
-            }
-        ),
-        url="https://open.qobuz.com/track/375049574",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form("https://open.qobuz.com/track/375049574")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -668,47 +728,10 @@ def test_extract_qobuz_release_identity_continues_on_429_then_uses_second_locale
 
 
 @pytest.mark.asyncio
-async def test_parse_form_qobuz_url_renders_extracted_identity(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+async def test_parse_form_qobuz_url_renders_extracted_identity(monkeypatch, post_form):
+    _patch_qobuz_identity(monkeypatch, _qobuz_identity())
 
-    monkeypatch.setattr(
-        main,
-        "extract_qobuz_release_identity",
-        lambda url: {
-            "input_state": "extracted_release_identity",
-            "provider": "qobuz",
-            "source_url": url,
-            "artist": "Sepultura",
-            "title": "Nation",
-            "year": 2001,
-            "release_date": "2001-03-12",
-            "release_type": "album",
-            "cover_url": "https://images.qobuz.com/cover.jpg",
-            "extraction_method": "json_ld",
-            "confidence": "high",
-            "warnings": [],
-            "qobuz_album_id": None,
-            "qobuz_track_id": None,
-        },
-    )
-
-    response = await parse_form_handler(
-        main.Request(
-            {
-                "type": "http",
-                "method": "POST",
-                "path": "/",
-                "headers": [],
-                "query_string": b"",
-                "server": ("testserver", 80),
-                "client": ("127.0.0.1", 12345),
-                "scheme": "http",
-            }
-        ),
-        url="https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form("https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -726,72 +749,22 @@ async def test_parse_form_qobuz_url_renders_extracted_identity(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_parse_form_qobuz_url_renders_tidal_candidates(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-
-    monkeypatch.setattr(
-        main,
-        "extract_qobuz_release_identity",
-        lambda url: {
-            "input_state": "extracted_release_identity",
-            "provider": "qobuz",
-            "source_url": url,
-            "artist": "Sepultura",
-            "title": "Nation",
-            "year": 2001,
-            "release_date": "2001-03-12",
-            "release_type": "album",
-            "cover_url": "https://images.qobuz.com/cover.jpg",
-            "extraction_method": "json_ld",
-            "confidence": "high",
-            "warnings": [],
-            "qobuz_album_id": None,
-            "qobuz_track_id": None,
-        },
-    )
+async def test_parse_form_qobuz_url_renders_tidal_candidates(monkeypatch, post_form):
+    _patch_qobuz_identity(monkeypatch, _qobuz_identity())
 
     async def fake_lookup(artist, title, release_type=None, year=None):
         assert artist == "Sepultura"
         assert title == "Nation"
         assert release_type == "album"
         assert year == 2001
-        return {
-            "state": "success",
-            "message": None,
-            "query": "Sepultura Nation",
-            "release_type": "album",
-            "candidates": [
-                {
-                    "id": "1108027",
-                    "type": "album",
-                    "title": "Chaos A.D.",
-                    "release_date": "1993-01-01",
-                    "year": "1993",
-                    "tidal_url": "https://tidal.com/album/1108027",
-                    "display_line": "Chaos A.D. (1993-01-01) [album]",
-                }
-            ],
-        }
+        return _lookup_result(
+            "Sepultura Nation",
+            [_tidal_candidate("1108027", "Chaos A.D.", "1993-01-01", "1993")],
+        )
 
     monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
 
-    response = await parse_form_handler(
-        main.Request(
-            {
-                "type": "http",
-                "method": "POST",
-                "path": "/",
-                "headers": [],
-                "query_string": b"",
-                "server": ("testserver", 80),
-                "client": ("127.0.0.1", 12345),
-                "scheme": "http",
-            }
-        ),
-        url="https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form("https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -805,97 +778,23 @@ async def test_parse_form_qobuz_url_renders_tidal_candidates(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_parse_form_qobuz_url_renders_tidal_candidate_score_and_best_label(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-
-    monkeypatch.setattr(
-        main,
-        "extract_qobuz_release_identity",
-        lambda url: {
-            "input_state": "extracted_release_identity",
-            "provider": "qobuz",
-            "source_url": url,
-            "artist": "The Lemon Twigs",
-            "title": "Look For Your Mind!",
-            "year": 2026,
-            "release_date": "2026-05-08",
-            "release_type": "album",
-            "cover_url": "https://images.qobuz.com/cover.jpg",
-            "extraction_method": "json_ld",
-            "confidence": "high",
-            "warnings": [],
-            "qobuz_album_id": None,
-            "qobuz_track_id": None,
-        },
-    )
-
-    async def fake_lookup(*args, **kwargs):
-        return {
-            "state": "success",
-            "message": None,
-            "query": "The Lemon Twigs Look For Your Mind",
-            "release_type": "album",
-            "tidal_candidates_best_score": 95,
-            "tidal_candidates_best_candidate": {
-                "id": "498548519",
-                "type": "album",
-                "title": "Look For Your Mind!",
-                "release_date": "2026-05-08",
-                "year": "2026",
-                "tidal_url": "https://tidal.com/album/498548519",
-                "display_line": "Look For Your Mind! (2026-05-08) [album]",
-                "score": 95,
-                "score_reasons": ["title exact +60", "year exact +20", "type match +15"],
-                "is_best_candidate": True,
-            },
-            "tidal_candidates_match_state": "strong",
-            "candidates": [
-                {
-                    "id": "498548519",
-                    "type": "album",
-                    "title": "Look For Your Mind!",
-                    "release_date": "2026-05-08",
-                    "year": "2026",
-                    "tidal_url": "https://tidal.com/album/498548519",
-                    "display_line": "Look For Your Mind! (2026-05-08) [album]",
-                    "score": 95,
-                    "score_reasons": ["title exact +60", "year exact +20", "type match +15"],
-                    "is_best_candidate": True,
-                },
-                {
-                    "id": "65483367",
-                    "type": "album",
-                    "title": "A Dream Is All We Know",
-                    "release_date": "2024-06-14",
-                    "year": "2024",
-                    "tidal_url": "https://tidal.com/album/65483367",
-                    "display_line": "A Dream Is All We Know (2024-06-14) [album]",
-                    "score": 30,
-                    "score_reasons": ["title similarity 0.31 +0", "year mismatch -15", "type match +15"],
-                    "is_best_candidate": False,
-                },
-            ],
-        }
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
-
-    response = await parse_form_handler(
-        main.Request(
-            {
-                "type": "http",
-                "method": "POST",
-                "path": "/",
-                "headers": [],
-                "query_string": b"",
-                "server": ("testserver", 80),
-                "client": ("127.0.0.1", 12345),
-                "scheme": "http",
-            }
+async def test_parse_form_qobuz_url_renders_tidal_candidate_score_and_best_label(monkeypatch, post_form):
+    _patch_qobuz_identity(monkeypatch, _qobuz_identity(**_LEMON_TWIGS))
+    reasons = ["title exact +60", "year exact +20", "type match +15"]
+    best = _tidal_candidate("498548519", "Look For Your Mind!", "2026-05-08", "2026", 95, reasons, True)
+    other = _tidal_candidate("65483367", "A Dream Is All We Know", "2024-06-14", "2024", 30, _DREAM_REASONS, False)
+    _patch_tidal_lookup(
+        monkeypatch,
+        _lookup_result(
+            "The Lemon Twigs Look For Your Mind",
+            [best, other],
+            tidal_candidates_best_score=95,
+            tidal_candidates_best_candidate=best,
+            tidal_candidates_match_state="strong",
         ),
-        url="https://www.qobuz.com/us-en/album/look-for-your-mind-the-lemon-twigs/dqqfml14w232y",
-        force_refresh="0",
-        audio=None,
     )
+
+    response = await post_form(_LEMON_TWIGS_URL)
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -908,68 +807,20 @@ async def test_parse_form_qobuz_url_renders_tidal_candidate_score_and_best_label
 
 
 @pytest.mark.asyncio
-async def test_parse_form_qobuz_url_shows_manual_verification_note_for_weak_candidates(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+async def test_parse_form_qobuz_url_shows_manual_verification_note_for_weak_candidates(monkeypatch, post_form):
     called = {"value": False}
-
-    monkeypatch.setattr(
-        main,
-        "extract_qobuz_release_identity",
-        lambda url: {
-            "input_state": "extracted_release_identity",
-            "provider": "qobuz",
-            "source_url": url,
-            "artist": "The Lemon Twigs",
-            "title": "Look For Your Mind!",
-            "year": 2026,
-            "release_date": "2026-05-08",
-            "release_type": "album",
-            "cover_url": "https://images.qobuz.com/cover.jpg",
-            "extraction_method": "json_ld",
-            "confidence": "high",
-            "warnings": [],
-            "qobuz_album_id": None,
-            "qobuz_track_id": None,
-        },
+    _patch_qobuz_identity(monkeypatch, _qobuz_identity(**_LEMON_TWIGS))
+    weak = _dream_candidate(42, True)
+    _patch_tidal_lookup(
+        monkeypatch,
+        _lookup_result(
+            "The Lemon Twigs Look For Your Mind",
+            [weak],
+            tidal_candidates_best_score=42,
+            tidal_candidates_best_candidate=weak,
+            tidal_candidates_match_state="weak",
+        ),
     )
-
-    async def fake_lookup(*args, **kwargs):
-        return {
-            "state": "success",
-            "message": None,
-            "query": "The Lemon Twigs Look For Your Mind",
-            "release_type": "album",
-            "tidal_candidates_best_score": 42,
-            "tidal_candidates_best_candidate": {
-                "id": "65483367",
-                "type": "album",
-                "title": "A Dream Is All We Know",
-                "release_date": "2024-06-14",
-                "year": "2024",
-                "tidal_url": "https://tidal.com/album/65483367",
-                "display_line": "A Dream Is All We Know (2024-06-14) [album]",
-                "score": 42,
-                "score_reasons": ["title similarity 0.31 +0", "year mismatch -15", "type match +15"],
-                "is_best_candidate": True,
-            },
-            "tidal_candidates_match_state": "weak",
-            "candidates": [
-                {
-                    "id": "65483367",
-                    "type": "album",
-                    "title": "A Dream Is All We Know",
-                    "release_date": "2024-06-14",
-                    "year": "2024",
-                    "tidal_url": "https://tidal.com/album/65483367",
-                    "display_line": "A Dream Is All We Know (2024-06-14) [album]",
-                    "score": 42,
-                    "score_reasons": ["title similarity 0.31 +0", "year mismatch -15", "type match +15"],
-                    "is_best_candidate": True,
-                }
-            ],
-        }
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
 
     async def fake_build_result(*args, **kwargs):
         called["value"] = True
@@ -977,23 +828,7 @@ async def test_parse_form_qobuz_url_shows_manual_verification_note_for_weak_cand
 
     monkeypatch.setattr(main, "build_result", fake_build_result)
 
-    response = await parse_form_handler(
-        main.Request(
-            {
-                "type": "http",
-                "method": "POST",
-                "path": "/",
-                "headers": [],
-                "query_string": b"",
-                "server": ("testserver", 80),
-                "client": ("127.0.0.1", 12345),
-                "scheme": "http",
-            }
-        ),
-        url="https://www.qobuz.com/us-en/album/look-for-your-mind-the-lemon-twigs/dqqfml14w232y",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form(_LEMON_TWIGS_URL)
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -1003,79 +838,10 @@ async def test_parse_form_qobuz_url_shows_manual_verification_note_for_weak_cand
 
 
 @pytest.mark.asyncio
-async def test_parse_form_qobuz_url_auto_handoffs_to_tidal_parse_for_strong_candidate(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+async def test_parse_form_qobuz_url_auto_handoffs_to_tidal_parse_for_strong_candidate(monkeypatch, post_form):
     captured = {"url": None}
-
-    monkeypatch.setattr(
-        main,
-        "extract_qobuz_release_identity",
-        lambda url: {
-            "input_state": "extracted_release_identity",
-            "provider": "qobuz",
-            "source_url": url,
-            "artist": "The Lemon Twigs",
-            "title": "Look For Your Mind!",
-            "year": 2026,
-            "release_date": "2026-05-08",
-            "release_type": "album",
-            "cover_url": "https://images.qobuz.com/cover.jpg",
-            "extraction_method": "json_ld",
-            "confidence": "high",
-            "warnings": [],
-            "qobuz_album_id": None,
-            "qobuz_track_id": None,
-            "resolved_metadata_url": "https://www.qobuz.com/us-en/album/look-for-your-mind-the-lemon-twigs/dqqfml14w232y",
-        },
-    )
-
-    async def fake_lookup(*args, **kwargs):
-        return {
-            "state": "success",
-            "message": None,
-            "query": "The Lemon Twigs Look For Your Mind",
-            "release_type": "album",
-            "tidal_candidates_best_score": 100,
-            "tidal_candidates_best_candidate": {
-                "id": "498548519",
-                "type": "album",
-                "title": "Look For Your Mind",
-                "release_date": "2026-05-08",
-                "year": "2026",
-                "tidal_url": "https://tidal.com/album/498548519",
-                "display_line": "Look For Your Mind (2026-05-08) [album]",
-                "score": 100,
-                "score_reasons": ["title exact +60", "year exact +20", "type match +15", "relation match +5"],
-                "is_best_candidate": True,
-            },
-            "tidal_candidates_match_state": "strong",
-            "candidates": [
-                {
-                    "id": "498548519",
-                    "type": "album",
-                    "title": "Look For Your Mind",
-                    "release_date": "2026-05-08",
-                    "year": "2026",
-                    "tidal_url": "https://tidal.com/album/498548519",
-                    "display_line": "Look For Your Mind (2026-05-08) [album]",
-                    "score": 100,
-                    "score_reasons": ["title exact +60", "year exact +20", "type match +15", "relation match +5"],
-                    "is_best_candidate": True,
-                },
-                {
-                    "id": "65483367",
-                    "type": "album",
-                    "title": "A Dream Is All We Know",
-                    "release_date": "2024-06-14",
-                    "year": "2024",
-                    "tidal_url": "https://tidal.com/album/65483367",
-                    "display_line": "A Dream Is All We Know (2024-06-14) [album]",
-                    "score": 30,
-                    "score_reasons": ["title similarity 0.31 +0", "year mismatch -15", "type match +15"],
-                    "is_best_candidate": False,
-                },
-            ],
-        }
+    _patch_qobuz_identity(monkeypatch, _qobuz_identity(**_LEMON_TWIGS, resolved_metadata_url=_LEMON_TWIGS_URL))
+    _patch_tidal_lookup(monkeypatch, _strong_lookup([_dream_candidate(30, False)]))
 
     async def fake_build_result(url, force_refresh=False, baseline=None):
         captured["url"] = url
@@ -1103,26 +869,9 @@ async def test_parse_form_qobuz_url_auto_handoffs_to_tidal_parse_for_strong_cand
             "from_cache": False,
         }
 
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
     monkeypatch.setattr(main, "build_result", fake_build_result)
 
-    response = await parse_form_handler(
-        main.Request(
-            {
-                "type": "http",
-                "method": "POST",
-                "path": "/",
-                "headers": [],
-                "query_string": b"",
-                "server": ("testserver", 80),
-                "client": ("127.0.0.1", 12345),
-                "scheme": "http",
-            }
-        ),
-        url="https://www.qobuz.com/us-en/album/look-for-your-mind-the-lemon-twigs/dqqfml14w232y",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form(_LEMON_TWIGS_URL)
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -1139,92 +888,18 @@ async def test_parse_form_qobuz_url_auto_handoffs_to_tidal_parse_for_strong_cand
 
 
 @pytest.mark.asyncio
-async def test_parse_form_qobuz_url_falls_back_when_auto_handoff_parse_fails(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+async def test_parse_form_qobuz_url_falls_back_when_auto_handoff_parse_fails(monkeypatch, post_form):
     captured = {"url": None}
-
-    monkeypatch.setattr(
-        main,
-        "extract_qobuz_release_identity",
-        lambda url: {
-            "input_state": "extracted_release_identity",
-            "provider": "qobuz",
-            "source_url": url,
-            "artist": "The Lemon Twigs",
-            "title": "Look For Your Mind!",
-            "year": 2026,
-            "release_date": "2026-05-08",
-            "release_type": "album",
-            "cover_url": "https://images.qobuz.com/cover.jpg",
-            "extraction_method": "json_ld",
-            "confidence": "high",
-            "warnings": [],
-            "qobuz_album_id": None,
-            "qobuz_track_id": None,
-            "resolved_metadata_url": "https://www.qobuz.com/us-en/album/look-for-your-mind-the-lemon-twigs/dqqfml14w232y",
-        },
-    )
-
-    async def fake_lookup(*args, **kwargs):
-        return {
-            "state": "success",
-            "message": None,
-            "query": "The Lemon Twigs Look For Your Mind",
-            "release_type": "album",
-            "tidal_candidates_best_score": 100,
-            "tidal_candidates_best_candidate": {
-                "id": "498548519",
-                "type": "album",
-                "title": "Look For Your Mind",
-                "release_date": "2026-05-08",
-                "year": "2026",
-                "tidal_url": "https://tidal.com/album/498548519",
-                "display_line": "Look For Your Mind (2026-05-08) [album]",
-                "score": 100,
-                "score_reasons": ["title exact +60", "year exact +20", "type match +15", "relation match +5"],
-                "is_best_candidate": True,
-            },
-            "tidal_candidates_match_state": "strong",
-            "candidates": [
-                {
-                    "id": "498548519",
-                    "type": "album",
-                    "title": "Look For Your Mind",
-                    "release_date": "2026-05-08",
-                    "year": "2026",
-                    "tidal_url": "https://tidal.com/album/498548519",
-                    "display_line": "Look For Your Mind (2026-05-08) [album]",
-                    "score": 100,
-                    "score_reasons": ["title exact +60", "year exact +20", "type match +15", "relation match +5"],
-                    "is_best_candidate": True,
-                }
-            ],
-        }
+    _patch_qobuz_identity(monkeypatch, _qobuz_identity(**_LEMON_TWIGS, resolved_metadata_url=_LEMON_TWIGS_URL))
+    _patch_tidal_lookup(monkeypatch, _strong_lookup([]))
 
     async def fake_build_result(url, force_refresh=False, baseline=None):
         captured["url"] = url
         raise RuntimeError("TIDAL parse failure")
 
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
     monkeypatch.setattr(main, "build_result", fake_build_result)
 
-    response = await parse_form_handler(
-        main.Request(
-            {
-                "type": "http",
-                "method": "POST",
-                "path": "/",
-                "headers": [],
-                "query_string": b"",
-                "server": ("testserver", 80),
-                "client": ("127.0.0.1", 12345),
-                "scheme": "http",
-            }
-        ),
-        url="https://www.qobuz.com/us-en/album/look-for-your-mind-the-lemon-twigs/dqqfml14w232y",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form(_LEMON_TWIGS_URL)
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -1237,58 +912,19 @@ async def test_parse_form_qobuz_url_falls_back_when_auto_handoff_parse_fails(mon
 
 
 @pytest.mark.asyncio
-async def test_parse_form_qobuz_url_renders_tidal_candidates_error_message(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-
-    monkeypatch.setattr(
-        main,
-        "extract_qobuz_release_identity",
-        lambda url: {
-            "input_state": "extracted_release_identity",
-            "provider": "qobuz",
-            "source_url": url,
-            "artist": "Sepultura",
-            "title": "Nation",
-            "year": 2001,
-            "release_date": "2001-03-12",
-            "release_type": "album",
-            "cover_url": "https://images.qobuz.com/cover.jpg",
-            "extraction_method": "json_ld",
-            "confidence": "high",
-            "warnings": [],
-            "qobuz_album_id": None,
-            "qobuz_track_id": None,
-        },
-    )
-
-    async def fake_lookup(*args, **kwargs):
-        return {
-            "state": "error",
-            "message": "Не удалось получить кандидатов TIDAL. Используй ручной поиск.",
-            "query": "Sepultura Nation",
-            "release_type": "album",
-            "candidates": [],
-        }
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
-
-    response = await parse_form_handler(
-        main.Request(
-            {
-                "type": "http",
-                "method": "POST",
-                "path": "/",
-                "headers": [],
-                "query_string": b"",
-                "server": ("testserver", 80),
-                "client": ("127.0.0.1", 12345),
-                "scheme": "http",
-            }
+async def test_parse_form_qobuz_url_renders_tidal_candidates_error_message(monkeypatch, post_form):
+    _patch_qobuz_identity(monkeypatch, _qobuz_identity())
+    _patch_tidal_lookup(
+        monkeypatch,
+        _lookup_result(
+            "Sepultura Nation",
+            [],
+            state="error",
+            message="Не удалось получить кандидатов TIDAL. Используй ручной поиск.",
         ),
-        url="https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629",
-        force_refresh="0",
-        audio=None,
     )
+
+    response = await post_form("https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -1300,30 +936,9 @@ async def test_parse_form_qobuz_url_renders_tidal_candidates_error_message(monke
 
 
 @pytest.mark.asyncio
-async def test_parse_form_qobuz_track_without_identity_does_not_lookup_candidates(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+async def test_parse_form_qobuz_track_without_identity_does_not_lookup_candidates(monkeypatch, post_form):
     called = {"value": False}
-
-    monkeypatch.setattr(
-        main,
-        "extract_qobuz_release_identity",
-        lambda url: {
-            "input_state": "extracted_release_identity",
-            "provider": "qobuz",
-            "source_url": url,
-            "artist": None,
-            "title": None,
-            "year": None,
-            "release_date": None,
-            "release_type": None,
-            "cover_url": None,
-            "extraction_method": "none",
-            "confidence": "low",
-            "warnings": [],
-            "qobuz_album_id": None,
-            "qobuz_track_id": "375049574",
-        },
-    )
+    _patch_qobuz_identity(monkeypatch, _empty_qobuz_identity(qobuz_track_id="375049574"))
 
     async def fake_lookup(*args, **kwargs):
         called["value"] = True
@@ -1331,23 +946,7 @@ async def test_parse_form_qobuz_track_without_identity_does_not_lookup_candidate
 
     monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
 
-    response = await parse_form_handler(
-        main.Request(
-            {
-                "type": "http",
-                "method": "POST",
-                "path": "/",
-                "headers": [],
-                "query_string": b"",
-                "server": ("testserver", 80),
-                "client": ("127.0.0.1", 12345),
-                "scheme": "http",
-            }
-        ),
-        url="https://open.qobuz.com/track/375049574",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form("https://open.qobuz.com/track/375049574")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -1358,47 +957,10 @@ async def test_parse_form_qobuz_track_without_identity_does_not_lookup_candidate
 
 
 @pytest.mark.asyncio
-async def test_parse_form_qobuz_ep_url_renders_project_data_prompt(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
+async def test_parse_form_qobuz_ep_url_renders_project_data_prompt(monkeypatch, post_form):
+    _patch_qobuz_identity(monkeypatch, _qobuz_identity(year=None, release_type="ep"))
 
-    monkeypatch.setattr(
-        main,
-        "extract_qobuz_release_identity",
-        lambda url: {
-            "input_state": "extracted_release_identity",
-            "provider": "qobuz",
-            "source_url": url,
-            "artist": "Sepultura",
-            "title": "Nation",
-            "year": None,
-            "release_date": "2001-03-12",
-            "release_type": "ep",
-            "cover_url": "https://images.qobuz.com/cover.jpg",
-            "extraction_method": "json_ld",
-            "confidence": "high",
-            "warnings": [],
-            "qobuz_album_id": None,
-            "qobuz_track_id": None,
-        },
-    )
-
-    response = await parse_form_handler(
-        main.Request(
-            {
-                "type": "http",
-                "method": "POST",
-                "path": "/",
-                "headers": [],
-                "query_string": b"",
-                "server": ("testserver", 80),
-                "client": ("127.0.0.1", 12345),
-                "scheme": "http",
-            }
-        ),
-        url="https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form("https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -1410,48 +972,17 @@ async def test_parse_form_qobuz_ep_url_renders_project_data_prompt(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_parse_form_qobuz_url_renders_album_id_search_helper(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-
-    monkeypatch.setattr(
-        main,
-        "extract_qobuz_release_identity",
-        lambda url: {
-            "input_state": "extracted_release_identity",
-            "provider": "qobuz",
-            "source_url": url,
-            "artist": None,
-            "title": None,
-            "year": None,
-            "release_date": None,
-            "release_type": None,
-            "cover_url": None,
-            "extraction_method": "none",
-            "confidence": "low",
-            "warnings": [],
-            "qobuz_album_id": "dqqfml14w232y",
-            "qobuz_album_id_search_url": main.build_qobuz_album_id_search_url("dqqfml14w232y"),
-            "tidal_search_url": None,
-        },
-    )
-
-    response = await parse_form_handler(
-        main.Request(
-            {
-                "type": "http",
-                "method": "POST",
-                "path": "/",
-                "headers": [],
-                "query_string": b"",
-                "server": ("testserver", 80),
-                "client": ("127.0.0.1", 12345),
-                "scheme": "http",
-            }
+async def test_parse_form_qobuz_url_renders_album_id_search_helper(monkeypatch, post_form):
+    _patch_qobuz_identity(
+        monkeypatch,
+        _empty_qobuz_identity(
+            qobuz_album_id="dqqfml14w232y",
+            qobuz_album_id_search_url=main.build_qobuz_album_id_search_url("dqqfml14w232y"),
+            tidal_search_url=None,
         ),
-        url="https://open.qobuz.com/album/dqqfml14w232y",
-        force_refresh="0",
-        audio=None,
     )
+
+    response = await post_form("https://open.qobuz.com/album/dqqfml14w232y")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
