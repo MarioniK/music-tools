@@ -72,9 +72,10 @@ python3 /root/.local/share/music-tools-test-envs/run_tests.py genre-classifier t
 
 - OpenClaw и его копии Codex на сервере не трогать. Cursor удалён с сервера 2026-11-22
   (/root/.cursor-server и /root/.cursor).
-- docs/ классификатора (roadmap-документы) в основном устарели; на docs/runtime|lightweight|eval
-  и roadmap_2_* ссылаются app/evaluation/* и тесты test_roadmap_2_*, test_evaluation_*, так что
-  сначала составить список файлов без ссылок, показать владельцу, потом удалять. Оставшиеся ~138 тестов parser без уникального покрытия строк
+- docs/ классификатора почищены (14a1ae5, 6f4d61c): удалены 194 файла без ссылок из живых файлов
+  (1.5 МБ -> 304 КБ). Остались 31 используемый файл (код/тесты/README/CHANGELOG ссылаются),
+  13 достижимых по цепочке доков, README в roadmap-3.5/*, roadmap-4.108-...cleanup.md и
+  template-real-onnx-model-provenance.json. Оставшиеся ~138 тестов parser без уникального покрытия строк
   не удалялись: решать вручную.
 - Туннель tidal.intelihouse.by: 2026-10-13 в логах cloudflared были обрывы QUIC
   (timeout, DNS i/o timeout); мера (--protocol http2) обсуждалась, но не применялась.
