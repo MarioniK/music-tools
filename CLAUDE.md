@@ -5,7 +5,7 @@
 ## Где работает прод
 - LXC 109 `docker` на Proxmox, IP 10.0.1.55, рабочая копия репозитория `/opt/music-tools` (ветка `main`, `origin` = `git@github.com:MarioniK/music-tools.git`).
 - SSH только через хост Proxmox: `ssh proxmox`, затем `pct exec 109 -- …`. Прямого алиаса на 10.0.1.55 нет.
-- Веб: https://tidal.intelihouse.by → Cloudflare Tunnel (коннектор в LXC 108) → `http://10.0.1.55:8011`. Классификатор: порт 8021.
+- Веб: https://tidal.intelihouse.by → Cloudflare Tunnel (коннектор cloudflared в LXC 100, служба `cloudflared`, токен в unit-файле; не выводить аргументы процесса) → `http://10.0.1.55:8011`. Классификатор: порт 8021.
 - Артефакты ONNX: `/opt/music-tools-artifacts/genre-classifier/onnx` (вне git).
 
 ## Как деплоили

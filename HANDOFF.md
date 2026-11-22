@@ -37,7 +37,7 @@
   поэтому коммиты едут на сервер через git bundle (scp на Proxmox, pct push в LXC 109,
   git pull --ff-only), push в GitHub выполняется с сервера (/opt/music-tools).
 - SSH: ssh proxmox, затем pct exec 109. Прямого алиаса на 10.0.1.55 нет.
-- Веб: https://tidal.intelihouse.by через Cloudflare Tunnel (коннектор в LXC 108)
+- Веб: https://tidal.intelihouse.by через Cloudflare Tunnel (коннектор cloudflared в LXC 100)
   на 10.0.1.55:8011. CLAUDE.md описывает инфраструктуру подробнее.
 
 ## Важные решения и точки входа
@@ -77,6 +77,9 @@ python3 /root/.local/share/music-tools-test-envs/run_tests.py genre-classifier t
   13 достижимых по цепочке доков, README в roadmap-3.5/*, roadmap-4.108-...cleanup.md и
   template-real-onnx-model-provenance.json. Оставшиеся ~138 тестов parser без уникального покрытия строк
   не удалялись: решать вручную.
-- Туннель tidal.intelihouse.by: 2026-10-13 в логах cloudflared были обрывы QUIC
-  (timeout, DNS i/o timeout); мера (--protocol http2) обсуждалась, но не применялась.
+- Туннель tidal.intelihouse.by проверен 2026-11-22 (журнал cloudflared в LXC 100 за 7 дней):
+  ошибок на origin :8011 нет, UDP/QUIC-предпроверка проходит, снаружи 200; единственный обрыв
+  с краем Cloudflare 2026-11-20 ~16:00. Записи от 2026-10-13 из журнала уже ушли, --protocol http2
+  не нужен. Ошибки origin на других портах (18789, 8006, 8123, 7655 и др.) относятся не к парсеру.
+  Токен туннеля частично попал в вывод при диагностике 2026-11-22: владелец решает, перевыпускать ли.
 - Секреты не читать/печатать; обновление ключей пользователь отложил.
