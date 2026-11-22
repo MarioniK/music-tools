@@ -2,15 +2,15 @@ import json
 import sqlite3
 
 import pytest
-from starlette.requests import Request
 
 from app import main
 
 
-def _make_test_db(tmp_path):
+@pytest.fixture
+def cache_db(tmp_path, monkeypatch):
+    """Временная SQLite-база кэша вместо боевой: подменяет main.get_db_connection."""
     db_path = tmp_path / "cache.db"
     conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
     conn.execute(
         """
         CREATE TABLE parsed_cache (
@@ -22,16 +22,24 @@ def _make_test_db(tmp_path):
     )
     conn.commit()
     conn.close()
-    return db_path
 
-
-def _db_connection_factory(db_path):
-    def _get_db_connection():
+    def get_db_connection():
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         return conn
 
-    return _get_db_connection
+    monkeypatch.setattr(main, "get_db_connection", get_db_connection)
+    return db_path
+
+
+def _insert_cache_row(key, payload_json):
+    conn = main.get_db_connection()
+    conn.execute(
+        "INSERT INTO parsed_cache (cache_key, payload_json, created_at) VALUES (?, ?, ?)",
+        (key, payload_json, 1),
+    )
+    conn.commit()
+    conn.close()
 
 
 def _valid_result():
@@ -59,20 +67,6 @@ def _valid_result():
         "from_cache": False,
         "blog_output": {"line1": "Artist - Title", "line2": "#music"},
     }
-
-
-def _make_request(method="POST", path="/"):
-    scope = {
-        "type": "http",
-        "method": method,
-        "path": path,
-        "headers": [],
-        "query_string": b"",
-        "server": ("testserver", 80),
-        "client": ("127.0.0.1", 12345),
-        "scheme": "http",
-    }
-    return Request(scope)
 
 
 def _manual_candidate(
@@ -163,50 +157,64 @@ def _manual_handoff_result(
     return result
 
 
-def test_get_cached_result_returns_none_for_invalid_json(tmp_path, monkeypatch):
-    db_path = _make_test_db(tmp_path)
-    monkeypatch.setattr(main, "get_db_connection", _db_connection_factory(db_path))
+def _patch_lookup(monkeypatch, result):
+    async def fake_lookup_tidal_candidates(*args, **kwargs):
+        return result
 
-    conn = main.get_db_connection()
-    conn.execute(
-        "INSERT INTO parsed_cache (cache_key, payload_json, created_at) VALUES (?, ?, ?)",
-        ("key", "{bad json", 1),
-    )
-    conn.commit()
-    conn.close()
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
+
+
+def _patch_capturing_lookup(monkeypatch):
+    """Запоминает release_type, с которым вызван поиск кандидатов; результат всегда пустой."""
+    captured = {"release_type": None}
+
+    async def fake_lookup_tidal_candidates(artist, title, release_type=None, year=None):
+        captured["release_type"] = release_type
+        return _manual_lookup_result(
+            [],
+            state="empty",
+            message="Кандидаты TIDAL не найдены. Используй ручной поиск в TIDAL.",
+            release_type=release_type,
+        )
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
+    return captured
+
+
+def _patch_build_result(monkeypatch, handoff=None, error=None, forbid=None):
+    """Подменяет build_result: handoff(url) -> результат, error -> исключение, forbid -> AssertionError."""
+    captured = {"url": None, "called": False}
+
+    async def fake_build_result(url, force_refresh=False, baseline=None):
+        captured["url"] = url
+        captured["called"] = True
+        if forbid:
+            raise AssertionError(forbid)
+        if error:
+            raise error
+        return handoff(url)
+
+    monkeypatch.setattr(main, "build_result", fake_build_result)
+    return captured
+
+
+
+def test_get_cached_result_returns_none_for_invalid_json(cache_db):
+    _insert_cache_row("key", "{bad json")
 
     assert main.get_cached_result("key") is None
 
 
-def test_get_cached_result_returns_none_for_invalid_payload(tmp_path, monkeypatch):
-    db_path = _make_test_db(tmp_path)
-    monkeypatch.setattr(main, "get_db_connection", _db_connection_factory(db_path))
-
-    conn = main.get_db_connection()
-    conn.execute(
-        "INSERT INTO parsed_cache (cache_key, payload_json, created_at) VALUES (?, ?, ?)",
-        ("key", json.dumps({"source_url": "https://tidal.com/track/1", "entity_type": "track"}), 1),
-    )
-    conn.commit()
-    conn.close()
+def test_get_cached_result_returns_none_for_invalid_payload(cache_db):
+    _insert_cache_row("key", json.dumps({"source_url": "https://tidal.com/track/1", "entity_type": "track"}))
 
     assert main.get_cached_result("key") is None
 
 
-def test_get_cached_result_normalizes_legacy_country_fields(tmp_path, monkeypatch):
-    db_path = _make_test_db(tmp_path)
-    monkeypatch.setattr(main, "get_db_connection", _db_connection_factory(db_path))
-
+def test_get_cached_result_normalizes_legacy_country_fields(cache_db):
     legacy_payload = _valid_result()
     legacy_payload.pop("country")
-
-    conn = main.get_db_connection()
-    conn.execute(
-        "INSERT INTO parsed_cache (cache_key, payload_json, created_at) VALUES (?, ?, ?)",
-        ("key", json.dumps(legacy_payload), 1),
-    )
-    conn.commit()
-    conn.close()
+    _insert_cache_row("key", json.dumps(legacy_payload))
 
     cached = main.get_cached_result("key")
 
@@ -215,10 +223,7 @@ def test_get_cached_result_normalizes_legacy_country_fields(tmp_path, monkeypatc
     assert "country_tag" not in cached
 
 
-def test_get_cached_result_rebuilds_blog_output_from_final_cached_fields(tmp_path, monkeypatch):
-    db_path = _make_test_db(tmp_path)
-    monkeypatch.setattr(main, "get_db_connection", _db_connection_factory(db_path))
-
+def test_get_cached_result_rebuilds_blog_output_from_final_cached_fields(cache_db):
     stale_payload = _valid_result()
     stale_payload["release_year"] = 2002
     stale_payload["country"] = "United States"
@@ -227,14 +232,7 @@ def test_get_cached_result_rebuilds_blog_output_from_final_cached_fields(tmp_pat
         "line1": "Artist - Title (2016)",
         "line2": "#music #music2016 #artist #djdrugfm",
     }
-
-    conn = main.get_db_connection()
-    conn.execute(
-        "INSERT INTO parsed_cache (cache_key, payload_json, created_at) VALUES (?, ?, ?)",
-        ("key", json.dumps(stale_payload), 1),
-    )
-    conn.commit()
-    conn.close()
+    _insert_cache_row("key", json.dumps(stale_payload))
 
     cached = main.get_cached_result("key")
 
@@ -243,10 +241,7 @@ def test_get_cached_result_rebuilds_blog_output_from_final_cached_fields(tmp_pat
     assert "#music2016" not in cached["blog_output"]["line2"]
 
 
-def test_save_cached_result_does_not_persist_transient_fields(tmp_path, monkeypatch):
-    db_path = _make_test_db(tmp_path)
-    monkeypatch.setattr(main, "get_db_connection", _db_connection_factory(db_path))
-
+def test_save_cached_result_does_not_persist_transient_fields(cache_db):
     result = _valid_result()
     result["from_cache"] = True
     result["audio_note"] = "temporary"
@@ -265,6 +260,7 @@ def test_save_cached_result_does_not_persist_transient_fields(tmp_path, monkeypa
     assert "country_tag" not in payload
     assert "#american" in payload["blog_output"]["line2"]
     assert "#music2024" in payload["blog_output"]["line2"]
+
 
 
 @pytest.mark.asyncio
@@ -354,7 +350,7 @@ async def test_build_result_rebuilds_blog_output_after_merge(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_parse_form_does_not_save_audio_result_to_cache(monkeypatch):
+async def test_parse_form_does_not_save_audio_result_to_cache(monkeypatch, post_form):
     base_result = _valid_result()
     save_calls = []
 
@@ -380,26 +376,15 @@ async def test_parse_form_does_not_save_audio_result_to_cache(monkeypatch):
     )
     monkeypatch.setattr(main, "save_cached_result", lambda result: save_calls.append(dict(result)))
 
-    upload = DummyUpload()
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    response = await parse_form_handler(
-        _make_request(),
-        url=base_result["source_url"],
-        force_refresh="0",
-        audio=upload,
-    )
+    response = await post_form(base_result["source_url"], audio=DummyUpload())
 
     assert response.status_code == 200
     assert save_calls == []
 
 
 @pytest.mark.asyncio
-async def test_parse_api_empty_input_returns_400():
-    parse_api_handler = getattr(main.parse_api, "__wrapped__", main.parse_api)
-    request = _make_request(method="GET", path="/api/parse")
-    request.state.request_id = "req-api-empty"
-
-    response = await parse_api_handler(request, url="", force_refresh=0)
+async def test_parse_api_empty_input_returns_400(get_api):
+    response = await get_api("", request_id="req-api-empty")
 
     assert response.status_code == 400
     assert json.loads(response.body) == {
@@ -410,16 +395,8 @@ async def test_parse_api_empty_input_returns_400():
 
 
 @pytest.mark.asyncio
-async def test_parse_api_invalid_url_returns_400():
-    parse_api_handler = getattr(main.parse_api, "__wrapped__", main.parse_api)
-    request = _make_request(method="GET", path="/api/parse")
-    request.state.request_id = "req-api-invalid"
-
-    response = await parse_api_handler(
-        request,
-        url="https://example.com/not-tidal",
-        force_refresh=0,
-    )
+async def test_parse_api_invalid_url_returns_400(get_api):
+    response = await get_api("https://example.com/not-tidal", request_id="req-api-invalid")
 
     assert response.status_code == 400
     assert json.loads(response.body)["ok"] is False
@@ -428,65 +405,30 @@ async def test_parse_api_invalid_url_returns_400():
 
 
 @pytest.mark.asyncio
-async def test_parse_api_internal_failure_returns_500(monkeypatch):
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        raise RuntimeError("db down")
+@pytest.mark.parametrize(
+    "error, request_id",
+    [
+        (RuntimeError("db down"), "req-api-500"),
+        (TypeError("unexpected"), "req-api-unexpected"),
+    ],
+    ids=["internal_failure", "unexpected_exception"],
+)
+async def test_parse_api_build_failure_returns_500(monkeypatch, get_api, error, request_id):
+    _patch_build_result(monkeypatch, error=error)
 
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-    parse_api_handler = getattr(main.parse_api, "__wrapped__", main.parse_api)
-    request = _make_request(method="GET", path="/api/parse")
-    request.state.request_id = "req-api-500"
-
-    response = await parse_api_handler(
-        request,
-        url="https://tidal.com/browse/track/123",
-        force_refresh=0,
-    )
+    response = await get_api("https://tidal.com/browse/track/123", request_id=request_id)
 
     assert response.status_code == 500
     assert json.loads(response.body) == {
         "ok": False,
         "error": "Внутренняя ошибка сервера. Попробуй позже.",
-        "request_id": "req-api-500",
+        "request_id": request_id,
     }
 
 
 @pytest.mark.asyncio
-async def test_parse_api_unexpected_exception_returns_500(monkeypatch):
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        raise TypeError("unexpected")
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-    parse_api_handler = getattr(main.parse_api, "__wrapped__", main.parse_api)
-    request = _make_request(method="GET", path="/api/parse")
-    request.state.request_id = "req-api-unexpected"
-
-    response = await parse_api_handler(
-        request,
-        url="https://tidal.com/browse/track/123",
-        force_refresh=0,
-    )
-
-    assert response.status_code == 500
-    assert json.loads(response.body) == {
-        "ok": False,
-        "error": "Внутренняя ошибка сервера. Попробуй позже.",
-        "request_id": "req-api-unexpected",
-    }
-
-
-@pytest.mark.asyncio
-async def test_parse_form_empty_input_returns_html_200():
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-empty"
-
-    response = await parse_form_handler(
-        request,
-        url="",
-        force_refresh="0",
-        audio=None,
-    )
+async def test_parse_form_empty_input_returns_html_200(post_form):
+    response = await post_form("", request_id="req-form-empty")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -495,17 +437,8 @@ async def test_parse_form_empty_input_returns_html_200():
 
 
 @pytest.mark.asyncio
-async def test_parse_form_invalid_url_returns_html_200():
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-invalid"
-
-    response = await parse_form_handler(
-        request,
-        url="https://example.com/not-tidal",
-        force_refresh="0",
-        audio=None,
-    )
+async def test_parse_form_invalid_url_returns_html_200(post_form):
+    response = await post_form("https://example.com/not-tidal", request_id="req-form-invalid")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -514,28 +447,32 @@ async def test_parse_form_invalid_url_returns_html_200():
     assert "Reference ID: req-form-invalid" not in body
 
 
-@pytest.mark.asyncio
-async def test_parse_form_manual_release_line_returns_identity_block_with_candidates_helper(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-manual"
 
-    async def fake_lookup_tidal_candidates(*args, **kwargs):
-        return _manual_lookup_result(
+_CANDIDATE_URL = "https://tidal.com/album/498548519"
+_REASONS_FULL = ["title exact +60", "year exact +20", "type match +15", "relation match +5"]
+_REASONS_TRACK = ["title exact +60", "type match +15", "relation match +5"]
+_REASONS_DREAM = ["title similarity 0.31 +0", "year mismatch -15", "type match +15"]
+
+
+def _lemon_candidate(score=100, release_date="2026-05-08", year="2026", reasons=_REASONS_FULL):
+    return _manual_candidate(
+        "498548519", "Look For Your Mind!", release_date, year, _CANDIDATE_URL, score, score_reasons=reasons
+    )
+
+
+@pytest.mark.asyncio
+async def test_parse_form_manual_release_line_returns_identity_block_with_candidates_helper(monkeypatch, post_form):
+    _patch_lookup(
+        monkeypatch,
+        _manual_lookup_result(
             [],
             state="empty",
             message="Кандидаты TIDAL не найдены. Используй ручной поиск в TIDAL.",
             release_type="album",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
-
-    response = await parse_form_handler(
-        request,
-        url='Lykke Li — «The Afterparty» (2026)',
-        force_refresh="0",
-        audio=None,
+        ),
     )
+
+    response = await post_form('Lykke Li — «The Afterparty» (2026)')
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -553,48 +490,15 @@ async def test_parse_form_manual_release_line_returns_identity_block_with_candid
 
 
 @pytest.mark.asyncio
-async def test_parse_form_manual_release_line_auto_handoffs_to_tidal_parse_for_strong_candidate(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-manual-handoff"
-    captured = {"url": None}
+async def test_parse_form_manual_release_line_auto_handoffs_to_tidal_parse_for_strong_candidate(monkeypatch, post_form):
+    _patch_lookup(monkeypatch, _manual_lookup_result([_lemon_candidate()], release_type="album"))
+    captured = _patch_build_result(monkeypatch, handoff=_manual_handoff_result)
 
-    candidate_url = "https://tidal.com/album/498548519"
-
-    async def fake_lookup_tidal_candidates(*args, **kwargs):
-        return _manual_lookup_result(
-            [
-                _manual_candidate(
-                    "498548519",
-                    "Look For Your Mind!",
-                    "2026-05-08",
-                    "2026",
-                    candidate_url,
-                    100,
-                    score_reasons=["title exact +60", "year exact +20", "type match +15", "relation match +5"],
-                )
-            ],
-            release_type="album",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["url"] = url
-        return _manual_handoff_result(url)
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url='The Lemon Twigs — «Look For Your Mind!» (2026)',
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form('The Lemon Twigs — «Look For Your Mind!» (2026)')
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
-    assert captured["url"] == candidate_url
+    assert captured["url"] == _CANDIDATE_URL
     assert "Источник: Manual metadata → TIDAL candidate" in body
     assert "Показать кандидатов TIDAL" in body
     assert "Look For Your Mind!" in body
@@ -602,48 +506,16 @@ async def test_parse_form_manual_release_line_auto_handoffs_to_tidal_parse_for_s
 
 
 @pytest.mark.asyncio
-async def test_parse_form_manual_release_line_without_year_can_auto_handoff(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-manual-no-year"
-    captured = {"url": None}
+async def test_parse_form_manual_release_line_without_year_can_auto_handoff(monkeypatch, post_form):
+    candidate = _lemon_candidate(score=80, reasons=["title exact +60", "type match +15", "relation match +5"])
+    _patch_lookup(monkeypatch, _manual_lookup_result([candidate], release_type="album"))
+    captured = _patch_build_result(monkeypatch, handoff=_manual_handoff_result)
 
-    candidate_url = "https://tidal.com/album/498548519"
-
-    async def fake_lookup_tidal_candidates(*args, **kwargs):
-        return _manual_lookup_result(
-            [
-                _manual_candidate(
-                    "498548519",
-                    "Look For Your Mind!",
-                    "2026-05-08",
-                    "2026",
-                    candidate_url,
-                    80,
-                    score_reasons=["title exact +60", "type match +15", "relation match +5"],
-                )
-            ],
-            release_type="album",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["url"] = url
-        return _manual_handoff_result(url)
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url='The Lemon Twigs — «Look For Your Mind!»',
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form('The Lemon Twigs — «Look For Your Mind!»')
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
-    assert captured["url"] == candidate_url
+    assert captured["url"] == _CANDIDATE_URL
     assert "Источник: Manual metadata → TIDAL candidate" in body
     assert "Показать кандидатов TIDAL" in body
 
@@ -660,32 +532,13 @@ async def test_parse_form_manual_release_line_without_year_can_auto_handoff(monk
 )
 async def test_parse_form_manual_release_type_selector_applies_to_manual_input(
     monkeypatch,
+    post_form,
     manual_release_type,
     expected_release_type,
 ):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-manual-release-type-{}".format(manual_release_type)
-    captured = {"release_type": None}
+    captured = _patch_capturing_lookup(monkeypatch)
 
-    async def fake_lookup_tidal_candidates(artist, title, release_type=None, year=None):
-        captured["release_type"] = release_type
-        return _manual_lookup_result(
-            [],
-            state="empty",
-            message="Кандидаты TIDAL не найдены. Используй ручной поиск в TIDAL.",
-            release_type=release_type,
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
-
-    response = await parse_form_handler(
-        request,
-        url='Westlife — «Uptown Girl»',
-        force_refresh="0",
-        manual_release_type=manual_release_type,
-        audio=None,
-    )
+    response = await post_form('Westlife — «Uptown Girl»', manual_release_type=manual_release_type)
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -697,25 +550,10 @@ async def test_parse_form_manual_release_type_selector_applies_to_manual_input(
 
 
 @pytest.mark.asyncio
-async def test_parse_form_tidal_url_ignores_manual_release_type_selector(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-tidal-selector"
-    captured = {"url": None}
+async def test_parse_form_tidal_url_ignores_manual_release_type_selector(monkeypatch, post_form):
+    captured = _patch_build_result(monkeypatch, handoff=lambda url: _valid_result())
 
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["url"] = url
-        return _valid_result()
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://tidal.com/album/478338199/u",
-        force_refresh="0",
-        manual_release_type="track",
-        audio=None,
-    )
+    response = await post_form("https://tidal.com/album/478338199/u", manual_release_type="track")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -725,12 +563,7 @@ async def test_parse_form_tidal_url_ignores_manual_release_type_selector(monkeyp
 
 
 @pytest.mark.asyncio
-async def test_parse_form_qobuz_url_ignores_manual_release_type_selector(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-qobuz-selector"
-    captured = {"release_type": None}
-
+async def test_parse_form_qobuz_url_ignores_manual_release_type_selector(monkeypatch, post_form):
     monkeypatch.setattr(
         main,
         "extract_qobuz_release_identity",
@@ -751,24 +584,11 @@ async def test_parse_form_qobuz_url_ignores_manual_release_type_selector(monkeyp
             "qobuz_track_id": None,
         },
     )
+    captured = _patch_capturing_lookup(monkeypatch)
 
-    async def fake_lookup_tidal_candidates(artist, title, release_type=None, year=None):
-        captured["release_type"] = release_type
-        return _manual_lookup_result(
-            [],
-            state="empty",
-            message="Кандидаты TIDAL не найдены. Используй ручной поиск в TIDAL.",
-            release_type=release_type,
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
-
-    response = await parse_form_handler(
-        request,
-        url="https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629",
-        force_refresh="0",
+    response = await post_form(
+        "https://www.qobuz.com/us-en/album/nation-sepultura/0016861959629",
         manual_release_type="track",
-        audio=None,
     )
 
     body = response.body.decode("utf-8")
@@ -778,129 +598,90 @@ async def test_parse_form_qobuz_url_ignores_manual_release_type_selector(monkeyp
     assert "Кандидаты TIDAL" in body
 
 
+_NO_HANDOFF_CASES = [
+    pytest.param(
+        'The Lemon Twigs — «Look For Your Mind!» (2026)',
+        None,
+        _manual_candidate(
+            "65483367", "A Dream Is All We Know", "2024-06-14", "2024",
+            "https://tidal.com/album/65483367", 42, score_reasons=_REASONS_DREAM,
+        ),
+        "album",
+        "auto-handoff should not run for weak candidates",
+        ["Кандидаты TIDAL требуют ручной проверки."],
+        id="weak_candidate",
+    ),
+    pytest.param(
+        'The Lemon Twigs — «Look For Your Mind!» (2026)',
+        None,
+        _lemon_candidate(
+            release_date="2024-05-08",
+            year="2024",
+            reasons=["title exact +60", "year mismatch -15", "type match +15", "relation match +5"],
+        ),
+        "album",
+        "auto-handoff should not run when year mismatches",
+        ["Look For Your Mind!"],
+        id="year_mismatch",
+    ),
+    pytest.param(
+        'Westlife — «Uptown Girl»',
+        "track",
+        _manual_candidate(
+            "501234567", "Uptown Girl", "2000-01-01", "2000",
+            "https://tidal.com/track/501234567", 42, candidate_type="track", score_reasons=_REASONS_TRACK,
+        ),
+        "track",
+        "auto-handoff should not run for weak track candidates",
+        ["Кандидаты TIDAL требуют ручной проверки."],
+        id="track_weak_candidate",
+    ),
+    pytest.param(
+        'Westlife — «Uptown Girl»',
+        "track",
+        _manual_candidate(
+            "501234567", "Uptown Girl", "2000-01-01", "2000",
+            "https://tidal.com/album/501234567", 100, candidate_type="album",
+            score_reasons=["title exact +60", "type mismatch -15"],
+        ),
+        "track",
+        "album-type candidate should not handoff for track selection",
+        [],
+        id="track_album_type_candidate",
+    ),
+]
+
+
 @pytest.mark.asyncio
-async def test_parse_form_manual_release_line_weak_candidate_stays_manual(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-manual-weak"
-    called = {"value": False}
+@pytest.mark.parametrize("url, manual_release_type, candidate, release_type, forbid, expected", _NO_HANDOFF_CASES)
+async def test_parse_form_manual_input_stays_manual_without_safe_handoff(
+    monkeypatch, post_form, url, manual_release_type, candidate, release_type, forbid, expected
+):
+    _patch_lookup(monkeypatch, _manual_lookup_result([candidate], release_type=release_type))
+    captured = _patch_build_result(monkeypatch, forbid=forbid)
 
-    async def fake_lookup_tidal_candidates(*args, **kwargs):
-        return _manual_lookup_result(
-            [
-                _manual_candidate(
-                    "65483367",
-                    "A Dream Is All We Know",
-                    "2024-06-14",
-                    "2024",
-                    "https://tidal.com/album/65483367",
-                    42,
-                    score_reasons=["title similarity 0.31 +0", "year mismatch -15", "type match +15"],
-                )
-            ],
-            release_type="album",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        called["value"] = True
-        raise AssertionError("auto-handoff should not run for weak candidates")
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url='The Lemon Twigs — «Look For Your Mind!» (2026)',
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form(url, manual_release_type=manual_release_type)
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
-    assert called["value"] is False
+    assert captured["called"] is False
     assert "Ручной ввод" in body
-    assert "Кандидаты TIDAL требуют ручной проверки." in body
+    for text in expected:
+        assert text in body
     assert "Источник: Manual metadata → TIDAL candidate" not in body
 
 
 @pytest.mark.asyncio
-async def test_parse_form_manual_release_line_year_mismatch_stays_manual(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-manual-year-mismatch"
-    called = {"value": False}
-
-    async def fake_lookup_tidal_candidates(*args, **kwargs):
-        return _manual_lookup_result(
-            [
-                _manual_candidate(
-                    "498548519",
-                    "Look For Your Mind!",
-                    "2024-05-08",
-                    "2024",
-                    "https://tidal.com/album/498548519",
-                    100,
-                    score_reasons=["title exact +60", "year mismatch -15", "type match +15", "relation match +5"],
-                )
-            ],
-            release_type="album",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        called["value"] = True
-        raise AssertionError("auto-handoff should not run when year mismatches")
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url='The Lemon Twigs — «Look For Your Mind!» (2026)',
-        force_refresh="0",
-        audio=None,
-    )
-
-    body = response.body.decode("utf-8")
-    assert response.status_code == 200
-    assert called["value"] is False
-    assert "Ручной ввод" in body
-    assert "Look For Your Mind!" in body
-    assert "Источник: Manual metadata → TIDAL candidate" not in body
-
-
-@pytest.mark.asyncio
-async def test_parse_form_manual_track_strong_candidate_handoffs(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-manual-track-handoff"
-    captured = {"url": None}
-
+async def test_parse_form_manual_track_strong_candidate_handoffs(monkeypatch, post_form):
     candidate_url = "https://tidal.com/track/501234567"
-
-    async def fake_lookup_tidal_candidates(*args, **kwargs):
-        return _manual_lookup_result(
-            [
-                _manual_candidate(
-                    "501234567",
-                    "Uptown Girl",
-                    "2000-01-01",
-                    "2000",
-                    candidate_url,
-                    100,
-                    candidate_type="track",
-                    score_reasons=["title exact +60", "type match +15", "relation match +5"],
-                )
-            ],
-            release_type="track",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["url"] = url
-        return _manual_handoff_result(
+    candidate = _manual_candidate(
+        "501234567", "Uptown Girl", "2000-01-01", "2000", candidate_url, 100,
+        candidate_type="track", score_reasons=_REASONS_TRACK,
+    )
+    _patch_lookup(monkeypatch, _manual_lookup_result([candidate], release_type="track"))
+    captured = _patch_build_result(
+        monkeypatch,
+        handoff=lambda url: _manual_handoff_result(
             url,
             artist="Westlife",
             title="Uptown Girl",
@@ -908,17 +689,10 @@ async def test_parse_form_manual_track_strong_candidate_handoffs(monkeypatch):
             entity_type="track",
             release_kind="single",
             blog_line1="Westlife — «Uptown Girl»",
-        )
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url='Westlife — «Uptown Girl»',
-        force_refresh="0",
-        manual_release_type="track",
-        audio=None,
+        ),
     )
+
+    response = await post_form('Westlife — «Uptown Girl»', manual_release_type="track")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -929,143 +703,15 @@ async def test_parse_form_manual_track_strong_candidate_handoffs(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_parse_form_manual_track_weak_candidate_stays_manual(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-manual-track-weak"
-    called = {"value": False}
+async def test_parse_form_manual_release_line_parse_failure_falls_back_to_identity(monkeypatch, post_form):
+    _patch_lookup(monkeypatch, _manual_lookup_result([_lemon_candidate()], release_type="album"))
+    captured = _patch_build_result(monkeypatch, error=RuntimeError("TIDAL parse failure"))
 
-    async def fake_lookup_tidal_candidates(*args, **kwargs):
-        return _manual_lookup_result(
-            [
-                _manual_candidate(
-                    "501234567",
-                    "Uptown Girl",
-                    "2000-01-01",
-                    "2000",
-                    "https://tidal.com/track/501234567",
-                    42,
-                    candidate_type="track",
-                    score_reasons=["title exact +60", "type match +15", "relation match +5"],
-                )
-            ],
-            release_type="track",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        called["value"] = True
-        raise AssertionError("auto-handoff should not run for weak track candidates")
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url='Westlife — «Uptown Girl»',
-        force_refresh="0",
-        manual_release_type="track",
-        audio=None,
-    )
+    response = await post_form('The Lemon Twigs — «Look For Your Mind!» (2026)')
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
-    assert called["value"] is False
-    assert "Ручной ввод" in body
-    assert "Кандидаты TIDAL требуют ручной проверки." in body
-    assert "Источник: Manual metadata → TIDAL candidate" not in body
-
-
-@pytest.mark.asyncio
-async def test_parse_form_manual_track_album_type_candidate_stays_manual(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-manual-track-album-type"
-    called = {"value": False}
-
-    async def fake_lookup_tidal_candidates(*args, **kwargs):
-        return _manual_lookup_result(
-            [
-                _manual_candidate(
-                    "501234567",
-                    "Uptown Girl",
-                    "2000-01-01",
-                    "2000",
-                    "https://tidal.com/album/501234567",
-                    100,
-                    candidate_type="album",
-                    score_reasons=["title exact +60", "type mismatch -15"],
-                )
-            ],
-            release_type="track",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        called["value"] = True
-        raise AssertionError("album-type candidate should not handoff for track selection")
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url='Westlife — «Uptown Girl»',
-        force_refresh="0",
-        manual_release_type="track",
-        audio=None,
-    )
-
-    body = response.body.decode("utf-8")
-    assert response.status_code == 200
-    assert called["value"] is False
-    assert "Ручной ввод" in body
-    assert "Источник: Manual metadata → TIDAL candidate" not in body
-
-
-@pytest.mark.asyncio
-async def test_parse_form_manual_release_line_parse_failure_falls_back_to_identity(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-manual-parse-failure"
-    captured = {"url": None}
-
-    candidate_url = "https://tidal.com/album/498548519"
-
-    async def fake_lookup_tidal_candidates(*args, **kwargs):
-        return _manual_lookup_result(
-            [
-                _manual_candidate(
-                    "498548519",
-                    "Look For Your Mind!",
-                    "2026-05-08",
-                    "2026",
-                    candidate_url,
-                    100,
-                    score_reasons=["title exact +60", "year exact +20", "type match +15", "relation match +5"],
-                )
-            ],
-            release_type="album",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["url"] = url
-        raise RuntimeError("TIDAL parse failure")
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url='The Lemon Twigs — «Look For Your Mind!» (2026)',
-        force_refresh="0",
-        audio=None,
-    )
-
-    body = response.body.decode("utf-8")
-    assert response.status_code == 200
-    assert captured["url"] == candidate_url
+    assert captured["url"] == _CANDIDATE_URL
     assert "Ручной ввод" in body
     assert "Лучший кандидат найден, но TIDAL parse не удался. Используй ссылку вручную." in body
     assert "Кандидаты TIDAL" in body
@@ -1073,21 +719,10 @@ async def test_parse_form_manual_release_line_parse_failure_falls_back_to_identi
 
 
 @pytest.mark.asyncio
-async def test_parse_form_internal_failure_returns_html_500(monkeypatch):
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        raise RuntimeError("db down")
+async def test_parse_form_internal_failure_returns_html_500(monkeypatch, post_form):
+    _patch_build_result(monkeypatch, error=RuntimeError("db down"))
 
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-form-500"
-
-    response = await parse_form_handler(
-        request,
-        url="https://tidal.com/browse/track/123",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form("https://tidal.com/browse/track/123", request_id="req-form-500")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 500
@@ -1097,24 +732,16 @@ async def test_parse_form_internal_failure_returns_html_500(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_parse_api_recoverable_degraded_result_stays_200(monkeypatch):
+async def test_parse_api_recoverable_degraded_result_stays_200(monkeypatch, get_api):
     degraded = _valid_result()
     degraded["note"] = "Discogs не нашёл подходящий релиз."
+    _patch_build_result(monkeypatch, handoff=lambda url: dict(degraded))
 
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        return dict(degraded)
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-    parse_api_handler = getattr(main.parse_api, "__wrapped__", main.parse_api)
-
-    response = await parse_api_handler(
-        _make_request(method="GET", path="/api/parse"),
-        url="https://tidal.com/browse/track/123",
-        force_refresh=0,
-    )
+    response = await get_api("https://tidal.com/browse/track/123")
 
     assert response["ok"] is True
     assert response["data"]["note"] == degraded["note"]
+
 
 
 @pytest.mark.asyncio
@@ -1221,10 +848,7 @@ def test_build_blog_output_cleans_artist_punctuation_in_tags():
     assert "#explore!popchoir" not in blog_output["line2"]
 
 
-def test_cached_blog_output_splits_multiple_artist_tags(tmp_path, monkeypatch):
-    db_path = _make_test_db(tmp_path)
-    monkeypatch.setattr(main, "get_db_connection", _db_connection_factory(db_path))
-
+def test_cached_blog_output_splits_multiple_artist_tags(cache_db):
     result = _valid_result()
     result["artist"] = "Allison Russell, Kara Jackson, Denitia & Explore! Pop Choir"
     result["title"] = "Cold April"
