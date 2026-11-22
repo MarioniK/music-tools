@@ -16,6 +16,9 @@
     musicnn_onnx_parity_scaffold.py убрана проверка roadmap-4.32, удалены 38 тестов удалённых
     отчётов (27 в test_evaluation_artifacts_validator, 10 в test_parity_scaffold_dry_run_evidence,
     1 устаревший в test_musicnn_onnx_output_capture, написан под API 4.51).
+- Мёртвый код validate_evaluation_artifacts.py удалён (faf51f4): 13 пустых *_REPORT_FILES, их циклы,
+  16 функций проверок, 54 осиротевших константы/функции, 13 полей ValidationSummary и их вывод в CLI;
+  4785 -> 2241 строка, из теста убраны проверки этих полей. 411 passed на полной копии в LXC 109.
 - Ранее в этот день: кнопка копирования ссылки в поле ввода (tidal-parser, 857a52c), проверена владельцем.
 
 ## Подтверждённое состояние
@@ -69,9 +72,9 @@ python3 /root/.local/share/music-tools-test-envs/run_tests.py genre-classifier t
 
 - OpenClaw и его копии Codex на сервере не трогать. Cursor удалён с сервера 2026-11-22
   (/root/.cursor-server и /root/.cursor).
-- В validate_evaluation_artifacts.py (4800 строк) остался мёртвый код проверок удалённых
-  parity-scaffold отчётов; docs/ классификатора (roadmap-документы) в основном устарели.
-  Удаление — отдельная задача. Оставшиеся ~138 тестов parser без уникального покрытия строк
+- docs/ классификатора (roadmap-документы) в основном устарели; на docs/runtime|lightweight|eval
+  и roadmap_2_* ссылаются app/evaluation/* и тесты test_roadmap_2_*, test_evaluation_*, так что
+  сначала составить список файлов без ссылок, показать владельцу, потом удалять. Оставшиеся ~138 тестов parser без уникального покрытия строк
   не удалялись: решать вручную.
 - Туннель tidal.intelihouse.by: 2026-10-13 в логах cloudflared были обрывы QUIC
   (timeout, DNS i/o timeout); мера (--protocol http2) обсуждалась, но не применялась.
