@@ -4,26 +4,29 @@
 
 ## Текущая задача и результат
 
-- В tidal-parser/app/templates/index.html добавлена кнопка копирования ссылки
-  рядом с полем ввода (слева от кнопки очистки): копирует текущее значение поля,
-  скрыта при пустом поле, после копирования на 1,2 с показывает «✓».
-  Для этого в общую функцию подписи добавлен необязательный data-copied-label;
-  остальные кнопки Copy работают как раньше. Стили — static/style.css
-  (.copy-url-btn), отступ текста в поле увеличен до 80px.
-- Версия style.css в ссылке заменена на v=copy-url-button (сброс кеша браузера).
+- Сокращены и починены тесты (2026-11-22, всё закоммичено и отправлено в origin/main):
+  - tidal-parser/tests: общие фикстуры post_form/get_api (conftest.py) и хелперы
+    (helpers.py: patch_lookup, patch_build_result, forbid_lookup, tidal_* построители);
+    тесты Qobuz, cache_safety, Apple Music, Spotify, Odesli переписаны на них,
+    однотипные сценарии параметризованы. Тестов 261, покрытие 78% без изменений,
+    объём tests/ 7183 -> 5784 строки.
+  - genre-classifier: починены 42 падающих lightweight-теста. Причина — коммит ce42c37
+    (roadmap 4.108) удалил parity-scaffold/*.json и roadmap-4.*.md, а валидатор и тесты на них
+    опирались. Списки удалённых файлов в validate_evaluation_artifacts.py обнулены, из
+    musicnn_onnx_parity_scaffold.py убрана проверка roadmap-4.32, удалены 38 тестов удалённых
+    отчётов (27 в test_evaluation_artifacts_validator, 10 в test_parity_scaffold_dry_run_evidence,
+    1 устаревший в test_musicnn_onnx_output_capture, написан под API 4.51).
+- Ранее в этот день: кнопка копирования ссылки в поле ввода (tidal-parser, 857a52c), проверена владельцем.
 
 ## Подтверждённое состояние
 
-- Изменение: 857a52c; commit, выкладка на сервер и push в origin/main разрешены
-  пользователем 2026-11-22. Владелец проверил кнопку на живом сервере: работает.
-- Деплой без сборки: ./app смонтирован, достаточно docker compose restart tidal-parser;
-  после рестарта /health 200, публичная страница отдаёт новую кнопку и CSS.
-- Локально проверено в браузере на отрендеренном шаблоне (jinja2): кнопка не
-  пересекается с крестиком, скрывается при пустом поле, реальный клик даёт «✓».
-  Автотестов на эти элементы UI нет; тесты парсера в этой задаче не запускались.
-- Ранее: 12c8d2c (убраны DTF-запросы из промта) развёрнут 2026-10-18; 7125a3c — 2026-10-11,
-  тогда 260 тестов парсера прошли. Классификатор: 407 passed / 42 failed
-  (historical/lightweight), core: 255 passed.
+- Коммиты 2026-11-22: 857a52c (кнопка), f01b98d, 8af67d4, 91b6360, a7e44e6, 3b68082, 5868802 (тесты
+  parser), c83b1ef (тесты classifier). Commit, выкладка на сервер и push разрешены владельцем.
+- Проверено на сервере (LXC 109): tidal-parser 261 passed, genre-classifier 411 passed
+  (tests, включая lightweight), падений нет. Покрытие parser измерено coverage: 831 из 3825
+  строк не покрыто (78%) до и после рефакторинга. Тяжёлый inference и /classify не запускались.
+- Кнопка копирования: деплой без сборки (./app смонтирован, достаточно restart), /health 200.
+- Ранее: 12c8d2c (убраны DTF-запросы из промта) развёрнут 2026-10-18; 7125a3c — 2026-10-11.
 
 ## Рабочий процесс и доступ
 
@@ -57,7 +60,7 @@
 
 ```bash
 python3 /root/.local/share/music-tools-test-envs/run_tests.py tidal-parser
-python3 /root/.local/share/music-tools-test-envs/run_tests.py genre-classifier tests -q --ignore=tests/lightweight
+python3 /root/.local/share/music-tools-test-envs/run_tests.py genre-classifier tests -q
 ```
 
 Не запускать тесты против production DB. На Mac pytest и зависимости не установлены.
@@ -66,8 +69,10 @@ python3 /root/.local/share/music-tools-test-envs/run_tests.py genre-classifier t
 
 - Cursor Server на сервере пока оставлен по просьбе пользователя: удалить после
   нового подтверждения. OpenClaw и его копии Codex не трогать.
-- Исправление 42 historical/lightweight тестов классификатора — отдельная задача.
-- Полный прогон тестов tidal-parser после 12c8d2c и 857a52c не подтверждён.
+- В validate_evaluation_artifacts.py (4800 строк) остался мёртвый код проверок удалённых
+  parity-scaffold отчётов; docs/ классификатора (roadmap-документы) в основном устарели.
+  Удаление — отдельная задача. Оставшиеся ~138 тестов parser без уникального покрытия строк
+  не удалялись: решать вручную.
 - Туннель tidal.intelihouse.by: 2026-10-13 в логах cloudflared были обрывы QUIC
   (timeout, DNS i/o timeout); мера (--protocol http2) обсуждалась, но не применялась.
 - Секреты не читать/печатать; обновление ключей пользователь отложил.
