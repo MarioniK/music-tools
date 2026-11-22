@@ -48,59 +48,31 @@ FIXTURE_MANIFEST_TEMPLATE_FILES = (
     Path("fixtures/template-local-musicnn-onnx-parity-fixture-manifest.json"),
 )
 
-PARITY_SCAFFOLD_DRY_RUN_OUTPUT_FILES = (
-    Path("parity-scaffold/example-musicnn-onnx-parity-scaffold-dry-run-output.json"),
-)
+# Parity-scaffold JSON reports below were removed in the post-v0.5.0 evidence cleanup
+# (roadmap 4.108), so nothing is required or validated for these groups anymore.
+PARITY_SCAFFOLD_DRY_RUN_OUTPUT_FILES = ()
 
-MUSICNN_ONNX_PARITY_SPIKE_REPORT_FILES = (
-    Path("parity-scaffold/musicnn-onnx-parity-spike-report.json"),
-)
+MUSICNN_ONNX_PARITY_SPIKE_REPORT_FILES = ()
 
-MUSICNN_ONNX_PARITY_ENVIRONMENT_PREPARATION_REPORT_FILES = (
-    Path("parity-scaffold/musicnn-onnx-parity-environment-preparation-report.json"),
-)
+MUSICNN_ONNX_PARITY_ENVIRONMENT_PREPARATION_REPORT_FILES = ()
 
-MUSICNN_ONNX_FIXTURES_AND_BASELINE_RUNTIME_DECISION_REPORT_FILES = (
-    Path("parity-scaffold/musicnn-onnx-parity-fixtures-and-baseline-runtime-decision-report.json"),
-)
+MUSICNN_ONNX_FIXTURES_AND_BASELINE_RUNTIME_DECISION_REPORT_FILES = ()
 
-MUSICNN_ONNX_FIXTURE_SET_AND_BASELINE_RUNTIME_STRATEGY_REPORT_FILES = (
-    Path("parity-scaffold/musicnn-onnx-parity-fixture-set-and-baseline-runtime-strategy-report.json"),
-)
+MUSICNN_ONNX_FIXTURE_SET_AND_BASELINE_RUNTIME_STRATEGY_REPORT_FILES = ()
 
-MUSICNN_ONNX_FIXTURES_AND_SCOPED_BASELINE_CAPTURE_APPROVAL_REPORT_FILES = (
-    Path(
-        "parity-scaffold/"
-        "musicnn-onnx-parity-fixtures-and-scoped-baseline-capture-approval-report.json"
-    ),
-)
+MUSICNN_ONNX_FIXTURES_AND_SCOPED_BASELINE_CAPTURE_APPROVAL_REPORT_FILES = ()
 
-MUSICNN_ONNX_FIXTURE_PLACEMENT_AND_SCOPED_BASELINE_READINESS_REPORT_FILES = (
-    Path(
-        "parity-scaffold/"
-        "musicnn-onnx-parity-fixture-placement-and-scoped-baseline-readiness-report.json"
-    ),
-)
+MUSICNN_ONNX_FIXTURE_PLACEMENT_AND_SCOPED_BASELINE_READINESS_REPORT_FILES = ()
 
-MUSICNN_LEGACY_BASELINE_CAPTURE_REPORT_FILES = (
-    Path("parity-scaffold/musicnn-legacy-baseline-capture-report.json"),
-)
+MUSICNN_LEGACY_BASELINE_CAPTURE_REPORT_FILES = ()
 
-MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_REPORT_FILES = (
-    Path("parity-scaffold/musicnn-onnx-preprocessing-alignment-report.json"),
-)
+MUSICNN_ONNX_PREPROCESSING_ALIGNMENT_REPORT_FILES = ()
 
-MUSICNN_ONNX_OUTPUT_CAPTURE_REPORT_FILES = (
-    Path("parity-scaffold/musicnn-onnx-output-capture-report.json"),
-)
+MUSICNN_ONNX_OUTPUT_CAPTURE_REPORT_FILES = ()
 
-MUSICNN_ONNX_FIXTURE_VISIBILITY_STRATEGY_REPORT_FILES = (
-    Path("parity-scaffold/musicnn-onnx-fixture-visibility-strategy-report.json"),
-)
+MUSICNN_ONNX_FIXTURE_VISIBILITY_STRATEGY_REPORT_FILES = ()
 
-MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_REPORT_FILES = (
-    Path("parity-scaffold/musicnn-legacy-baseline-import-order-diagnostic-report.json"),
-)
+MUSICNN_LEGACY_BASELINE_IMPORT_ORDER_DIAGNOSTIC_REPORT_FILES = ()
 
 MUSICNN_ONNX_PRAGMATIC_PREPROCESSING_PROTOTYPE_REPORT_FILES = (
     Path("evidence/roadmap-4.56-onnx-musicnn-pragmatic-preprocessing-prototype-report.json"),
@@ -110,9 +82,7 @@ MUSICNN_TENSORFLOW_INPUT_MUSICCNN_AVAILABILITY_PROBE_REPORT_FILES = (
     Path("evidence/roadmap-4.57-tensorflow-input-musicnn-availability-probe-report.json"),
 )
 
-MUSICNN_ONNX_ISOLATED_ESSENTIA_RUNTIME_APPROVAL_REPORT_FILES = (
-    Path("parity-scaffold/musicnn-onnx-isolated-essentia-runtime-approval-report.json"),
-)
+MUSICNN_ONNX_ISOLATED_ESSENTIA_RUNTIME_APPROVAL_REPORT_FILES = ()
 
 REQUIRED_LOCAL_ARTIFACT_METADATA_FIELDS = (
     "schema_version",

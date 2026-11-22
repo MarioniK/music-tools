@@ -31,10 +31,6 @@ DEFAULT_ENVIRONMENT_PREPARATION_REPORT = (
     SERVICE_ROOT
     / "docs/lightweight/evaluation/parity-scaffold/musicnn-onnx-parity-environment-preparation-report.json"
 )
-ROADMAP_4_32_DOC = (
-    SERVICE_ROOT / "docs/lightweight/roadmap-4.32-musicnn-json-metadata-diff-review-parity-readiness-gate.md"
-)
-
 SCAFFOLD_TYPE = "local-only metadata-validation"
 NEXT_STEP_RECOMMENDATION = "review dry-run metadata-validation output before any inference approval"
 TMP_ARTIFACT_ROOT_PATH = Path("/tmp/music-tools-onnx-parity")
@@ -356,34 +352,6 @@ def _validate_report_semantics(
     )
 
 
-def _validate_roadmap_4_32_documentation(result: dict[str, Any]) -> None:
-    try:
-        text = ROADMAP_4_32_DOC.read_text(encoding="utf-8").casefold()
-    except OSError as exc:
-        _add_check(result, "roadmap_4_32_json_equivalence_documented", False, f"unable to read Roadmap 4.32 doc: {exc}")
-        return
-
-    required_markers = (
-        "parsed_json_equal=true",
-        "labels_set_equal_any=true",
-        "label_order_equal_any=true",
-        "classification=harmless_formatting_only",
-        "does not approve inference",
-        "does not approve `onnxruntime`",
-        "does not approve provider implementation",
-        "does not approve production migration",
-    )
-    missing = [marker for marker in required_markers if marker not in text]
-    _add_check(
-        result,
-        "roadmap_4_32_json_equivalence_documented",
-        not missing,
-        "Roadmap 4.32 JSON equivalence decision is documented"
-        if not missing
-        else f"Roadmap 4.32 JSON equivalence markers missing: {missing}",
-    )
-
-
 def run_dry_run(evidence_report_path: Path) -> dict[str, Any]:
     result = _base_result(evidence_report_path, "dry-run")
     try:
@@ -393,7 +361,6 @@ def run_dry_run(evidence_report_path: Path) -> dict[str, Any]:
         artifacts = _artifact_records(data)
         artifacts_by_role = _validate_artifact_metadata(artifacts, result)
         _validate_report_semantics(data, artifacts_by_role, result)
-        _validate_roadmap_4_32_documentation(result)
     except ValidationIssue as exc:
         _add_check(result, "evidence_report_readable_json", False, str(exc))
     except OSError as exc:
