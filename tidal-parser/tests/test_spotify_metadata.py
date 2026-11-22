@@ -1,22 +1,15 @@
 import pytest
-from starlette.requests import Request
 
 from app import main
 from app import spotify_metadata
+from helpers import patch_build_result, patch_lookup
+from helpers import tidal_candidate as _tidal_candidate
+from helpers import tidal_handoff_result as _tidal_handoff_result
+from helpers import tidal_lookup_result
 
 
-def _make_request(method="POST", path="/"):
-    scope = {
-        "type": "http",
-        "method": method,
-        "path": path,
-        "headers": [],
-        "query_string": b"",
-        "server": ("testserver", 80),
-        "client": ("127.0.0.1", 12345),
-        "scheme": "http",
-    }
-    return Request(scope)
+def _tidal_lookup_result(candidates, release_type):
+    return tidal_lookup_result(candidates, release_type, query="Spotify candidate lookup")
 
 
 def _spotify_identity(
@@ -47,80 +40,6 @@ def _spotify_identity(
         "primary_source": "json_ld",
         "confidence": "high",
         "warnings": [],
-    }
-
-
-def _tidal_candidate(
-    candidate_id,
-    title,
-    release_date,
-    year,
-    tidal_url,
-    score,
-    candidate_type="album",
-    is_best_candidate=True,
-    score_reasons=None,
-):
-    return {
-        "id": candidate_id,
-        "type": candidate_type,
-        "title": title,
-        "release_date": release_date,
-        "year": year,
-        "source_relation": "tracks" if candidate_type == "track" else "albums",
-        "tidal_url": tidal_url,
-        "display_line": "{} ({}) [{}]".format(title, release_date or year or "—", candidate_type),
-        "score": score,
-        "score_reasons": score_reasons or [],
-        "is_best_candidate": is_best_candidate,
-    }
-
-
-def _tidal_lookup_result(candidates, release_type):
-    best_candidate = candidates[0] if candidates else None
-    match_state = "strong" if best_candidate and (best_candidate.get("score") or 0) >= 75 else "weak"
-    if not candidates:
-        match_state = "empty"
-
-    return {
-        "state": "success",
-        "message": None,
-        "query": "Spotify candidate lookup",
-        "release_type": release_type,
-        "candidates": candidates,
-        "tidal_candidates_best_score": best_candidate.get("score") if best_candidate else None,
-        "tidal_candidates_best_candidate": best_candidate,
-        "tidal_candidates_match_state": match_state,
-    }
-
-
-def _tidal_handoff_result(url, artist, title, release_year, entity_type, release_kind):
-    return {
-        "source_url": url,
-        "entity_type": entity_type,
-        "tidal_id": "498548519",
-        "artist": artist,
-        "title": title,
-        "album": None,
-        "release_kind": release_kind,
-        "release_year": release_year,
-        "country": "—",
-        "genres": [],
-        "final_genres": [],
-        "audio_genres_raw": [],
-        "audio_genres_pretty": [],
-        "blog_output": {
-            "line1": "{} — «{}»{}".format(
-                artist,
-                title,
-                " ({})".format(release_year) if entity_type != "track" and release_year is not None else "",
-            ),
-            "line2": "#music #music2026",
-        },
-        "source_name": "tidal",
-        "meta_source_url": url,
-        "note": None,
-        "from_cache": False,
     }
 
 
@@ -260,271 +179,124 @@ def test_extract_spotify_release_identity_rejects_unsupported_paths():
     assert result["warnings"]
 
 
-@pytest.mark.asyncio
-async def test_parse_form_spotify_album_auto_handoffs_to_tidal_parse(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-spotify-album-handoff"
-    captured = {"url": None}
+_AFTER_HOURS = (
+    "The Weeknd",
+    "After Hours",
+    2020,
+    "2020-03-20",
+    "album",
+    "4yP0hdKOZPNshxUOjY0cZj",
+    "https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj",
+)
+_THE_MORNING = (
+    "The Weeknd",
+    "The Morning",
+    2011,
+    "2011-01-01",
+    "track",
+    "4jBfUB4kQJCWOrjGLQqhO0",
+    "https://open.spotify.com/track/4jBfUB4kQJCWOrjGLQqhO0",
+)
+_AFTER_HOURS_URL = "https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj"
+_REASONS_FULL = ["title exact +60", "year exact +20", "type match +15", "relation match +5"]
 
-    candidate_url = "https://tidal.com/album/498548519"
 
+def _patch_spotify_identity(monkeypatch, identity_args):
     monkeypatch.setattr(
         main,
         "extract_spotify_release_identity",
-        lambda url: _spotify_identity(
-            url,
-            "The Weeknd",
-            "After Hours",
-            2020,
-            "2020-03-20",
-            "album",
-            "4yP0hdKOZPNshxUOjY0cZj",
-            "https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj",
+        lambda url: _spotify_identity(url, *identity_args),
+    )
+
+
+_HANDOFF_CASES = [
+    pytest.param(
+        _AFTER_HOURS,
+        _AFTER_HOURS_URL,
+        _tidal_candidate(
+            "498548519", "After Hours", "2020-03-20", "2020",
+            "https://tidal.com/album/498548519", 100, candidate_type="album", score_reasons=_REASONS_FULL,
+        ),
+        "album",
+        ("The Weeknd", "After Hours", "album", 2020),
+        id="album",
+    ),
+    pytest.param(
+        _THE_MORNING,
+        "https://open.spotify.com/track/4jBfUB4kQJCWOrjGLQqhO0",
+        _tidal_candidate(
+            "123456789", "The Morning", "2011-01-01", "2011",
+            "https://tidal.com/track/123456789", 100, candidate_type="track", score_reasons=_REASONS_FULL,
+        ),
+        "track",
+        ("The Weeknd", "The Morning", "track", 2011),
+        id="track",
+    ),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("identity, url, candidate, release_type, expected_args", _HANDOFF_CASES)
+async def test_parse_form_spotify_strong_candidate_auto_handoffs_to_tidal_parse(
+    monkeypatch, post_form, identity, url, candidate, release_type, expected_args
+):
+    artist, title, year, _release_date, entity_type, _item_id, _canonical = identity
+    _patch_spotify_identity(monkeypatch, identity)
+    patch_lookup(monkeypatch, _tidal_lookup_result([candidate], release_type=release_type), expected_args)
+    captured = patch_build_result(
+        monkeypatch,
+        handoff=lambda handoff_url: _tidal_handoff_result(
+            handoff_url,
+            artist=artist,
+            title=title,
+            release_year=year,
+            entity_type=entity_type,
+            release_kind=entity_type,
         ),
     )
 
-    async def fake_lookup(artist, title, release_type=None, year=None):
-        assert artist == "The Weeknd"
-        assert title == "After Hours"
-        assert release_type == "album"
-        assert year == 2020
-        return _tidal_lookup_result(
-            [
-                _tidal_candidate(
-                    "498548519",
-                    "After Hours",
-                    "2020-03-20",
-                    "2020",
-                    candidate_url,
-                    100,
-                    candidate_type="album",
-                    score_reasons=["title exact +60", "year exact +20", "type match +15", "relation match +5"],
-                )
-            ],
-            release_type="album",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["url"] = url
-        return _tidal_handoff_result(
-            url,
-            artist="The Weeknd",
-            title="After Hours",
-            release_year=2020,
-            entity_type="album",
-            release_kind="album",
-        )
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form(url)
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
-    assert captured["url"] == candidate_url
+    assert captured["url"] == candidate["tidal_url"]
     assert "Источник: Spotify → TIDAL candidate" in body
     assert "Selected TIDAL URL" in body
 
 
 @pytest.mark.asyncio
-async def test_parse_form_spotify_track_auto_handoffs_to_tidal_parse(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-spotify-track-handoff"
-    captured = {"url": None}
-
-    candidate_url = "https://tidal.com/track/123456789"
-
-    monkeypatch.setattr(
-        main,
-        "extract_spotify_release_identity",
-        lambda url: _spotify_identity(
-            url,
-            "The Weeknd",
-            "The Morning",
-            2011,
-            "2011-01-01",
-            "track",
-            "4jBfUB4kQJCWOrjGLQqhO0",
-            "https://open.spotify.com/track/4jBfUB4kQJCWOrjGLQqhO0",
-        ),
+async def test_parse_form_spotify_weak_candidate_stays_identity(monkeypatch, post_form):
+    candidate = _tidal_candidate(
+        "498548519", "After Hours", "2020-03-20", "2020",
+        "https://tidal.com/album/498548519", 40, candidate_type="album",
+        score_reasons=["title similarity 0.31 +0", "type match +15"],
     )
+    _patch_spotify_identity(monkeypatch, _AFTER_HOURS)
+    patch_lookup(monkeypatch, _tidal_lookup_result([candidate], release_type="album"))
+    captured = patch_build_result(monkeypatch, forbid="weak Spotify candidate should not auto-handoff")
 
-    async def fake_lookup(artist, title, release_type=None, year=None):
-        assert artist == "The Weeknd"
-        assert title == "The Morning"
-        assert release_type == "track"
-        assert year == 2011
-        return _tidal_lookup_result(
-            [
-                _tidal_candidate(
-                    "123456789",
-                    "The Morning",
-                    "2011-01-01",
-                    "2011",
-                    candidate_url,
-                    100,
-                    candidate_type="track",
-                    score_reasons=["title exact +60", "year exact +20", "type match +15", "relation match +5"],
-                )
-            ],
-            release_type="track",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["url"] = url
-        return _tidal_handoff_result(
-            url,
-            artist="The Weeknd",
-            title="The Morning",
-            release_year=2011,
-            entity_type="track",
-            release_kind="track",
-        )
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://open.spotify.com/track/4jBfUB4kQJCWOrjGLQqhO0",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form(_AFTER_HOURS_URL)
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
-    assert captured["url"] == candidate_url
-    assert "Источник: Spotify → TIDAL candidate" in body
-    assert "Selected TIDAL URL" in body
-
-
-@pytest.mark.asyncio
-async def test_parse_form_spotify_weak_candidate_stays_identity(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-spotify-weak"
-    called = {"value": False}
-
-    monkeypatch.setattr(
-        main,
-        "extract_spotify_release_identity",
-        lambda url: _spotify_identity(
-            url,
-            "The Weeknd",
-            "After Hours",
-            2020,
-            "2020-03-20",
-            "album",
-            "4yP0hdKOZPNshxUOjY0cZj",
-            "https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj",
-        ),
-    )
-
-    async def fake_lookup(*args, **kwargs):
-        return _tidal_lookup_result(
-            [
-                _tidal_candidate(
-                    "498548519",
-                    "After Hours",
-                    "2020-03-20",
-                    "2020",
-                    "https://tidal.com/album/498548519",
-                    40,
-                    candidate_type="album",
-                    score_reasons=["title similarity 0.31 +0", "type match +15"],
-                )
-            ],
-            release_type="album",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        called["value"] = True
-        raise AssertionError("weak Spotify candidate should not auto-handoff")
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj",
-        force_refresh="0",
-        audio=None,
-    )
-
-    body = response.body.decode("utf-8")
-    assert response.status_code == 200
-    assert called["value"] is False
+    assert captured["called"] is False
     assert "Spotify identity" in body
     assert "Provider ID:" in body
     assert "Источник: Spotify → TIDAL candidate" not in body
 
 
 @pytest.mark.asyncio
-async def test_parse_form_spotify_parse_failure_falls_back_to_identity(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-spotify-parse-failure"
-    captured = {"url": None}
-
+async def test_parse_form_spotify_parse_failure_falls_back_to_identity(monkeypatch, post_form):
     candidate_url = "https://tidal.com/album/498548519"
-
-    monkeypatch.setattr(
-        main,
-        "extract_spotify_release_identity",
-        lambda url: _spotify_identity(
-            url,
-            "The Weeknd",
-            "After Hours",
-            2020,
-            "2020-03-20",
-            "album",
-            "4yP0hdKOZPNshxUOjY0cZj",
-            "https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj",
-        ),
+    candidate = _tidal_candidate(
+        "498548519", "After Hours", "2020-03-20", "2020",
+        candidate_url, 100, candidate_type="album", score_reasons=_REASONS_FULL,
     )
+    _patch_spotify_identity(monkeypatch, _AFTER_HOURS)
+    patch_lookup(monkeypatch, _tidal_lookup_result([candidate], release_type="album"))
+    captured = patch_build_result(monkeypatch, error=RuntimeError("TIDAL parse failure"))
 
-    async def fake_lookup(*args, **kwargs):
-        return _tidal_lookup_result(
-            [
-                _tidal_candidate(
-                    "498548519",
-                    "After Hours",
-                    "2020-03-20",
-                    "2020",
-                    candidate_url,
-                    100,
-                    candidate_type="album",
-                    score_reasons=["title exact +60", "year exact +20", "type match +15", "relation match +5"],
-                )
-            ],
-            release_type="album",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["url"] = url
-        raise RuntimeError("TIDAL parse failure")
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form(_AFTER_HOURS_URL)
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -536,22 +308,10 @@ async def test_parse_form_spotify_parse_failure_falls_back_to_identity(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_parse_form_spotify_artist_page_remains_unsupported(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-spotify-unsupported"
+async def test_parse_form_spotify_artist_page_remains_unsupported(monkeypatch, post_form):
+    patch_build_result(monkeypatch, forbid="unsupported Spotify path should not reach TIDAL build_result")
 
-    async def fake_build_result(*args, **kwargs):
-        raise AssertionError("unsupported Spotify path should not reach TIDAL build_result")
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://open.spotify.com/artist/1Xyo4u8uXC1ZmMpatF05PJ",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form("https://open.spotify.com/artist/1Xyo4u8uXC1ZmMpatF05PJ")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
