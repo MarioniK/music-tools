@@ -4,14 +4,29 @@ from app import main
 
 
 def patch_lookup(monkeypatch, result, expected_args=None):
-    """lookup_tidal_candidates всегда возвращает `result`; expected_args = (artist, title, release_type, year)."""
+    """lookup_tidal_candidates всегда возвращает `result`; expected_args = (artist, title, release_type, year).
+
+    Возвращает список вызовов [(artist, title, release_type, year), ...].
+    """
+    calls = []
 
     async def fake_lookup(artist=None, title=None, release_type=None, year=None, *args, **kwargs):
+        calls.append((artist, title, release_type, year))
         if expected_args is not None:
             assert (artist, title, release_type, year) == expected_args
         return result
 
     monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
+    return calls
+
+
+def forbid_lookup(monkeypatch, message):
+    """Любой вызов lookup_tidal_candidates -> AssertionError(message)."""
+
+    async def forbidden_lookup(*args, **kwargs):
+        raise AssertionError(message)
+
+    monkeypatch.setattr(main, "lookup_tidal_candidates", forbidden_lookup)
 
 
 def patch_build_result(monkeypatch, handoff=None, error=None, forbid=None):

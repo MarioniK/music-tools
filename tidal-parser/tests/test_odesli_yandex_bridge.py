@@ -1,22 +1,8 @@
 import pytest
-from starlette.requests import Request
 
 from app import main
 from app import odesli_metadata
-
-
-def _make_request(method="POST", path="/"):
-    scope = {
-        "type": "http",
-        "method": method,
-        "path": path,
-        "headers": [],
-        "query_string": b"",
-        "server": ("testserver", 80),
-        "client": ("127.0.0.1", 12345),
-        "scheme": "http",
-    }
-    return Request(scope)
+from helpers import forbid_lookup, patch_build_result, patch_lookup
 
 
 def _yandex_identity(
@@ -256,8 +242,8 @@ def test_extract_odesli_yandex_identity_returns_safe_warning_for_bad_json():
     assert result["warnings"]
 
 
-@pytest.mark.asyncio
-async def test_lookup_yandex_tidal_candidates_with_artist_fallback_prefers_normalized_artist(monkeypatch):
+def _patch_pink_lookup(monkeypatch, pink_candidate_url):
+    """Поиск по «P!nk» ничего не находит, по нормализованному «Pink» находит кандидата. Возвращает список вызовов."""
     calls = []
 
     async def fake_run_timed_stage(stage_name, awaitable):
@@ -273,7 +259,7 @@ async def test_lookup_yandex_tidal_candidates_with_artist_fallback_prefers_norma
             candidate = _tidal_candidate(
                 "candidate-1",
                 "The Truth About Love",
-                "https://tidal.com/album/111111",
+                pink_candidate_url,
                 80,
                 candidate_type="album",
                 year=None,
@@ -284,6 +270,20 @@ async def test_lookup_yandex_tidal_candidates_with_artist_fallback_prefers_norma
 
     monkeypatch.setattr(main, "run_timed_stage", fake_run_timed_stage)
     monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
+    return calls
+
+
+def _patch_yandex_identity(monkeypatch, *args, **kwargs):
+    monkeypatch.setattr(
+        main,
+        "extract_odesli_yandex_identity",
+        lambda url: _yandex_identity(url, *args, **kwargs),
+    )
+
+
+@pytest.mark.asyncio
+async def test_lookup_yandex_tidal_candidates_with_artist_fallback_prefers_normalized_artist(monkeypatch):
+    calls = _patch_pink_lookup(monkeypatch, "https://tidal.com/album/111111")
 
     result = await main._lookup_yandex_tidal_candidates_with_artist_fallback(
         "P!nk",
@@ -305,52 +305,28 @@ async def test_lookup_yandex_tidal_candidates_with_artist_fallback_prefers_norma
 
 
 @pytest.mark.asyncio
-async def test_parse_form_yandex_track_with_direct_tidal_bridge_calls_tidal_parse(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-yandex-direct-bridge"
-
+async def test_parse_form_yandex_track_with_direct_tidal_bridge_calls_tidal_parse(monkeypatch, post_form):
     candidate_url = "https://listen.tidal.com/track/399044602"
-    captured = {}
-
-    monkeypatch.setattr(
-        main,
-        "extract_odesli_yandex_identity",
-        lambda url: _yandex_identity(
-            url,
-            "SALUKI, FRIENDLY THUG 52 NGG",
-            "BOLSHIE KURTKI",
-            "track",
-            "132723441",
-            album_id="33932468",
-            track_id="132723441",
-            odesli_page_url="https://song.link/ya/132723441",
-            odesli_tidal_url=candidate_url,
-        ),
+    _patch_yandex_identity(
+        monkeypatch,
+        "SALUKI, FRIENDLY THUG 52 NGG",
+        "BOLSHIE KURTKI",
+        "track",
+        "132723441",
+        album_id="33932468",
+        track_id="132723441",
+        odesli_page_url="https://song.link/ya/132723441",
+        odesli_tidal_url=candidate_url,
     )
+    captured = patch_build_result(
+        monkeypatch,
+        handoff=lambda url: _tidal_result(url, "SALUKI, FRIENDLY THUG 52 NGG", "BOLSHIE KURTKI", "track", "track"),
+    )
+    forbid_lookup(monkeypatch, "candidates should not be queried when direct TIDAL bridge is available")
 
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["url"] = url
-        return _tidal_result(
-            url,
-            "SALUKI, FRIENDLY THUG 52 NGG",
-            "BOLSHIE KURTKI",
-            "track",
-            "track",
-        )
-
-    async def forbidden_lookup(*args, **kwargs):
-        raise AssertionError("candidates should not be queried when direct TIDAL bridge is available")
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-    monkeypatch.setattr(main, "lookup_tidal_candidates", forbidden_lookup)
-
-    response = await parse_form_handler(
-        request,
-        url="https://music.yandex.ru/album/33932468/track/132723441?lang=uz",
-        force_refresh="0",
+    response = await post_form(
+        "https://music.yandex.ru/album/33932468/track/132723441?lang=uz",
         manual_release_type="auto",
-        audio=None,
     )
 
     body = response.body.decode("utf-8")
@@ -363,110 +339,55 @@ async def test_parse_form_yandex_track_with_direct_tidal_bridge_calls_tidal_pars
 
 
 @pytest.mark.asyncio
-async def test_parse_form_yandex_album_with_metadata_fallback_handoffs_to_tidal_parse(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-yandex-album-handoff"
-
+async def test_parse_form_yandex_album_with_metadata_fallback_handoffs_to_tidal_parse(monkeypatch, post_form):
     candidate_url = "https://tidal.com/album/5255432"
-    captured = {}
-
-    monkeypatch.setattr(
-        main,
-        "extract_odesli_yandex_identity",
-        lambda url: _yandex_identity(
-            url,
-            "BEARWOLF",
-            "Голоса",
-            "album",
-            "31774859",
-            album_id="31774859",
-            track_id=None,
-            odesli_page_url="https://album.link/ya/31774859",
-            odesli_tidal_url=None,
-        ),
+    _patch_yandex_identity(
+        monkeypatch,
+        "BEARWOLF",
+        "Голоса",
+        "album",
+        "31774859",
+        album_id="31774859",
+        track_id=None,
+        odesli_page_url="https://album.link/ya/31774859",
+        odesli_tidal_url=None,
+    )
+    candidate = _tidal_candidate("candidate-1", "Голоса", candidate_url, 100, candidate_type="album", year=None)
+    lookup_calls = patch_lookup(monkeypatch, _tidal_lookup_result([candidate], "album"))
+    captured = patch_build_result(
+        monkeypatch,
+        handoff=lambda url: _tidal_result(url, "BEARWOLF", "Голоса", "album", "album"),
     )
 
-    async def fake_lookup(artist, title, release_type=None, year=None):
-        captured["lookup"] = (artist, title, release_type, year)
-        candidate = _tidal_candidate(
-            "candidate-1",
-            "Голоса",
-            candidate_url,
-            100,
-            candidate_type="album",
-            year=None,
-        )
-        return _tidal_lookup_result([candidate], release_type)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["build_result_url"] = url
-        return _tidal_result(url, "BEARWOLF", "Голоса", "album", "album")
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://music.yandex.ru/album/31774859?lang=en",
-        force_refresh="0",
-        manual_release_type="auto",
-        audio=None,
-    )
+    response = await post_form("https://music.yandex.ru/album/31774859?lang=en", manual_release_type="auto")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
-    assert captured["lookup"] == ("BEARWOLF", "Голоса", "album", None)
-    assert captured["build_result_url"] == candidate_url
+    assert lookup_calls[-1] == ("BEARWOLF", "Голоса", "album", None)
+    assert captured["url"] == candidate_url
     assert "Yandex Music → Odesli metadata → TIDAL candidate" in body
     assert "https://album.link/ya/31774859" in body
     assert "https://tidal.com/album/5255432" in body
 
 
 @pytest.mark.asyncio
-async def test_parse_form_yandex_album_weak_candidate_stays_identity(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-yandex-album-weak"
-
-    monkeypatch.setattr(
-        main,
-        "extract_odesli_yandex_identity",
-        lambda url: _yandex_identity(
-            url,
-            "BEARWOLF",
-            "Голоса",
-            "album",
-            "31774859",
-            album_id="31774859",
-            odesli_page_url="https://album.link/ya/31774859",
-        ),
+async def test_parse_form_yandex_album_weak_candidate_stays_identity(monkeypatch, post_form):
+    _patch_yandex_identity(
+        monkeypatch,
+        "BEARWOLF",
+        "Голоса",
+        "album",
+        "31774859",
+        album_id="31774859",
+        odesli_page_url="https://album.link/ya/31774859",
     )
-
-    async def fake_lookup(artist, title, release_type=None, year=None):
-        candidate = _tidal_candidate(
-            "candidate-1",
-            "Голоса",
-            "https://tidal.com/album/5255432",
-            80,
-            candidate_type="album",
-            year=None,
-        )
-        return _tidal_lookup_result([candidate], release_type)
-
-    async def forbidden_build_result(*args, **kwargs):
-        raise AssertionError("weak candidate should not handoff")
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
-    monkeypatch.setattr(main, "build_result", forbidden_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://music.yandex.ru/album/31774859?lang=en",
-        force_refresh="0",
-        manual_release_type="auto",
-        audio=None,
+    candidate = _tidal_candidate(
+        "candidate-1", "Голоса", "https://tidal.com/album/5255432", 80, candidate_type="album", year=None
     )
+    patch_lookup(monkeypatch, _tidal_lookup_result([candidate], "album"))
+    patch_build_result(monkeypatch, forbid="weak candidate should not handoff")
+
+    response = await post_form("https://music.yandex.ru/album/31774859?lang=en", manual_release_type="auto")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -477,63 +398,22 @@ async def test_parse_form_yandex_album_weak_candidate_stays_identity(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_parse_form_yandex_album_with_pink_artist_uses_normalized_lookup_without_changing_display(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-yandex-pink-fallback"
-
-    monkeypatch.setattr(
-        main,
-        "extract_odesli_yandex_identity",
-        lambda url: _yandex_identity(
-            url,
-            "P!nk",
-            "The Truth About Love",
-            "album",
-            "594538",
-            album_id="594538",
-            odesli_page_url="https://album.link/ya/594538",
-        ),
+async def test_parse_form_yandex_album_with_pink_artist_uses_normalized_lookup_without_changing_display(
+    monkeypatch, post_form
+):
+    _patch_yandex_identity(
+        monkeypatch,
+        "P!nk",
+        "The Truth About Love",
+        "album",
+        "594538",
+        album_id="594538",
+        odesli_page_url="https://album.link/ya/594538",
     )
+    calls = _patch_pink_lookup(monkeypatch, "https://tidal.com/album/222222")
+    patch_build_result(monkeypatch, forbid="weak candidate should not handoff")
 
-    calls = []
-
-    async def fake_run_timed_stage(stage_name, awaitable):
-        assert stage_name == "tidal_openapi_candidates"
-        return await awaitable
-
-    async def fake_lookup_tidal_candidates(artist, title, release_type=None, year=None):
-        calls.append((artist, title, release_type, year))
-        if artist == "P!nk":
-            return _tidal_lookup_result([], release_type)
-
-        if artist == "Pink":
-            candidate = _tidal_candidate(
-                "candidate-1",
-                "The Truth About Love",
-                "https://tidal.com/album/222222",
-                80,
-                candidate_type="album",
-                year=None,
-            )
-            return _tidal_lookup_result([candidate], release_type)
-
-        raise AssertionError("unexpected artist query: {}".format(artist))
-
-    async def forbidden_build_result(*args, **kwargs):
-        raise AssertionError("weak candidate should not handoff")
-
-    monkeypatch.setattr(main, "run_timed_stage", fake_run_timed_stage)
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
-    monkeypatch.setattr(main, "build_result", forbidden_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://music.yandex.ru/album/594538",
-        force_refresh="0",
-        manual_release_type="auto",
-        audio=None,
-    )
+    response = await post_form("https://music.yandex.ru/album/594538", manual_release_type="auto")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -548,54 +428,23 @@ async def test_parse_form_yandex_album_with_pink_artist_uses_normalized_lookup_w
 
 
 @pytest.mark.asyncio
-async def test_parse_form_yandex_odesli_failure_is_safe(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-yandex-odesli-failure"
-
+async def test_parse_form_yandex_odesli_failure_is_safe(monkeypatch, post_form):
     monkeypatch.setattr(
         main,
         "extract_odesli_yandex_identity",
         lambda url: {
-            "input_state": "extracted_release_identity",
-            "provider": "yandex_music",
-            "provider_label": "Yandex Music",
-            "source_url": url,
-            "original_url": url,
-            "resolved_metadata_url": None,
-            "canonical_url": url.split("?", 1)[0],
-            "odesli_page_url": None,
-            "odesli_tidal_url": None,
-            "provider_item_id": "31774859",
-            "yandex_album_id": "31774859",
-            "yandex_track_id": None,
-            "artist": None,
-            "title": None,
-            "year": None,
-            "release_date": None,
-            "release_type": None,
+            **_yandex_identity(url, None, None, None, "31774859", album_id="31774859", confidence="low"),
             "cover_url": None,
             "api_provider": None,
             "entity_unique_id": None,
             "extraction_method": "none",
             "primary_source": None,
-            "confidence": "low",
             "warnings": ["Yandex Music metadata не удалось получить через Odesli."],
         },
     )
+    forbid_lookup(monkeypatch, "lookup should not run without identity")
 
-    async def forbidden_lookup(*args, **kwargs):
-        raise AssertionError("lookup should not run without identity")
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", forbidden_lookup)
-
-    response = await parse_form_handler(
-        request,
-        url="https://music.yandex.ru/album/31774859?lang=en",
-        force_refresh="0",
-        manual_release_type="auto",
-        audio=None,
-    )
+    response = await post_form("https://music.yandex.ru/album/31774859?lang=en", manual_release_type="auto")
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
