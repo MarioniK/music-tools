@@ -1,22 +1,9 @@
 import pytest
-from starlette.requests import Request
 
 from app import apple_music_metadata
 from app import main
+from helpers import patch_build_result, patch_lookup
 
-
-def _make_request(method="POST", path="/"):
-    scope = {
-        "type": "http",
-        "method": method,
-        "path": path,
-        "headers": [],
-        "query_string": b"",
-        "server": ("testserver", 80),
-        "client": ("127.0.0.1", 12345),
-        "scheme": "http",
-    }
-    return Request(scope)
 
 
 def _apple_identity(
@@ -328,417 +315,188 @@ def test_extract_apple_music_release_identity_uses_fetch_and_canonical_url(monke
     assert "fetch warning" in result["warnings"]
 
 
-@pytest.mark.asyncio
-async def test_parse_form_apple_music_album_auto_handoffs_to_tidal_parse(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-apple-album-handoff"
-    captured = {"url": None}
+_FOLKLORE = (
+    "Taylor Swift",
+    "folklore (deluxe version)",
+    2020,
+    "2020-07-24",
+    "album",
+    "1528112358",
+    "https://music.apple.com/us/album/folklore-deluxe-version/1528112358",
+)
+_CARDIGAN = (
+    "Taylor Swift",
+    "cardigan",
+    2020,
+    "2020-07-24",
+    "track",
+    "1524801580",
+    "https://music.apple.com/us/song/cardigan/1524801580",
+)
+_CHOOSIN_TEXAS = (
+    "Ella Langley",
+    "Choosin' Texas",
+    2025,
+    "2025-10-17",
+    "track",
+    "184493215",
+    "https://music.apple.com/by/song/choosin-texas/184493215",
+)
+_FOLKLORE_URL = "https://music.apple.com/us/album/folklore/1528112358"
+_CHOOSIN_TEXAS_URL = "https://music.apple.com/by/album/choosin-texas/1844932149?i=184493215"
+_REASONS_FULL = ["title exact +60", "year exact +20", "type match +15", "relation match +5"]
 
-    candidate_url = "https://tidal.com/album/498548519"
 
+def _patch_apple_identity(monkeypatch, identity_args):
     monkeypatch.setattr(
         main,
         "extract_apple_music_release_identity",
-        lambda url: _apple_identity(
-            url,
-            "Taylor Swift",
-            "folklore (deluxe version)",
-            2020,
-            "2020-07-24",
-            "album",
-            "1528112358",
-            "https://music.apple.com/us/album/folklore-deluxe-version/1528112358",
+        lambda url: _apple_identity(url, *identity_args),
+    )
+
+
+_HANDOFF_CASES = [
+    pytest.param(
+        _FOLKLORE,
+        _FOLKLORE_URL,
+        _tidal_candidate(
+            "498548519", "folklore (deluxe version)", "2020-07-24", "2020",
+            "https://tidal.com/album/498548519", 100, candidate_type="album", score_reasons=_REASONS_FULL,
+        ),
+        "album",
+        ("Taylor Swift", "folklore (deluxe version)", "album", 2020),
+        ["Copy Music prompt"],
+        id="album",
+    ),
+    pytest.param(
+        _CARDIGAN,
+        "https://music.apple.com/us/song/1524801580",
+        _tidal_candidate(
+            "501234567", "cardigan", "2020-07-24", "2020",
+            "https://tidal.com/track/501234567", 100, candidate_type="track", score_reasons=_REASONS_FULL,
+        ),
+        "track",
+        ("Taylor Swift", "cardigan", "track", 2020),
+        [],
+        id="track",
+    ),
+    pytest.param(
+        _CHOOSIN_TEXAS,
+        _CHOOSIN_TEXAS_URL,
+        _tidal_candidate(
+            "501234568", "Choosin' Texas", None, None,
+            "https://tidal.com/track/501234568", 80, candidate_type="track",
+            score_reasons=["title exact +60", "year unavailable +0", "type match +15", "relation match +5"],
+        ),
+        "track",
+        ("Ella Langley", "Choosin' Texas", "track", 2025),
+        [],
+        id="track_without_candidate_year_uses_apple_specific_handoff",
+    ),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("identity, url, candidate, release_type, expected_args, extra", _HANDOFF_CASES)
+async def test_parse_form_apple_music_strong_candidate_auto_handoffs_to_tidal_parse(
+    monkeypatch, post_form, identity, url, candidate, release_type, expected_args, extra
+):
+    artist, title, year, _release_date, entity_type, _item_id, _canonical = identity
+    _patch_apple_identity(monkeypatch, identity)
+    patch_lookup(monkeypatch, _tidal_lookup_result([candidate], release_type=release_type), expected_args)
+    captured = patch_build_result(
+        monkeypatch,
+        handoff=lambda handoff_url: _tidal_handoff_result(
+            handoff_url,
+            artist=artist,
+            title=title,
+            release_year=year,
+            entity_type=entity_type,
+            release_kind=entity_type,
         ),
     )
 
-    async def fake_lookup(artist, title, release_type=None, year=None):
-        assert artist == "Taylor Swift"
-        assert title == "folklore (deluxe version)"
-        assert release_type == "album"
-        assert year == 2020
-        return _tidal_lookup_result(
-            [
-                _tidal_candidate(
-                    "498548519",
-                    "folklore (deluxe version)",
-                    "2020-07-24",
-                    "2020",
-                    candidate_url,
-                    100,
-                    candidate_type="album",
-                    score_reasons=["title exact +60", "year exact +20", "type match +15", "relation match +5"],
-                )
-            ],
-            release_type="album",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["url"] = url
-        return _tidal_handoff_result(
-            url,
-            artist="Taylor Swift",
-            title="folklore (deluxe version)",
-            release_year=2020,
-            entity_type="album",
-            release_kind="album",
-        )
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://music.apple.com/us/album/folklore/1528112358",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form(url)
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
-    assert captured["url"] == candidate_url
+    assert captured["url"] == candidate["tidal_url"]
     assert "Источник: Apple Music → TIDAL candidate" in body
     assert "Selected TIDAL URL" in body
-    assert "Copy Music prompt" in body
+    for text in extra:
+        assert text in body
+
+
+_NO_HANDOFF_CASES = [
+    pytest.param(
+        _CHOOSIN_TEXAS,
+        _CHOOSIN_TEXAS_URL,
+        [
+            _tidal_candidate(
+                "501234568", "Choosin' Texas", None, None,
+                "https://tidal.com/track/501234568", 80, candidate_type="track",
+            ),
+            _tidal_candidate(
+                "501234569", "Choosin' Texas", None, None,
+                "https://tidal.com/track/501234569", 80, candidate_type="track",
+            ),
+        ],
+        "track",
+        "ambiguous Apple candidates should not auto-handoff",
+        [],
+        id="track_with_ambiguous_tied_candidates",
+    ),
+    pytest.param(
+        _FOLKLORE,
+        _FOLKLORE_URL,
+        [
+            _tidal_candidate(
+                "498548519", "folklore (deluxe version)", "2020-07-24", "2020",
+                "https://tidal.com/album/498548519", 42, candidate_type="album",
+                score_reasons=["title similarity 0.31 +0", "type match +15"],
+            ),
+        ],
+        "album",
+        "auto-handoff should not run for weak Apple candidates",
+        ["Кандидаты TIDAL требуют ручной проверки."],
+        id="weak_candidate",
+    ),
+]
 
 
 @pytest.mark.asyncio
-async def test_parse_form_apple_music_track_auto_handoffs_to_tidal_parse(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-apple-track-handoff"
-    captured = {"url": None}
+@pytest.mark.parametrize("identity, url, candidates, release_type, forbid, extra", _NO_HANDOFF_CASES)
+async def test_parse_form_apple_music_stays_identity_without_safe_handoff(
+    monkeypatch, post_form, identity, url, candidates, release_type, forbid, extra
+):
+    _patch_apple_identity(monkeypatch, identity)
+    patch_lookup(monkeypatch, _tidal_lookup_result(candidates, release_type=release_type))
+    captured = patch_build_result(monkeypatch, forbid=forbid)
 
-    candidate_url = "https://tidal.com/track/501234567"
-
-    monkeypatch.setattr(
-        main,
-        "extract_apple_music_release_identity",
-        lambda url: _apple_identity(
-            url,
-            "Taylor Swift",
-            "cardigan",
-            2020,
-            "2020-07-24",
-            "track",
-            "1524801580",
-            "https://music.apple.com/us/song/cardigan/1524801580",
-        ),
-    )
-
-    async def fake_lookup(artist, title, release_type=None, year=None):
-        assert artist == "Taylor Swift"
-        assert title == "cardigan"
-        assert release_type == "track"
-        assert year == 2020
-        return _tidal_lookup_result(
-            [
-                _tidal_candidate(
-                    "501234567",
-                    "cardigan",
-                    "2020-07-24",
-                    "2020",
-                    candidate_url,
-                    100,
-                    candidate_type="track",
-                    score_reasons=["title exact +60", "year exact +20", "type match +15", "relation match +5"],
-                )
-            ],
-            release_type="track",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["url"] = url
-        return _tidal_handoff_result(
-            url,
-            artist="Taylor Swift",
-            title="cardigan",
-            release_year=2020,
-            entity_type="track",
-            release_kind="track",
-        )
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://music.apple.com/us/song/1524801580",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form(url)
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
-    assert captured["url"] == candidate_url
-    assert "Источник: Apple Music → TIDAL candidate" in body
-    assert "Selected TIDAL URL" in body
-
-
-@pytest.mark.asyncio
-async def test_parse_form_apple_music_track_without_candidate_year_uses_apple_specific_handoff(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-apple-track-no-year"
-    captured = {"url": None}
-
-    candidate_url = "https://tidal.com/track/501234568"
-
-    monkeypatch.setattr(
-        main,
-        "extract_apple_music_release_identity",
-        lambda url: _apple_identity(
-            url,
-            "Ella Langley",
-            "Choosin' Texas",
-            2025,
-            "2025-10-17",
-            "track",
-            "184493215",
-            "https://music.apple.com/by/song/choosin-texas/184493215",
-        ),
-    )
-
-    async def fake_lookup(artist, title, release_type=None, year=None):
-        assert artist == "Ella Langley"
-        assert title == "Choosin' Texas"
-        assert release_type == "track"
-        assert year == 2025
-        return _tidal_lookup_result(
-            [
-                _tidal_candidate(
-                    "501234568",
-                    "Choosin' Texas",
-                    None,
-                    None,
-                    candidate_url,
-                    80,
-                    candidate_type="track",
-                    score_reasons=["title exact +60", "year unavailable +0", "type match +15", "relation match +5"],
-                )
-            ],
-            release_type="track",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["url"] = url
-        return _tidal_handoff_result(
-            url,
-            artist="Ella Langley",
-            title="Choosin' Texas",
-            release_year=2025,
-            entity_type="track",
-            release_kind="track",
-        )
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://music.apple.com/by/album/choosin-texas/1844932149?i=184493215",
-        force_refresh="0",
-        audio=None,
-    )
-
-    body = response.body.decode("utf-8")
-    assert response.status_code == 200
-    assert captured["url"] == candidate_url
-    assert "Источник: Apple Music → TIDAL candidate" in body
-    assert "Selected TIDAL URL" in body
-
-
-@pytest.mark.asyncio
-async def test_parse_form_apple_music_track_with_ambiguous_tied_candidates_stays_identity(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-apple-track-ambiguous"
-    called = {"value": False}
-
-    monkeypatch.setattr(
-        main,
-        "extract_apple_music_release_identity",
-        lambda url: _apple_identity(
-            url,
-            "Ella Langley",
-            "Choosin' Texas",
-            2025,
-            "2025-10-17",
-            "track",
-            "184493215",
-            "https://music.apple.com/by/song/choosin-texas/184493215",
-        ),
-    )
-
-    async def fake_lookup(*args, **kwargs):
-        return _tidal_lookup_result(
-            [
-                _tidal_candidate(
-                    "501234568",
-                    "Choosin' Texas",
-                    None,
-                    None,
-                    "https://tidal.com/track/501234568",
-                    80,
-                    candidate_type="track",
-                ),
-                _tidal_candidate(
-                    "501234569",
-                    "Choosin' Texas",
-                    None,
-                    None,
-                    "https://tidal.com/track/501234569",
-                    80,
-                    candidate_type="track",
-                ),
-            ],
-            release_type="track",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        called["value"] = True
-        raise AssertionError("ambiguous Apple candidates should not auto-handoff")
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://music.apple.com/by/album/choosin-texas/1844932149?i=184493215",
-        force_refresh="0",
-        audio=None,
-    )
-
-    body = response.body.decode("utf-8")
-    assert response.status_code == 200
-    assert called["value"] is False
+    assert captured["called"] is False
     assert "Apple Music identity" in body
     assert "Provider ID:" in body
+    for text in extra:
+        assert text in body
     assert "Источник: Apple Music → TIDAL candidate" not in body
 
 
 @pytest.mark.asyncio
-async def test_parse_form_apple_music_weak_candidate_stays_identity(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-apple-weak"
-    called = {"value": False}
-
-    monkeypatch.setattr(
-        main,
-        "extract_apple_music_release_identity",
-        lambda url: _apple_identity(
-            url,
-            "Taylor Swift",
-            "folklore (deluxe version)",
-            2020,
-            "2020-07-24",
-            "album",
-            "1528112358",
-            "https://music.apple.com/us/album/folklore-deluxe-version/1528112358",
-        ),
-    )
-
-    async def fake_lookup(*args, **kwargs):
-        return _tidal_lookup_result(
-            [
-                _tidal_candidate(
-                    "498548519",
-                    "folklore (deluxe version)",
-                    "2020-07-24",
-                    "2020",
-                    "https://tidal.com/album/498548519",
-                    42,
-                    candidate_type="album",
-                    score_reasons=["title similarity 0.31 +0", "type match +15"],
-                )
-            ],
-            release_type="album",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        called["value"] = True
-        raise AssertionError("auto-handoff should not run for weak Apple candidates")
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://music.apple.com/us/album/folklore/1528112358",
-        force_refresh="0",
-        audio=None,
-    )
-
-    body = response.body.decode("utf-8")
-    assert response.status_code == 200
-    assert called["value"] is False
-    assert "Apple Music identity" in body
-    assert "Provider ID:" in body
-    assert "Кандидаты TIDAL требуют ручной проверки." in body
-    assert "Источник: Apple Music → TIDAL candidate" not in body
-
-
-@pytest.mark.asyncio
-async def test_parse_form_apple_music_parse_failure_falls_back_to_identity(monkeypatch):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-apple-parse-failure"
-    captured = {"url": None}
-
+async def test_parse_form_apple_music_parse_failure_falls_back_to_identity(monkeypatch, post_form):
     candidate_url = "https://tidal.com/album/498548519"
-
-    monkeypatch.setattr(
-        main,
-        "extract_apple_music_release_identity",
-        lambda url: _apple_identity(
-            url,
-            "Taylor Swift",
-            "folklore (deluxe version)",
-            2020,
-            "2020-07-24",
-            "album",
-            "1528112358",
-            "https://music.apple.com/us/album/folklore-deluxe-version/1528112358",
-        ),
+    candidate = _tidal_candidate(
+        "498548519", "folklore (deluxe version)", "2020-07-24", "2020",
+        candidate_url, 100, candidate_type="album", score_reasons=_REASONS_FULL,
     )
+    _patch_apple_identity(monkeypatch, _FOLKLORE)
+    patch_lookup(monkeypatch, _tidal_lookup_result([candidate], release_type="album"))
+    captured = patch_build_result(monkeypatch, error=RuntimeError("TIDAL parse failure"))
 
-    async def fake_lookup(*args, **kwargs):
-        return _tidal_lookup_result(
-            [
-                _tidal_candidate(
-                    "498548519",
-                    "folklore (deluxe version)",
-                    "2020-07-24",
-                    "2020",
-                    candidate_url,
-                    100,
-                    candidate_type="album",
-                    score_reasons=["title exact +60", "year exact +20", "type match +15", "relation match +5"],
-                )
-            ],
-            release_type="album",
-        )
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup)
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["url"] = url
-        raise RuntimeError("TIDAL parse failure")
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url="https://music.apple.com/us/album/folklore/1528112358",
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form(_FOLKLORE_URL)
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200
@@ -756,22 +514,10 @@ async def test_parse_form_apple_music_parse_failure_falls_back_to_identity(monke
         ("https://music.yandex.ru/artist/12345", "Yandex Music"),
     ],
 )
-async def test_parse_form_yandex_remains_unsupported(monkeypatch, url, expected_provider):
-    parse_form_handler = getattr(main.parse_form, "__wrapped__", main.parse_form)
-    request = _make_request()
-    request.state.request_id = "req-unsupported-{}".format(expected_provider.lower().replace(" ", "-"))
+async def test_parse_form_yandex_remains_unsupported(monkeypatch, post_form, url, expected_provider):
+    patch_build_result(monkeypatch, forbid="unsupported provider should not reach TIDAL build_result")
 
-    async def fake_build_result(*args, **kwargs):
-        raise AssertionError("unsupported provider should not reach TIDAL build_result")
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-
-    response = await parse_form_handler(
-        request,
-        url=url,
-        force_refresh="0",
-        audio=None,
-    )
+    response = await post_form(url)
 
     body = response.body.decode("utf-8")
     assert response.status_code == 200

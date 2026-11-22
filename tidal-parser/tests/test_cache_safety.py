@@ -4,6 +4,8 @@ import sqlite3
 import pytest
 
 from app import main
+from helpers import patch_build_result as _patch_build_result
+from helpers import patch_lookup as _patch_lookup
 
 
 @pytest.fixture
@@ -157,13 +159,6 @@ def _manual_handoff_result(
     return result
 
 
-def _patch_lookup(monkeypatch, result):
-    async def fake_lookup_tidal_candidates(*args, **kwargs):
-        return result
-
-    monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
-
-
 def _patch_capturing_lookup(monkeypatch):
     """Запоминает release_type, с которым вызван поиск кандидатов; результат всегда пустой."""
     captured = {"release_type": None}
@@ -180,22 +175,6 @@ def _patch_capturing_lookup(monkeypatch):
     monkeypatch.setattr(main, "lookup_tidal_candidates", fake_lookup_tidal_candidates)
     return captured
 
-
-def _patch_build_result(monkeypatch, handoff=None, error=None, forbid=None):
-    """Подменяет build_result: handoff(url) -> результат, error -> исключение, forbid -> AssertionError."""
-    captured = {"url": None, "called": False}
-
-    async def fake_build_result(url, force_refresh=False, baseline=None):
-        captured["url"] = url
-        captured["called"] = True
-        if forbid:
-            raise AssertionError(forbid)
-        if error:
-            raise error
-        return handoff(url)
-
-    monkeypatch.setattr(main, "build_result", fake_build_result)
-    return captured
 
 
 
