@@ -67,8 +67,8 @@ python3 /root/.local/share/music-tools-test-envs/run_tests.py genre-classifier t
 
 ## Отложено и ограничения
 
-- Cursor Server на сервере пока оставлен по просьбе пользователя: удалить после
-  нового подтверждения. OpenClaw и его копии Codex не трогать.
+- OpenClaw и его копии Codex на сервере не трогать. Cursor Server удалён 2026-11-22
+  (/root/.cursor-server); /root/.cursor оставлен.
 - В validate_evaluation_artifacts.py (4800 строк) остался мёртвый код проверок удалённых
   parity-scaffold отчётов; docs/ классификатора (roadmap-документы) в основном устарели.
   Удаление — отдельная задача. Оставшиеся ~138 тестов parser без уникального покрытия строк
