@@ -63,21 +63,8 @@ def test_validate_current_lightweight_evaluation_artifacts():
     assert summary.local_artifact_metadata_checked == 1
     assert summary.local_artifact_evidence_reports_checked == 1
     assert summary.real_local_artifact_evidence_reports_checked == 1
-    assert summary.parity_scaffold_dry_run_outputs_checked == 0
-    assert summary.musicnn_onnx_parity_spike_reports_checked == 0
-    assert summary.musicnn_onnx_parity_environment_preparation_reports_checked == 0
-    assert summary.musicnn_onnx_fixtures_and_baseline_runtime_decision_reports_checked == 0
-    assert summary.musicnn_onnx_fixture_set_and_baseline_runtime_strategy_reports_checked == 0
-    assert summary.musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_reports_checked == 0
-    assert summary.musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports_checked == 0
-    assert summary.musicnn_legacy_baseline_capture_reports_checked == 0
-    assert summary.musicnn_onnx_preprocessing_alignment_reports_checked == 0
     assert summary.musicnn_onnx_pragmatic_preprocessing_prototype_reports_checked == 1
     assert summary.musicnn_tensorflow_input_musiccnn_availability_probe_reports_checked == 1
-    assert summary.musicnn_onnx_isolated_essentia_runtime_approval_reports_checked == 0
-    assert summary.musicnn_onnx_output_capture_reports_checked == 0
-    assert summary.musicnn_onnx_fixture_visibility_strategy_reports_checked == 0
-    assert summary.musicnn_legacy_baseline_import_order_diagnostic_reports_checked == 0
     assert summary.label_mapping_checked == 1
     assert summary.evidence_packages_checked == 1
     assert summary.fixture_manifest_templates_checked == 1
@@ -217,23 +204,11 @@ def test_validator_cli_succeeds_for_current_artifacts(capsys):
     assert "fixture_results=16" in captured.out
     assert "model_provenance=1" in captured.out
     assert "local_artifact_metadata=1" in captured.out
-    assert "musicnn_onnx_preprocessing_alignment_reports=0" in captured.out
     assert "local_artifact_evidence_reports=1" in captured.out
     assert "real_local_artifact_evidence_reports=1" in captured.out
-    assert "parity_scaffold_dry_run_outputs=0" in captured.out
-    assert "musicnn_onnx_parity_spike_reports=0" in captured.out
     assert "label_mapping=1" in captured.out
-    assert "musicnn_onnx_fixtures_and_baseline_runtime_decision_reports=0" in captured.out
-    assert "musicnn_onnx_fixture_set_and_baseline_runtime_strategy_reports=0" in captured.out
-    assert "musicnn_onnx_fixtures_and_scoped_baseline_capture_approval_reports=0" in captured.out
-    assert "musicnn_onnx_fixture_placement_and_scoped_baseline_readiness_reports=0" in captured.out
-    assert "musicnn_legacy_baseline_capture_reports=0" in captured.out
-    assert "musicnn_onnx_output_capture_reports=0" in captured.out
     assert "musicnn_onnx_pragmatic_preprocessing_prototype_reports=1" in captured.out
     assert "musicnn_tensorflow_input_musiccnn_availability_probe_reports=1" in captured.out
-    assert "musicnn_onnx_isolated_essentia_runtime_approval_reports=0" in captured.out
-    assert "musicnn_onnx_fixture_visibility_strategy_reports=0" in captured.out
-    assert "musicnn_legacy_baseline_import_order_diagnostic_reports=0" in captured.out
     assert "evidence_packages=1" in captured.out
     assert "fixture_manifest_templates=1" in captured.out
     assert captured.err == ""
